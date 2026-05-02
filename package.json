@@ -10,19 +10,38 @@
     "test": "./test/lint.test.sh || true"
   },
   "dependencies": {
-    "next": "^13.5.1",
+    "next": "^9.3.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "sqlite3": "^6.0.1"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
     "autoprefixer": "latest",
     "eslint": "8.45.0",
     "eslint-config-next": "13.5.1",
     "postcss": "latest",
     "tailwindcss": "latest",
-    "typescript": "5.2.2",
-    "@typescript-eslint/parser": "latest",
-    "@typescript-eslint/eslint-plugin": "latest"
+    "typescript": "5.2.2"
+  }
+  ,
+  "overrides": {
+    "minimatch": "latest",
+    "postcss": "latest",
+    "serialize-javascript": "latest",
+    "devalue": "latest",
+    "elliptic": "latest",
+    "http-proxy": "latest",
+    "json5": "latest",
+    "loader-utils": "latest",
+    "terser": "latest",
+    "uuid": "latest",
+    "node-fetch": "latest",
+    "object-path": "latest",
+    "send": "latest",
+    "browserslist": "latest",
+    "cookie": "latest",
+    "on-headers": "latest"
   }
 }
