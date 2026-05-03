@@ -25,15 +25,25 @@ export default function RoadmapForm({ onCreate }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
+    <form onSubmit={handleSubmit} className="grid gap-3">
       <div>
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titulo del roadmap" className="w-full border rounded px-3 py-2" />
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Título del roadmap"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+        />
       </div>
       <div>
-        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Descripción (opcional)" className="w-full border rounded px-3 py-2" />
+        <textarea
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Descripción (opcional)"
+          className="min-h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+        />
       </div>
       <div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded" disabled={loading || !title}>
+        <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300" disabled={loading || !title}>
           {loading ? 'Guardando...' : 'Crear roadmap'}
         </button>
       </div>

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { openDb } from '../../../../lib/db'
+import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -7,7 +7,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const { roadmap_id } = req.query
     if (roadmap_id) {
-      const rows = await db.all('SELECT * FROM modules WHERE roadmap_id = ? ORDER BY id', [roadmap_id])
+      const rows = await db.all(
+        'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
+        [roadmap_id]
+      )
       return res.status(200).json(rows)
     }
     const rows = await db.all('SELECT * FROM modules ORDER BY id DESC')
