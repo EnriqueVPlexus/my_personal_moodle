@@ -1,0 +1,58 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { writeAuditLog } from '../../../lib/audit'
+import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { openDb } from '../../../lib/db'
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const db = await openDb()
+  const { id } = req.query
+
+  if (req.method === 'GET') {
+    if (!(await requireReadAccess(req, res, db))) return
+    const roadmap = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
+    if (!roadmap) return res.status(404).json({ error: 'not found' })
+    const modules = await db.all(
+      'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
+      [id]
+    )
+    return res.status(200).json({ ...roadmap, modules })
+  }
+
+  if (req.method === 'PUT') {
+    const admin = await requireAdmin(req, res, db)
+    if (!admin) return
+    const { title, description } = req.body
+    await db.run('UPDATE roadmaps SET title = ?, description = ? WHERE id = ?', [title, description || null, id])
+    const updated = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
+    await writeAuditLog({
+      db,
+      req,
+      user: admin,
+      action: 'roadmap.update',
+      entityType: 'roadmap',
+      entityId: String(id),
+      details: { title }
+    })
+    return res.status(200).json(updated)
+  }
+
+  if (req.method === 'DELETE') {
+    const admin = await requireAdmin(req, res, db)
+    if (!admin) return
+    const roadmap = await db.get('SELECT title FROM roadmaps WHERE id = ?', [id])
+    await db.run('DELETE FROM roadmaps WHERE id = ?', [id])
+    await writeAuditLog({
+      db,
+      req,
+      user: admin,
+      action: 'roadmap.delete',
+      entityType: 'roadmap',
+      entityId: String(id),
+      details: { title: roadmap?.title || null }
+    })
+    return res.status(204).end()
+  }
+
+  res.setHeader('Allow', 'GET, PUT, DELETE')
+  res.status(405).end('Method Not Allowed')
+}
