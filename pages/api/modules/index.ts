@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -18,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
+    if (!(await requireAdmin(req, res, db))) return
     const { title, roadmap_id } = req.body
     if (!title || !roadmap_id) return res.status(400).json({ error: 'title and roadmap_id required' })
     const result = await db.run('INSERT INTO modules (roadmap_id, title) VALUES (?, ?)', [roadmap_id, title])

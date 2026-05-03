@@ -3,6 +3,7 @@ import Layout from '../../components/Layout'
 import RoadmapCard from '../../components/RoadmapCard'
 import RoadmapForm from '../../components/RoadmapForm'
 import Link from 'next/link'
+import { useAuth } from '../../components/AuthProvider'
 
 type Roadmap = {
   id: number
@@ -12,6 +13,7 @@ type Roadmap = {
 }
 
 export default function RoadmapsPage() {
+  const { isAdmin } = useAuth()
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([])
 
   async function load() {
@@ -58,13 +60,19 @@ export default function RoadmapsPage() {
             )}
           </div>
 
-          <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-950">Crear nuevo roadmap</h2>
-            <p className="mt-1 text-sm text-gray-600">Añade rutas internas rápidas para seguir ampliando la cantera.</p>
-            <div className="mt-4">
-              <RoadmapForm onCreate={() => load()} />
+          {isAdmin ? (
+            <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-950">Crear nuevo roadmap</h2>
+              <p className="mt-1 text-sm text-gray-600">Añade rutas internas rápidas para seguir ampliando la cantera.</p>
+              <div className="mt-4">
+                <RoadmapForm onCreate={() => load()} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-600 shadow-sm">
+              Modo lectura: entra con una cuenta admin para crear nuevos roadmaps.
+            </div>
+          )}
         </section>
       </main>
     </Layout>

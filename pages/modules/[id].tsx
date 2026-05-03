@@ -3,11 +3,13 @@ import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import LessonForm from '../../components/LessonForm'
 import ModuleLearningContent from '../../components/ModuleLearningContent'
+import { useAuth } from '../../components/AuthProvider'
 import { LearningModule } from '../../lib/roadmapPresentation'
 
 export default function ModulePage() {
   const router = useRouter()
   const { id } = router.query
+  const { isAdmin } = useAuth()
   const [module, setModule] = useState<LearningModule | null>(null)
   const [lessons, setLessons] = useState<any[]>([])
 
@@ -69,11 +71,13 @@ export default function ModulePage() {
                   <div>
                     <div className={`text-sm ${l.completed ? 'line-through text-gray-500' : ''}`}>{l.title}</div>
                   </div>
-                  <div className="space-x-2">
-                    <button className="text-sm font-medium text-green-600" onClick={() => toggleComplete(l)}>
-                      {l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="space-x-2">
+                      <button className="text-sm font-medium text-green-600" onClick={() => toggleComplete(l)}>
+                        {l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -81,12 +85,16 @@ export default function ModulePage() {
             )}
           </div>
 
-          <div className="mt-4">
-            <h3 className="font-semibold text-gray-950">Añadir lección</h3>
-            <div className="mt-2">
-              <LessonForm moduleId={Number(id)} onCreate={() => load()} />
+          {isAdmin ? (
+            <div className="mt-4">
+              <h3 className="font-semibold text-gray-950">Añadir lección</h3>
+              <div className="mt-2">
+                <LessonForm moduleId={Number(id)} onCreate={() => load()} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">Modo lectura: solo admin puede añadir o marcar lecciones.</p>
+          )}
         </section>
       </main>
     </Layout>

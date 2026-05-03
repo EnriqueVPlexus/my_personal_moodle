@@ -3,6 +3,7 @@ import { open } from 'sqlite'
 import path from 'path'
 import fs from 'fs'
 import awsRoadmapSeed from './awsRoadmapSeed.json'
+import { hashPassword, normalizeEmail, validatePassword } from './password'
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
@@ -14,10 +15,12 @@ export async function openDb() {
     filename: DB_FILE,
     driver: sqlite3.Database
   })
+  await db.exec('PRAGMA foreign_keys = ON')
 
   if (!initialized) {
     await migrate(db)
     await seedAwsRoadmap(db)
+    await seedInitialAdmin(db)
     initialized = true
   }
 
@@ -46,6 +49,30 @@ async function migrate(db: any) {
       completed INTEGER DEFAULT 0,
       FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
+      password_hash TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
   `)
 
   await ensureColumn(db, 'roadmaps', 'objectives', 'TEXT')
@@ -62,6 +89,8 @@ async function migrate(db: any) {
   await ensureColumn(db, 'modules', 'practical_activity', 'TEXT')
   await ensureColumn(db, 'modules', 'deliverable_evidence', 'TEXT')
   await ensureColumn(db, 'modules', 'evaluation', 'TEXT')
+
+  await ensureColumn(db, 'users', 'is_active', 'INTEGER NOT NULL DEFAULT 1')
 }
 
 async function ensureColumn(db: any, table: string, column: string, definition: string) {
@@ -144,4 +173,38 @@ async function seedAwsRoadmap(db: any) {
       )
     }
   }
+}
+
+async function seedInitialAdmin(db: any) {
+  const email = normalizeEmail(process.env.ADMIN_EMAIL || '')
+  const password = process.env.ADMIN_PASSWORD
+  if (!email || !password) return
+
+  const validationError = validatePassword(password)
+  if (validationError) {
+    console.warn(`ADMIN_PASSWORD ignored: ${validationError}`)
+    return
+  }
+
+  const existing = await db.get('SELECT id FROM users WHERE email = ?', [email])
+  if (existing) {
+    await db.run(
+      'UPDATE users SET role = ?, is_active = 1, updated_at = ? WHERE id = ?',
+      ['admin', new Date().toISOString(), existing.id]
+    )
+    return
+  }
+
+  await db.run(
+    `INSERT INTO users (email, name, role, password_hash, is_active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 1, ?, ?)`,
+    [
+      email,
+      'Admin',
+      'admin',
+      await hashPassword(password),
+      new Date().toISOString(),
+      new Date().toISOString()
+    ]
+  )
 }

@@ -16,6 +16,14 @@ npm install
 npm run dev
 ```
 
+Autenticación y roles:
+
+- La app permite lectura pública de roadmaps y módulos.
+- Solo usuarios con rol `admin` pueden crear o modificar roadmaps, módulos, lecciones y usuarios.
+- Para crear el primer admin en local, usa `/setup`. En producción define `AUTH_SETUP_TOKEN`.
+- También puedes crear un admin inicial con `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env.local`.
+- Las contraseñas se guardan con hash `scrypt` y sal aleatoria; opcionalmente define `AUTH_PASSWORD_PEPPER`.
+
 Estructura creada:
 - `pages/`, `components/`, `lib/db.ts` (SQLite), `styles/` (Tailwind)
 - `test/lint.test.sh` — prueba placeholder para calidad de código
@@ -45,4 +53,3 @@ git branch -D chore/audit-fix-force
 He añadido además un bloque `overrides` en `package.json` para forzar versiones más recientes de varias sub-dependencias conocidas como problemáticas (por ejemplo `minimatch`, `postcss`, `serialize-javascript`, etc.). Esto ayuda a que `npm install` y `npm audit fix --force` resuelvan versiones más modernas en el árbol de dependencias.
 
 Nota: `overrides` es una herramienta potente pero puede ocultar incompatibilidades; tras ejecutar el script revisa cuidadosamente `package-lock.json` y prueba `npm run build`.
-

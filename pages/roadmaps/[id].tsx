@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import ModuleLearningContent from '../../components/ModuleLearningContent'
 import ModuleForm from '../../components/ModuleForm'
+import { useAuth } from '../../components/AuthProvider'
 import {
   LearningModule,
   asEvaluationWeights,
@@ -42,6 +43,7 @@ function estimateDuration(modules: LearningModule[]) {
 export default function RoadmapDetailPage() {
   const router = useRouter()
   const { id } = router.query
+  const { isAdmin } = useAuth()
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null)
 
   const load = useCallback(async () => {
@@ -174,13 +176,19 @@ export default function RoadmapDetailPage() {
           </div>
         </section>
 
-        <section className="mt-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-950">Añadir módulo</h3>
-          <p className="mt-1 text-sm text-gray-600">Puedes ampliar este roadmap con módulos internos propios.</p>
-          <div className="mt-4">
-            <ModuleForm roadmapId={Number(id)} onCreate={() => load()} />
-          </div>
-        </section>
+        {isAdmin ? (
+          <section className="mt-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-950">Añadir módulo</h3>
+            <p className="mt-1 text-sm text-gray-600">Puedes ampliar este roadmap con módulos internos propios.</p>
+            <div className="mt-4">
+              <ModuleForm roadmapId={Number(id)} onCreate={() => load()} />
+            </div>
+          </section>
+        ) : (
+          <section className="mt-8 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-600 shadow-sm">
+            Modo lectura: puedes consultar módulos y abrir enlaces, pero solo admin puede añadir contenido.
+          </section>
+        )}
       </main>
     </Layout>
   )

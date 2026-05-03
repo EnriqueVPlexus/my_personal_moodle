@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -16,6 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PUT') {
+    if (!(await requireAdmin(req, res, db))) return
     const { title, description } = req.body
     await db.run('UPDATE roadmaps SET title = ?, description = ? WHERE id = ?', [title, description || null, id])
     const updated = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
@@ -23,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'DELETE') {
+    if (!(await requireAdmin(req, res, db))) return
     await db.run('DELETE FROM roadmaps WHERE id = ?', [id])
     return res.status(204).end()
   }

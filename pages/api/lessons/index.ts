@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,6 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
+    if (!(await requireAdmin(req, res, db))) return
     const { title, module_id } = req.body
     if (!title || !module_id) return res.status(400).json({ error: 'title and module_id required' })
     const result = await db.run('INSERT INTO lessons (module_id, title, completed) VALUES (?, ?, ?)', [module_id, title, 0])
