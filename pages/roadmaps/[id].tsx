@@ -49,11 +49,15 @@ export default function RoadmapDetailPage() {
   const load = useCallback(async () => {
     if (!id) return
     const res = await fetch(`/api/roadmaps/${id}`)
+    if (res.status === 401) {
+      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+      return
+    }
     if (res.ok) {
       const data = await res.json()
       setRoadmap(data)
     }
-  }, [id])
+  }, [id, router])
 
   useEffect(() => {
     load()

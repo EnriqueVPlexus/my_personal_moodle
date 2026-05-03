@@ -144,6 +144,22 @@ export async function requireAdmin(req: NextApiRequest, res: NextApiResponse, db
   return user
 }
 
+export function isReadAuthRequired() {
+  return ['1', 'true', 'yes'].includes(String(process.env.REQUIRE_AUTH_FOR_READS || '').toLowerCase())
+}
+
+export async function requireReadAccess(req: NextApiRequest, res: NextApiResponse, db?: any) {
+  if (!isReadAuthRequired()) return true
+
+  const user = await getUserFromRequest(req, db)
+  if (!user) {
+    res.status(401).json({ error: 'authentication required' })
+    return false
+  }
+
+  return true
+}
+
 export function validateSetupToken(candidate: string | undefined) {
   const expected = process.env.AUTH_SETUP_TOKEN
   if (!expected) return process.env.NODE_ENV !== 'production'

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { writeAuditLog } from '../../../lib/audit'
 import { isValidRole, requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { hashPassword, normalizeEmail, validatePassword } from '../../../lib/password'
@@ -15,7 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    if (!(await requireAdmin(req, res, db))) return
+    const admin = await requireAdmin(req, res, db)
+    if (!admin) return
 
     const { email, name, role, password } = req.body || {}
     if (typeof email !== 'string' || typeof password !== 'string') {
@@ -46,6 +48,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?',
         [result.lastID]
       )
+      await writeAuditLog({
+        db,
+        req,
+        user: admin,
+        action: 'user.create',
+        entityType: 'user',
+        entityId: result.lastID,
+        details: { email: normalizeEmail(email), role: selectedRole }
+      })
       return res.status(201).json(user)
     } catch (error: any) {
       if (error?.code === 'SQLITE_CONSTRAINT') {

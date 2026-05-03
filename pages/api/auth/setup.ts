@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { writeAuditLog } from '../../../lib/audit'
 import { createSession, requireSameOrigin, validateSetupToken } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { hashPassword, normalizeEmail, validatePassword } from '../../../lib/password'
@@ -44,5 +45,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!userId) return res.status(500).json({ error: 'user creation failed' })
 
   await createSession(res, userId, db)
+  await writeAuditLog({
+    db,
+    req,
+    action: 'auth.setup_admin',
+    entityType: 'user',
+    entityId: userId,
+    details: { email: normalizeEmail(email) }
+  })
   return res.status(201).json({ user: { id: userId, email: normalizeEmail(email), name, role: 'admin' } })
 }

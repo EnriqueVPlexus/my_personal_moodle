@@ -16,12 +16,16 @@ export default function ModulePage() {
   const load = useCallback(async () => {
     if (!id) return
     const res = await fetch(`/api/modules/${id}`)
+    if (res.status === 401) {
+      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+      return
+    }
     if (res.ok) {
       const data = await res.json()
       setModule(data)
       setLessons(data.lessons || [])
     }
-  }, [id])
+  }, [id, router])
 
   useEffect(() => { load() }, [load])
 

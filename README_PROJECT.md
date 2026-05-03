@@ -20,6 +20,9 @@ Autenticación y roles:
 
 - La app permite lectura pública de roadmaps y módulos.
 - Solo usuarios con rol `admin` pueden crear o modificar roadmaps, módulos, lecciones y usuarios.
+- Los admins pueden desactivar/reactivar usuarios y resetear contraseñas desde `/admin/users`.
+- Las acciones sensibles quedan registradas en `/admin/audit`.
+- Si el contenido no debe ser público, define `REQUIRE_AUTH_FOR_READS=true` para exigir login también en lectura.
 - Para crear el primer admin en local, usa `/setup`. En producción define `AUTH_SETUP_TOKEN`.
 - También puedes crear un admin inicial con `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env.local`.
 - Las contraseñas se guardan con hash `scrypt` y sal aleatoria; opcionalmente define `AUTH_PASSWORD_PEPPER`.

@@ -18,7 +18,10 @@ export default function Header() {
         <nav className="flex items-center gap-2">
           <Link href="/roadmaps" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950">Roadmaps</Link>
           {isAdmin && (
-            <Link href="/admin/users" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950">Usuarios</Link>
+            <>
+              <Link href="/admin/users" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950">Usuarios</Link>
+              <Link href="/admin/audit" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-950">Auditoría</Link>
+            </>
           )}
           {user ? (
             <>

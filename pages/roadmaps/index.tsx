@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import RoadmapCard from '../../components/RoadmapCard'
 import RoadmapForm from '../../components/RoadmapForm'
@@ -13,18 +14,23 @@ type Roadmap = {
 }
 
 export default function RoadmapsPage() {
+  const router = useRouter()
   const { isAdmin } = useAuth()
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([])
 
-  async function load() {
+  const load = useCallback(async () => {
     const res = await fetch('/api/roadmaps')
+    if (res.status === 401) {
+      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+      return
+    }
     const data = await res.json()
     setRoadmaps(data)
-  }
+  }, [router])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   return (
     <Layout>
