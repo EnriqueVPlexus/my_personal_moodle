@@ -36,13 +36,17 @@ La base local se crea automáticamente en `data/dev.db`.
 - **Módulos**: unidades ordenadas dentro de un roadmap, con duración, objetivo, contenidos y recursos.
 - **Lecciones**: tareas simples asociadas a módulos, marcables como completadas por admin.
 - **Usuarios**: cuentas con rol `admin` o `user`.
+- **Acceso por roadmap**: usuarios normales pueden ver todos los roadmaps o solo una selección asignada.
 - **Auditoría**: registro de acciones sensibles como altas, cambios y borrados.
 
 ## Roles Y Acceso
 
 - `user`: puede consultar roadmaps, módulos y lecciones.
 - `admin`: puede crear contenido, gestionar usuarios, activar/desactivar cuentas, resetear contraseñas y consultar auditoría.
+- Los admins siempre tienen acceso a todos los roadmaps.
+- Desde `/admin/users`, un admin puede cambiar un usuario entre acceso completo y acceso limitado por roadmap.
 - Si `REQUIRE_AUTH_FOR_READS=true`, las lecturas también requieren sesión.
+- Los visitantes sin sesión solo se pueden restringir activando `REQUIRE_AUTH_FOR_READS=true`.
 
 ## Setup Y Administración
 
@@ -87,6 +91,7 @@ scripts/                    Utilidades de mantenimiento.
 - `modules`
 - `lessons`
 - `users`
+- `user_roadmap_access`
 - `sessions`
 - `audit_logs`
 
@@ -150,6 +155,12 @@ Auth, usuarios y auditoría:
 - `GET /api/audit-logs`
 
 Las escrituras requieren sesión admin y pasan por comprobación de origen.
+
+`PATCH /api/users/:id` soporta estas acciones:
+
+- `set_active`
+- `reset_password`
+- `set_roadmap_access`
 
 ## Seguridad Operativa
 

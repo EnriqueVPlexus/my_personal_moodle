@@ -160,6 +160,52 @@ export async function requireReadAccess(req: NextApiRequest, res: NextApiRespons
   return true
 }
 
+export type RoadmapReadScope = {
+  user: AuthUser | null
+  allRoadmaps: boolean
+  roadmapIds: number[]
+}
+
+export async function getRoadmapReadScope(req: NextApiRequest, res: NextApiResponse, db?: any): Promise<RoadmapReadScope | null> {
+  const database = db || await openDb()
+  const user = await getUserFromRequest(req, database)
+
+  if (!user) {
+    if (!isReadAuthRequired()) return { user: null, allRoadmaps: true, roadmapIds: [] }
+    res.status(401).json({ error: 'authentication required' })
+    return null
+  }
+
+  if (user.role === 'admin') return { user, allRoadmaps: true, roadmapIds: [] }
+
+  const settings = await database.get('SELECT can_view_all_roadmaps FROM users WHERE id = ? AND is_active = 1', [user.id])
+  if (!settings) {
+    res.status(401).json({ error: 'authentication required' })
+    return null
+  }
+
+  if (Number(settings.can_view_all_roadmaps) !== 0) {
+    return { user, allRoadmaps: true, roadmapIds: [] }
+  }
+
+  const rows = await database.all(
+    'SELECT roadmap_id FROM user_roadmap_access WHERE user_id = ? ORDER BY roadmap_id',
+    [user.id]
+  )
+
+  return {
+    user,
+    allRoadmaps: false,
+    roadmapIds: rows.map((row: any) => Number(row.roadmap_id)).filter((id: number) => Number.isInteger(id))
+  }
+}
+
+export function scopeAllowsRoadmap(scope: RoadmapReadScope, roadmapId: unknown) {
+  if (scope.allRoadmaps) return true
+  const id = Number(Array.isArray(roadmapId) ? roadmapId[0] : roadmapId)
+  return Number.isInteger(id) && scope.roadmapIds.includes(id)
+}
+
 export function validateSetupToken(candidate: string | undefined) {
   const expected = process.env.AUTH_SETUP_TOKEN
   if (!expected) return process.env.NODE_ENV !== 'production'

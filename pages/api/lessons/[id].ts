@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,10 +8,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query
 
   if (req.method === 'GET') {
-    if (!(await requireReadAccess(req, res, db))) return
-    const lesson = await db.get('SELECT * FROM lessons WHERE id = ?', [id])
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
+    const lesson = await db.get(`
+      SELECT lessons.*, modules.roadmap_id
+      FROM lessons
+      INNER JOIN modules ON modules.id = lessons.module_id
+      WHERE lessons.id = ?
+    `, [id])
     if (!lesson) return res.status(404).json({ error: 'not found' })
-    return res.status(200).json(lesson)
+    if (!scopeAllowsRoadmap(scope, lesson.roadmap_id)) return res.status(404).json({ error: 'not found' })
+    const { roadmap_id: _roadmapId, ...lessonBody } = lesson
+    return res.status(200).json(lessonBody)
   }
 
   if (req.method === 'PUT') {

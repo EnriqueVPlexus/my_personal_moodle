@@ -11,7 +11,7 @@ function denyAdmin(res: any) {
 
 async function mockContentApi(
   db: any,
-  options: { admin?: typeof admin | null; read?: boolean } = {}
+  options: { admin?: typeof admin | null; read?: boolean; scope?: any } = {}
 ) {
   vi.resetModules()
   vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
@@ -27,7 +27,17 @@ async function mockContentApi(
         return false
       }
       return true
-    })
+    }),
+    getRoadmapReadScope: vi.fn((_req: any, res: any) => {
+      if (options.read === false) {
+        res.status(401).json({ error: 'authentication required' })
+        return null
+      }
+      return options.scope || { user: null, allRoadmaps: true, roadmapIds: [] }
+    }),
+    scopeAllowsRoadmap: vi.fn((scope: any, roadmapId: any) => (
+      scope.allRoadmaps || scope.roadmapIds.includes(Number(Array.isArray(roadmapId) ? roadmapId[0] : roadmapId))
+    ))
   }))
 }
 
@@ -123,6 +133,43 @@ describe('content API edge cases', () => {
       await handler(createRequest({ method: 'DELETE', query: { id: '1' } }), deleteRes)
       expect(deleteRes.statusCode).toBe(403)
     }
+  })
+
+  it('filters content reads by assigned roadmap access', async () => {
+    const scope = { user: normalUser, allRoadmaps: false, roadmapIds: [1] }
+    const roadmapDb = {
+      all: vi.fn().mockResolvedValue([{ id: 1, title: 'AWS' }]),
+      get: vi.fn(),
+      run: vi.fn()
+    }
+    await mockContentApi(roadmapDb, { scope })
+    const roadmaps = (await import('../pages/api/roadmaps/index')).default
+
+    const roadmapsRes = createResponse()
+    await roadmaps(createRequest({ method: 'GET' }), roadmapsRes)
+    expect(roadmapsRes.body).toEqual([{ id: 1, title: 'AWS' }])
+    expect(roadmapDb.all).toHaveBeenCalledWith(expect.stringContaining('WHERE roadmaps.id IN (?)'), [1])
+
+    const modulesDb = { all: vi.fn(), get: vi.fn(), run: vi.fn() }
+    await mockContentApi(modulesDb, { scope })
+    const modules = (await import('../pages/api/modules/index')).default
+
+    const modulesRes = createResponse()
+    await modules(createRequest({ method: 'GET', query: { roadmap_id: '2' } }), modulesRes)
+    expect(modulesRes.body).toEqual([])
+    expect(modulesDb.all).not.toHaveBeenCalled()
+
+    const moduleDetailDb = {
+      all: vi.fn(),
+      get: vi.fn().mockResolvedValue({ id: 5, title: 'Hidden', roadmap_id: 2 }),
+      run: vi.fn()
+    }
+    await mockContentApi(moduleDetailDb, { scope })
+    const moduleDetail = (await import('../pages/api/modules/[id]')).default
+
+    const detailRes = createResponse()
+    await moduleDetail(createRequest({ method: 'GET', query: { id: '5' } }), detailRes)
+    expect(detailRes.statusCode).toBe(404)
   })
 
   it('validates collection payloads and unsupported methods', async () => {

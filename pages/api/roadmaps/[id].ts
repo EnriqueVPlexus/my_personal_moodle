@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,7 +8,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query
 
   if (req.method === 'GET') {
-    if (!(await requireReadAccess(req, res, db))) return
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
+    if (!scopeAllowsRoadmap(scope, id)) return res.status(404).json({ error: 'not found' })
     const roadmap = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
     if (!roadmap) return res.status(404).json({ error: 'not found' })
     const modules = await db.all(

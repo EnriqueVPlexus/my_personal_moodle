@@ -130,7 +130,14 @@ describe('users API handlers', () => {
 
     const getRes = createResponse()
     await handler(createRequest({ method: 'GET' }), getRes)
-    expect(getRes.body).toEqual([{ id: 1, email: 'admin@example.com' }])
+    expect(getRes.body).toEqual([
+      expect.objectContaining({
+        id: 1,
+        email: 'admin@example.com',
+        can_view_all_roadmaps: 1,
+        roadmap_access_ids: []
+      })
+    ])
 
     const postRes = createResponse()
     await handler(createRequest({
@@ -171,6 +178,39 @@ describe('users API handlers', () => {
     const resetRes = createResponse()
     await handler(createRequest({ method: 'PATCH', query: { id: '2' }, body: { action: 'reset_password', password: 'new-password-123' } }), resetRes)
     expect(resetRes.statusCode).toBe(200)
+  })
+
+  it('updates per-user roadmap access for non-admin users', async () => {
+    const db = {
+      get: vi.fn()
+        .mockResolvedValueOnce({ id: 2, email: 'user@example.com', role: 'user', is_active: 1 })
+        .mockResolvedValueOnce({ id: 2, email: 'user@example.com', role: 'user', is_active: 1, can_view_all_roadmaps: 0 }),
+      all: vi.fn()
+        .mockResolvedValueOnce([{ id: 1 }, { id: 2 }])
+        .mockResolvedValueOnce([{ roadmap_id: 1 }, { roadmap_id: 2 }]),
+      run: vi.fn()
+    }
+    await mockBase(db)
+    vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
+    const handler = (await import('../pages/api/users/[id]')).default
+
+    const res = createResponse()
+    await handler(createRequest({
+      method: 'PATCH',
+      query: { id: '2' },
+      body: { action: 'set_roadmap_access', can_view_all_roadmaps: false, roadmap_ids: [1, 2, 2] }
+    }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.roadmap_access_ids).toEqual([1, 2])
+    expect(db.run).toHaveBeenCalledWith(
+      'UPDATE users SET can_view_all_roadmaps = ?, updated_at = ? WHERE id = ?',
+      [0, expect.any(String), 2]
+    )
+    expect(db.run).toHaveBeenCalledWith(
+      'INSERT OR IGNORE INTO user_roadmap_access (user_id, roadmap_id, created_at) VALUES (?, ?, ?)',
+      [2, 1, expect.any(String)]
+    )
   })
 
   it('protects the last active admin from deactivation', async () => {

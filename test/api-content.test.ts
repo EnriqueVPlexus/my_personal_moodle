@@ -8,7 +8,17 @@ async function mockApi(db: any, options: { admin?: any; read?: boolean } = {}) {
   vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/auth', () => ({
     requireAdmin: vi.fn().mockResolvedValue(options.admin === undefined ? admin : options.admin),
-    requireReadAccess: vi.fn().mockResolvedValue(options.read !== false)
+    getRoadmapReadScope: vi.fn((_req: any, res: any) => {
+      if (options.read === false) {
+        res.status(401).json({ error: 'authentication required' })
+        return null
+      }
+      return { user: null, allRoadmaps: true, roadmapIds: [] }
+    }),
+    requireReadAccess: vi.fn().mockResolvedValue(options.read !== false),
+    scopeAllowsRoadmap: vi.fn((scope: any, roadmapId: any) => (
+      scope.allRoadmaps || scope.roadmapIds.includes(Number(Array.isArray(roadmapId) ? roadmapId[0] : roadmapId))
+    ))
   }))
   vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }

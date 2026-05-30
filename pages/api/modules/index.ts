@@ -1,21 +1,33 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
-    if (!(await requireReadAccess(req, res, db))) return
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
     const { roadmap_id } = req.query
     if (roadmap_id) {
+      if (!scopeAllowsRoadmap(scope, roadmap_id)) return res.status(200).json([])
       const rows = await db.all(
         'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
         [roadmap_id]
       )
       return res.status(200).json(rows)
     }
+
+    if (!scope.allRoadmaps && scope.roadmapIds.length === 0) return res.status(200).json([])
+    if (!scope.allRoadmaps) {
+      const rows = await db.all(
+        `SELECT * FROM modules WHERE roadmap_id IN (${scope.roadmapIds.map(() => '?').join(', ')}) ORDER BY id DESC`,
+        scope.roadmapIds
+      )
+      return res.status(200).json(rows)
+    }
+
     const rows = await db.all('SELECT * FROM modules ORDER BY id DESC')
     return res.status(200).json(rows)
   }

@@ -26,6 +26,8 @@ describe('SQLite database bootstrap', () => {
     const moduleCount = await db.get('SELECT COUNT(*) AS count FROM modules')
     const admin = await db.get('SELECT email, role, is_active, password_hash FROM users WHERE email = ?', ['admin@example.com'])
     const auditColumns = await db.all('PRAGMA table_info(audit_logs)')
+    const userColumns = await db.all('PRAGMA table_info(users)')
+    const accessColumns = await db.all('PRAGMA table_info(user_roadmap_access)')
 
     expect(roadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
     expect(moduleCount.count).toBe(11)
@@ -33,6 +35,8 @@ describe('SQLite database bootstrap', () => {
     expect(admin.is_active).toBe(1)
     expect(admin.password_hash).toMatch(/^scrypt:/)
     expect(auditColumns.map((column: any) => column.name)).toContain('action')
+    expect(userColumns.map((column: any) => column.name)).toContain('can_view_all_roadmaps')
+    expect(accessColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining(['user_id', 'roadmap_id']))
 
     await db.close()
   })
