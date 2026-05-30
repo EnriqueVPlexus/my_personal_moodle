@@ -31,7 +31,7 @@ export default function RoadmapForm({ onCreate }: Props) {
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder="Título del roadmap"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="form-field"
         />
       </div>
       <div>
@@ -39,11 +39,11 @@ export default function RoadmapForm({ onCreate }: Props) {
           value={description}
           onChange={e => setDescription(e.target.value)}
           placeholder="Descripción (opcional)"
-          className="min-h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="form-field min-h-24"
         />
       </div>
       <div>
-        <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300" disabled={loading || !title}>
+        <button className="primary-action" disabled={loading || !title}>
           {loading ? 'Guardando...' : 'Crear roadmap'}
         </button>
       </div>

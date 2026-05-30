@@ -1,4 +1,4 @@
-# my_personal_moodle
+# CanteraHub
 
 Aplicación web para gestionar una cantera de aprendizaje DevOps mediante roadmaps formativos, módulos, recursos, prácticas y evidencias entregables.
 
@@ -75,6 +75,9 @@ ADMIN_PASSWORD=change-this-long-password
 AUTH_SETUP_TOKEN=change-this-setup-token
 AUTH_PASSWORD_PEPPER=change-this-random-pepper
 REQUIRE_AUTH_FOR_READS=false
+NEXT_PUBLIC_PRODUCT_NAME=CanteraHub
+NEXT_PUBLIC_COMPANY_NAME=Tu empresa
+NEXT_PUBLIC_COMPANY_LOGO=/brand/company-logo.png
 ```
 
 Notas:
@@ -82,6 +85,7 @@ Notas:
 - En local puedes crear el primer admin desde `/setup`.
 - En producción conviene definir `AUTH_SETUP_TOKEN`.
 - Si el contenido debe ser privado, cambia `REQUIRE_AUTH_FOR_READS=true`.
+- El logo visible en la cabecera se puede cambiar reemplazando `public/brand/company-logo.png` o apuntando `NEXT_PUBLIC_COMPANY_LOGO` a otro asset local.
 
 ## Scripts
 

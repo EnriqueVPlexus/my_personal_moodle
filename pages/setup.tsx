@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
+import Head from 'next/head'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { useAuth } from '../components/AuthProvider'
+import { branding } from '../lib/branding'
 
 type SetupStatus = {
   needsSetup: boolean
@@ -51,12 +53,16 @@ export default function SetupPage() {
 
   return (
     <Layout>
-      <main className="container py-10">
-        <section className="mx-auto max-w-xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Setup seguro</p>
-          <h1 className="mt-2 text-2xl font-bold text-gray-950">Crear admin inicial</h1>
+      <Head>
+        <title>Setup | {branding.productName}</title>
+      </Head>
 
-          {!status && <p className="mt-4 text-sm text-gray-600">Comprobando estado...</p>}
+      <main className="container py-10">
+        <section className="panel mx-auto max-w-xl p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Setup seguro</p>
+          <h1 className="mt-2 text-2xl font-bold text-slate-950">Crear admin inicial</h1>
+
+          {!status && <p className="mt-4 text-sm text-slate-600">Comprobando estado...</p>}
 
           {status && !status.needsSetup && (
             <div className="mt-5 rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
@@ -69,7 +75,7 @@ export default function SetupPage() {
 
           {status?.needsSetup && (
             <>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
+              <p className="mt-3 text-sm leading-6 text-slate-600">
                 Esta pantalla solo permite crear el primer admin. En producción debes definir `AUTH_SETUP_TOKEN`.
               </p>
               {status.productionRequiresToken && !status.requiresToken && (
@@ -85,14 +91,14 @@ export default function SetupPage() {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="Email admin"
                   autoComplete="email"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="form-field"
                   required
                 />
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Nombre"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="form-field"
                 />
                 <input
                   type="password"
@@ -101,7 +107,7 @@ export default function SetupPage() {
                   placeholder="Contraseña de al menos 12 caracteres"
                   autoComplete="new-password"
                   minLength={12}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="form-field"
                   required
                 />
                 {status.requiresToken && (
@@ -111,12 +117,12 @@ export default function SetupPage() {
                     onChange={e => setSetupToken(e.target.value)}
                     placeholder="AUTH_SETUP_TOKEN"
                     autoComplete="one-time-code"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="form-field"
                     required
                   />
                 )}
                 {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-                <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:bg-gray-300" disabled={loading || (status.productionRequiresToken && !status.requiresToken)}>
+                <button className="primary-action" disabled={loading || (status.productionRequiresToken && !status.requiresToken)}>
                   {loading ? 'Creando admin...' : 'Crear admin'}
                 </button>
               </form>
