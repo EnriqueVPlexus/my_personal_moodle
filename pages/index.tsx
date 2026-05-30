@@ -20,7 +20,7 @@ export default function Home() {
   return (
     <Layout>
       <Head>
-        <title>{branding.productName} | Recursos formativos</title>
+        <title>{`${branding.productName} | Recursos formativos`}</title>
       </Head>
 
       <main>

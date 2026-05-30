@@ -61,7 +61,7 @@ export default function AuditPage() {
   return (
     <Layout>
       <Head>
-        <title>Auditoría | {branding.productName}</title>
+        <title>{`Auditoría | ${branding.productName}`}</title>
       </Head>
 
       <main>

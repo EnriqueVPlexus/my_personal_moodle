@@ -74,7 +74,7 @@ export default function RoadmapDetailPage() {
   return (
     <Layout>
       <Head>
-        <title>{roadmap.title} | {branding.productName}</title>
+        <title>{`${roadmap.title} | ${branding.productName}`}</title>
       </Head>
 
       <main>

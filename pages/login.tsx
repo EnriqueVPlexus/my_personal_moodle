@@ -38,7 +38,7 @@ export default function LoginPage() {
   return (
     <Layout>
       <Head>
-        <title>Acceso | {branding.productName}</title>
+        <title>{`Acceso | ${branding.productName}`}</title>
       </Head>
 
       <main className="container py-10">
