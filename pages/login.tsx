@@ -6,6 +6,8 @@ import Layout from '../components/Layout'
 import { useAuth } from '../components/AuthProvider'
 import { branding } from '../lib/branding'
 
+const LOGIN_TIMEOUT_MS = 15000
+
 export default function LoginPage() {
   const router = useRouter()
   const { refresh } = useAuth()
@@ -19,19 +21,37 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS)
+    let res: Response | null = null
 
-    setLoading(false)
-    if (!res.ok) {
-      setError('Credenciales no válidas.')
+    try {
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal
+      })
+    } catch (err: any) {
+      setError(err?.name === 'AbortError'
+        ? 'El inicio de sesión está tardando demasiado. Revisa el servidor e inténtalo de nuevo.'
+        : 'No se pudo conectar con el servidor. Revisa que la app esté arrancada e inténtalo de nuevo.')
+      return
+    } finally {
+      window.clearTimeout(timeoutId)
+      setLoading(false)
+    }
+
+    if (!res?.ok) {
+      setError(res && res.status >= 500 ? 'No se pudo iniciar sesión. Revisa el servidor e inténtalo de nuevo.' : 'Credenciales no válidas.')
       return
     }
 
-    await refresh()
+    try {
+      await refresh()
+    } catch {
+      // La cookie ya se ha creado; la siguiente pantalla volverá a consultar la sesión.
+    }
     router.push(typeof router.query.next === 'string' ? router.query.next : '/roadmaps')
   }
 
