@@ -14,7 +14,7 @@ export default defineConfig({
       include: [
         'components/**/*.{ts,tsx}',
         'lib/**/*.{ts,tsx}',
-        'pages/api/**/*.{ts,tsx}'
+        'pages/**/*.{ts,tsx}'
       ],
       exclude: [
         'lib/awsRoadmapSeed.json'

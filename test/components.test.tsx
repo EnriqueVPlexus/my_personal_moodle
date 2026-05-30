@@ -36,7 +36,7 @@ describe('cards and layout components', () => {
       </AuthProvider>
     )
 
-    expect(screen.getByText('my_personal_moodle')).toBeInTheDocument()
+    expect(screen.getByText('CanteraHub')).toBeInTheDocument()
     expect(screen.getByText('AWS Roadmap')).toBeInTheDocument()
     expect(screen.getByText('11 módulos')).toBeInTheDocument()
     expect(screen.getByText('Deploy compute')).toBeInTheDocument()
