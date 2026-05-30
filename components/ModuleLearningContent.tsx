@@ -11,15 +11,15 @@ type Props = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-l-4 border-gray-200 pl-4">
-      <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{title}</h4>
-      <div className="mt-3 text-sm leading-6 text-gray-700">{children}</div>
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">{title}</h4>
+      <div className="mt-3 text-sm leading-6 text-slate-700">{children}</div>
     </section>
   )
 }
 
 function TextList({ items }: { items: string[] }) {
-  if (!items.length) return <p className="text-gray-500">Sin información definida.</p>
+  if (!items.length) return <p className="text-slate-500">Sin información definida.</p>
 
   return (
     <ul className="space-y-2">
@@ -45,13 +45,13 @@ function LinkList({ items }: { items: ReturnType<typeof asLearningLinks> }) {
               href={item.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-between gap-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-blue-800 transition hover:border-blue-300 hover:bg-blue-100"
+              className="flex items-center justify-between gap-3 rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100"
             >
               <span>{item.label}</span>
               <span className="text-xs font-semibold uppercase tracking-wide">Abrir</span>
             </a>
           ) : (
-            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-gray-700">
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
               {item.label}
             </div>
           )}
@@ -65,7 +65,7 @@ export default function ModuleLearningContent({ module }: Props) {
   return (
     <div className="grid gap-4">
       <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-        <h4 className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Objetivo</h4>
+        <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Objetivo</h4>
         <p className="mt-2 text-sm leading-6 text-emerald-950">{module.objective || 'Sin objetivo definido.'}</p>
       </div>
 
@@ -96,7 +96,7 @@ export default function ModuleLearningContent({ module }: Props) {
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <h4 className="text-sm font-semibold uppercase tracking-wide text-amber-700">Evaluación</h4>
+        <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-700">Evaluación</h4>
         <p className="mt-2 text-sm leading-6 text-amber-950">{module.evaluation || 'Sin evaluación definida.'}</p>
       </div>
     </div>

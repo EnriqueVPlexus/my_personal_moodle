@@ -28,10 +28,10 @@ export default function ModuleForm({ roadmapId, onCreate }: Props) {
         value={title}
         onChange={e => setTitle(e.target.value)}
         placeholder="Título del módulo"
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+        className="form-field"
       />
       <div>
-        <button className="rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300" disabled={!title || loading}>
+        <button className="primary-action px-3" disabled={!title || loading}>
           {loading ? 'Creando...' : 'Añadir módulo'}
         </button>
       </div>

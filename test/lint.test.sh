@@ -7,4 +7,7 @@ npm run lint
 echo "Checking AWS roadmap seed..."
 node test/aws-roadmap-seed.test.mjs
 
-echo "Lint finished. Add real tests in test/ as needed."
+echo "Running unit tests with coverage..."
+npm run test:coverage
+
+echo "Quality checks finished."

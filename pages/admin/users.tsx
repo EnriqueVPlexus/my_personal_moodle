@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
+import { branding } from '../../lib/branding'
 
 type UserRow = {
   id: number
@@ -92,7 +94,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <Layout>
-        <main className="container py-8">Comprobando permisos...</main>
+        <main className="container py-8 text-sm text-slate-600">Comprobando permisos...</main>
       </Layout>
     )
   }
@@ -113,37 +115,43 @@ export default function AdminUsersPage() {
 
   return (
     <Layout>
-      <main className="container py-8">
-        <section className="rounded-lg border border-blue-100 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Admin</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-950">Usuarios</h1>
-          <p className="mt-2 text-sm leading-6 text-gray-600">
-            Crea cuentas normales de lectura o nuevas cuentas admin. Las contraseñas se guardan con hash fuerte.
-          </p>
+      <Head>
+        <title>Usuarios | {branding.productName}</title>
+      </Head>
+
+      <main>
+        <section className="app-band">
+          <div className="container py-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Admin</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Usuarios</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Crea cuentas normales de lectura o nuevas cuentas admin. Las contraseñas se guardan con hash fuerte.
+            </p>
+          </div>
         </section>
 
-        <section className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-          <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-950">Crear usuario</h2>
+        <section className="container grid gap-6 py-8 lg:grid-cols-[0.8fr_1.2fr]">
+          <form onSubmit={handleSubmit} className="panel p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Crear usuario</h2>
             <div className="mt-4 grid gap-3">
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="email@empresa.com"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="form-field"
                 required
               />
               <input
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Nombre"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="form-field"
               />
               <select
                 value={role}
                 onChange={e => setRole(e.target.value as 'admin' | 'user')}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="form-field"
               >
                 <option value="user">Usuario normal</option>
                 <option value="admin">Admin</option>
@@ -155,36 +163,36 @@ export default function AdminUsersPage() {
                 placeholder="Contraseña de al menos 12 caracteres"
                 minLength={12}
                 autoComplete="new-password"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="form-field"
                 required
               />
               {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-              <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:bg-gray-300" disabled={saving}>
+              <button className="primary-action" disabled={saving}>
                 {saving ? 'Creando...' : 'Crear usuario'}
               </button>
             </div>
           </form>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-950">Cuentas existentes</h2>
+          <div className="panel p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Cuentas existentes</h2>
             {actionError && <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
             <div className="mt-4 grid gap-3">
               {users.map(account => (
-                <div key={account.id} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 md:flex-row md:items-center md:justify-between">
+                <div key={account.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="font-semibold text-gray-950">{account.email}</p>
-                    <p className="text-sm text-gray-600">{account.name || 'Sin nombre'}</p>
+                    <p className="font-semibold text-slate-950">{account.email}</p>
+                    <p className="text-sm text-slate-600">{account.name || 'Sin nombre'}</p>
                   </div>
                   <div className="grid gap-3 text-sm md:min-w-[320px]">
                     <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                      <span className="rounded-md bg-gray-100 px-2 py-1 text-gray-700">{account.role}</span>
+                      <span className="rounded-md bg-white px-2 py-1 text-slate-700 shadow-sm">{account.role}</span>
                       <span className={`rounded-md px-2 py-1 ${account.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                         {account.is_active ? 'activo' : 'inactivo'}
                       </span>
                       <button
                         onClick={() => handleSetActive(account, !account.is_active)}
                         disabled={account.id === user?.id && Boolean(account.is_active)}
-                        className="rounded-md border border-gray-200 px-2 py-1 font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="secondary-action px-2 py-1"
                       >
                         {account.is_active ? 'Desactivar' : 'Reactivar'}
                       </button>
@@ -196,11 +204,11 @@ export default function AdminUsersPage() {
                         onChange={e => setResetPasswords(current => ({ ...current, [account.id]: e.target.value }))}
                         placeholder="Nueva contraseña"
                         minLength={12}
-                        className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        className="form-field min-w-0 flex-1"
                       />
                       <button
                         onClick={() => handleResetPassword(account)}
-                        className="rounded-md bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700"
+                        className="primary-action px-3"
                       >
                         Resetear
                       </button>

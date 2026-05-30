@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
+import { branding } from '../../lib/branding'
 
 type AuditRow = {
   id: number
@@ -37,7 +39,7 @@ export default function AuditPage() {
   if (loading) {
     return (
       <Layout>
-        <main className="container py-8">Comprobando permisos...</main>
+        <main className="container py-8 text-sm text-slate-600">Comprobando permisos...</main>
       </Layout>
     )
   }
@@ -58,40 +60,46 @@ export default function AuditPage() {
 
   return (
     <Layout>
-      <main className="container py-8">
-        <section className="rounded-lg border border-blue-100 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Admin</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-950">Auditoría</h1>
-          <p className="mt-2 text-sm leading-6 text-gray-600">
-            Últimas acciones sensibles realizadas por usuarios admin.
-          </p>
+      <Head>
+        <title>Auditoría | {branding.productName}</title>
+      </Head>
+
+      <main>
+        <section className="app-band">
+          <div className="container py-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Admin</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Auditoría</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Últimas acciones sensibles realizadas por usuarios admin.
+            </p>
+          </div>
         </section>
 
-        <section className="mt-6 grid gap-3">
+        <section className="container grid gap-3 py-8">
           {logs.length > 0 ? (
             logs.map(log => (
-              <article key={log.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <article key={log.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <h2 className="font-semibold text-gray-950">{log.action}</h2>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <h2 className="font-semibold text-slate-950">{log.action}</h2>
+                    <p className="mt-1 text-sm text-slate-600">
                       {log.actor_email || 'sistema'} · {log.entity_type}{log.entity_id ? ` #${log.entity_id}` : ''}
                     </p>
                   </div>
-                  <div className="text-sm text-gray-500 md:text-right">
+                  <div className="text-sm text-slate-500 md:text-right">
                     <p>{new Date(log.created_at).toLocaleString()}</p>
                     {log.ip_address && <p>{log.ip_address}</p>}
                   </div>
                 </div>
                 {log.details && (
-                  <pre className="mt-3 overflow-x-auto rounded-md bg-gray-50 p-3 text-xs text-gray-700">
+                  <pre className="mt-3 overflow-x-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
                     {parseDetails(log.details)}
                   </pre>
                 )}
               </article>
             ))
           ) : (
-            <p className="rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm text-gray-500">
+            <p className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">
               Todavía no hay eventos de auditoría.
             </p>
           )}
