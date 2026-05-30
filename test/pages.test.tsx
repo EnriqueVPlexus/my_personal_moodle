@@ -251,6 +251,21 @@ describe('Next pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
 
     expect(await screen.findByText('Credenciales no válidas.')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/login')
+    mockAuth()
+    vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('network failed'))
+
+    const FailedLoginPage = (await import('../pages/login')).default
+    render(<FailedLoginPage />)
+    fireEvent.change(screen.getByPlaceholderText('email@empresa.com'), { target: { value: 'admin@example.com' } })
+    fireEvent.change(screen.getByPlaceholderText('Contraseña'), { target: { value: 'valid-password-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    expect(await screen.findByText(/No se pudo conectar con el servidor/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Entrar' })).not.toBeDisabled()
   })
 
   it('runs setup states, validation errors and successful first-admin creation', async () => {
