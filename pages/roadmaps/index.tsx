@@ -37,7 +37,7 @@ export default function RoadmapsPage() {
   return (
     <Layout>
       <Head>
-        <title>Roadmaps | {branding.productName}</title>
+        <title>{`Roadmaps | ${branding.productName}`}</title>
       </Head>
 
       <main>

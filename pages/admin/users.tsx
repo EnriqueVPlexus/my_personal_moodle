@@ -116,7 +116,7 @@ export default function AdminUsersPage() {
   return (
     <Layout>
       <Head>
-        <title>Usuarios | {branding.productName}</title>
+        <title>{`Usuarios | ${branding.productName}`}</title>
       </Head>
 
       <main>

@@ -49,7 +49,7 @@ export default function ModulePage() {
   return (
     <Layout>
       <Head>
-        <title>{module.title} | {branding.productName}</title>
+        <title>{`${module.title} | ${branding.productName}`}</title>
       </Head>
 
       <main>

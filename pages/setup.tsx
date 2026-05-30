@@ -54,7 +54,7 @@ export default function SetupPage() {
   return (
     <Layout>
       <Head>
-        <title>Setup | {branding.productName}</title>
+        <title>{`Setup | ${branding.productName}`}</title>
       </Head>
 
       <main className="container py-10">
