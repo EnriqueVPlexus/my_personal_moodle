@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 describe('SQLite database bootstrap', () => {
-  it('migrates schema, seeds the AWS roadmap and creates an env admin', async () => {
+  it('migrates schema, seeds the bundled roadmaps and creates an env admin', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-'))
     process.chdir(tmp)
     process.env.ADMIN_EMAIL = 'ADMIN@EXAMPLE.COM'
@@ -22,15 +22,25 @@ describe('SQLite database bootstrap', () => {
     const { openDb } = await import('../lib/db')
     const db = await openDb()
 
-    const roadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS gratuito para cantera junior DevOps'])
-    const moduleCount = await db.get('SELECT COUNT(*) AS count FROM modules')
+    const awsRoadmap = await db.get('SELECT id, title FROM roadmaps WHERE title = ?', [
+      'Roadmap AWS gratuito para cantera junior DevOps'
+    ])
+    const devopsRoadmap = await db.get('SELECT id, title FROM roadmaps WHERE title = ?', [
+      'Roadmap desde 0 a DevOps Junior'
+    ])
+    const awsModuleCount = await db.get('SELECT COUNT(*) AS count FROM modules WHERE roadmap_id = ?', [awsRoadmap.id])
+    const devopsModuleCount = await db.get('SELECT COUNT(*) AS count FROM modules WHERE roadmap_id = ?', [
+      devopsRoadmap.id
+    ])
     const admin = await db.get('SELECT email, role, is_active, password_hash FROM users WHERE email = ?', ['admin@example.com'])
     const auditColumns = await db.all('PRAGMA table_info(audit_logs)')
     const userColumns = await db.all('PRAGMA table_info(users)')
     const accessColumns = await db.all('PRAGMA table_info(user_roadmap_access)')
 
-    expect(roadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
-    expect(moduleCount.count).toBe(11)
+    expect(awsRoadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
+    expect(devopsRoadmap.title).toBe('Roadmap desde 0 a DevOps Junior')
+    expect(awsModuleCount.count).toBe(11)
+    expect(devopsModuleCount.count).toBe(12)
     expect(admin.role).toBe('admin')
     expect(admin.is_active).toBe(1)
     expect(admin.password_hash).toMatch(/^scrypt:/)
@@ -57,13 +67,17 @@ describe('SQLite database bootstrap', () => {
     const secondImport = await import('../lib/db')
     const secondDb = await secondImport.openDb()
 
-    const roadmapCount = await secondDb.get(
+    const awsRoadmapCount = await secondDb.get(
       'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
       ['Roadmap AWS gratuito para cantera junior DevOps']
     )
+    const devopsRoadmapCount = await secondDb.get('SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?', [
+      'Roadmap desde 0 a DevOps Junior'
+    ])
     const adminCount = await secondDb.get('SELECT COUNT(*) AS count FROM users WHERE email = ?', ['admin@example.com'])
 
-    expect(roadmapCount.count).toBe(1)
+    expect(awsRoadmapCount.count).toBe(1)
+    expect(devopsRoadmapCount.count).toBe(1)
     expect(adminCount.count).toBe(1)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))
 

@@ -2,7 +2,7 @@
 
 CanteraHub es una aplicación web para gestionar una cantera interna de aprendizaje técnico. Permite publicar roadmaps formativos, organizar módulos, enlazar recursos oficiales, definir prácticas con evidencia entregable y gobernar el acceso mediante roles.
 
-La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y una base SQLite local que se migra y se alimenta automáticamente al arrancar.
+La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**, además de una base SQLite local que se migra y se alimenta automáticamente al arrancar.
 
 ## Funcionalidad
 
@@ -43,7 +43,7 @@ npm run dev
 
 La aplicación se abre normalmente en `http://localhost:3000`. Si el puerto está ocupado, Next.js usará otro disponible.
 
-La base de datos local se crea en `data/dev.db`. Al abrir la app por primera vez se ejecutan migraciones, se siembra el roadmap AWS y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial.
+La base de datos local se crea en `data/dev.db`. Al abrir la app por primera vez se ejecutan migraciones, se siembran los roadmaps incluidos y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial.
 
 ## Setup Inicial
 
@@ -151,7 +151,7 @@ npm run start         # arranca el build
 npm run lint          # ESLint
 npm run test:unit     # Vitest
 npm run test:coverage # Vitest con cobertura
-npm test              # lint + seed AWS + cobertura
+npm test              # lint + validación de seeds + cobertura
 ```
 
 La cobertura exige un mínimo global del 80% en statements, branches, functions y lines. Actualmente se incluyen `components`, `lib` y `pages`, incluidas las API routes.

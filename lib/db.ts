@@ -3,11 +3,33 @@ import { open } from 'sqlite'
 import path from 'path'
 import fs from 'fs'
 import awsRoadmapSeed from './awsRoadmapSeed.json'
+import devopsRoadmapSeed from './devopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
 let initialized = false
+
+type RoadmapSeed = {
+  title: string
+  description: string
+  objectives: string[]
+  methodology: string[]
+  evaluation_weights: Record<string, string>
+  modules: {
+    position: number
+    title: string
+    duration: string
+    objective: string
+    contents: string[]
+    importance: string
+    official_resources: unknown[]
+    support_videos: unknown[]
+    practical_activity: string[]
+    deliverable_evidence: string[]
+    evaluation: string
+  }[]
+}
 
 export async function openDb() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR)
@@ -19,7 +41,8 @@ export async function openDb() {
 
   if (!initialized) {
     await migrate(db)
-    await seedAwsRoadmap(db)
+    await seedRoadmap(db, awsRoadmapSeed)
+    await seedRoadmap(db, devopsRoadmapSeed)
     await seedInitialAdmin(db)
     initialized = true
   }
@@ -130,8 +153,7 @@ async function ensureColumn(db: any, table: string, column: string, definition: 
   }
 }
 
-async function seedAwsRoadmap(db: any) {
-  const seed = awsRoadmapSeed
+async function seedRoadmap(db: any, seed: RoadmapSeed) {
   const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [seed.title])
   let roadmapId = existing?.id
 

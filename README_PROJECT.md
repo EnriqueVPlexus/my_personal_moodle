@@ -4,7 +4,7 @@ Este repositorio contiene **CanteraHub**, una aplicación Next.js + TypeScript p
 
 ## Estado Del Producto
 
-La aplicación ya no es un scaffold: incluye una experiencia funcional con roadmap AWS precargado, autenticación, setup inicial, panel admin, auditoría y pruebas automatizadas con cobertura.
+La aplicación ya no es un scaffold: incluye una experiencia funcional con roadmaps AWS y DevOps precargados, autenticación, setup inicial, panel admin, auditoría y pruebas automatizadas con cobertura.
 
 ## Puesta En Marcha
 
@@ -70,7 +70,7 @@ pages/
 
 components/                 Layout, cabecera, formularios, cards y contenido de módulos.
 lib/
-  db.ts                     Migraciones SQLite y seed AWS.
+  db.ts                     Migraciones SQLite y seeds de roadmaps.
   auth.ts                   Sesiones, roles y protección de origen.
   password.ts               Hash y validación de contraseñas.
   audit.ts                  Escritura de eventos.
@@ -95,7 +95,7 @@ scripts/                    Utilidades de mantenimiento.
 - `sessions`
 - `audit_logs`
 
-También inserta o actualiza el roadmap AWS desde `lib/awsRoadmapSeed.json`.
+También inserta o actualiza los roadmaps iniciales desde `lib/awsRoadmapSeed.json` y `lib/devopsRoadmapSeed.json`.
 
 ## Calidad Y Tests
 
@@ -108,7 +108,7 @@ npm test
 Este comando ejecuta:
 
 1. `npm run lint`
-2. `node test/aws-roadmap-seed.test.mjs`
+2. `node test/roadmap-seeds.test.mjs`
 3. `npm run test:coverage`
 
 La cobertura global mínima configurada es 80% para statements, branches, functions y lines. El scope de cobertura incluye `components`, `lib` y `pages`, incluyendo API routes y pantallas.
