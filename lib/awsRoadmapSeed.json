@@ -1,0 +1,512 @@
+{
+  "title": "Roadmap AWS gratuito para cantera junior DevOps",
+  "description": "Este itinerario está diseñado para perfiles junior con base técnica que quieren iniciarse en AWS con enfoque práctico y orientado a DevOps.",
+  "objectives": [
+    "Comprender los fundamentos de cloud computing",
+    "Conocer los servicios básicos de AWS",
+    "Adquirir nociones de red, seguridad y observabilidad",
+    "Introducir automatización e infraestructura como código",
+    "Dar los primeros pasos en contenedores y CI/CD",
+    "Construir un proyecto final con enfoque de empleabilidad"
+  ],
+  "methodology": [
+    "explicación conceptual",
+    "importancia del servicio o bloque",
+    "recursos oficiales",
+    "vídeos de apoyo en español",
+    "práctica obligatoria",
+    "evidencia entregable",
+    "mini evaluación"
+  ],
+  "evaluation_weights": {
+    "Cuestionarios": "20%",
+    "Prácticas": "40%",
+    "Entregables documentados": "20%",
+    "Proyecto final": "20%"
+  },
+  "modules": [
+    {
+      "position": 0,
+      "title": "Fundamentos cloud",
+      "duration": "1 semana",
+      "objective": "Entender qué es cloud computing y adquirir la base conceptual necesaria antes de comenzar a trabajar con servicios concretos de AWS.",
+      "contents": [
+        "Qué es cloud computing",
+        "Diferencia entre on-premise, IaaS, PaaS y SaaS",
+        "Regiones y Availability Zones",
+        "Elasticidad y escalabilidad",
+        "Alta disponibilidad",
+        "Modelo de responsabilidad compartida"
+      ],
+      "importance": "Este módulo es clave porque permite comprender cómo se estructura AWS y qué problemas resuelve la nube. Sin esta base, el aprendizaje de servicios concretos suele ser mecánico y poco sólido.",
+      "official_resources": [
+        {
+          "label": "AWS Skill Builder",
+          "url": "https://aws.amazon.com/es/training/digital/"
+        },
+        {
+          "label": "AWS Cloud Practitioner Essentials",
+          "url": "https://aws.amazon.com/es/training/course-descriptions/cloud-practitioner-essentials/"
+        },
+        {
+          "label": "AWS Educate",
+          "url": "https://aws.amazon.com/es/education/awseducate/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Curso PROFESIONAL de AWS [Desde CERO]",
+          "url": "https://www.youtube.com/playlist?list=PLDbrnXa6SAzXGTlbgK42iQklMhEuZQFMf"
+        },
+        {
+          "label": "Amazon Web Services desde cero",
+          "url": "https://www.youtube.com/playlist?list=PL9T-KKyKXNCmOnsFmS_aWCmvMvd3HCB7b"
+        }
+      ],
+      "practical_activity": [
+        "Elaborar un pequeño resumen explicando:",
+        "qué es cloud",
+        "qué ventajas aporta frente a on-premise",
+        "qué significa responsabilidad compartida"
+      ],
+      "deliverable_evidence": [
+        "Documento breve de 1 página en PDF o texto."
+      ],
+      "evaluation": "Quiz de conceptos básicos."
+    },
+    {
+      "position": 1,
+      "title": "Amazon EC2",
+      "duration": "1 semana",
+      "objective": "Aprender a desplegar y administrar una instancia virtual en AWS.",
+      "contents": [
+        "Qué es EC2",
+        "Tipos de instancia",
+        "AMI",
+        "Pares de claves",
+        "Security Groups",
+        "Acceso SSH",
+        "User Data básico"
+      ],
+      "importance": "EC2 es una de las mejores puertas de entrada a AWS porque permite entender cómputo, acceso, puertos, despliegue y operación básica de cargas de trabajo.",
+      "official_resources": [
+        {
+          "label": "Amazon EC2",
+          "url": "https://aws.amazon.com/es/ec2/instance-types/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "IAM, S3 y EC2: Principales servicios y permisos en AWS",
+          "url": "https://www.youtube.com/watch?v=FZp4fb5SoY4"
+        },
+        {
+          "label": "AWS Curso Básico en Español",
+          "url": "https://www.youtube.com/playlist?list=PLI8EoJwzDiPBDmfEybSDQP_1an2qt6rw-"
+        }
+      ],
+      "practical_activity": [
+        "Crear una instancia EC2 Linux",
+        "Acceder por SSH",
+        "Instalar Nginx",
+        "Publicar una página HTML simple"
+      ],
+      "deliverable_evidence": [
+        "Captura de la instancia",
+        "Captura del acceso por navegador",
+        "Breve explicación del Security Group configurado"
+      ],
+      "evaluation": "Cuestionario básico sobre AMI, instancia, clave SSH y Security Groups."
+    },
+    {
+      "position": 2,
+      "title": "Amazon S3",
+      "duration": "1 semana",
+      "objective": "Aprender a utilizar almacenamiento de objetos en AWS.",
+      "contents": [
+        "Qué es S3",
+        "Buckets y objetos",
+        "Permisos",
+        "Versionado",
+        "Hosting estático"
+      ],
+      "importance": "S3 es uno de los servicios más utilizados en AWS. Aparece en sitios estáticos, copias de seguridad, almacenamiento de logs, artefactos y muchos otros escenarios reales.",
+      "official_resources": [
+        {
+          "label": "Amazon S3",
+          "url": "https://aws.amazon.com/es/s3/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Amazon Web Services desde cero",
+          "url": "https://www.youtube.com/playlist?list=PL9T-KKyKXNCmOnsFmS_aWCmvMvd3HCB7b"
+        }
+      ],
+      "practical_activity": [
+        "Crear un bucket",
+        "Subir objetos",
+        "Activar versionado",
+        "Publicar una web estática simple"
+      ],
+      "deliverable_evidence": [
+        "Capturas del bucket y de la web estática",
+        "Explicación breve de la diferencia entre bucket público y privado"
+      ],
+      "evaluation": "Mini quiz sobre buckets, objetos y versionado."
+    },
+    {
+      "position": 3,
+      "title": "AWS IAM",
+      "duration": "1 semana",
+      "objective": "Comprender cómo se gestionan usuarios, permisos y acceso en AWS.",
+      "contents": [
+        "Usuarios",
+        "Grupos",
+        "Políticas",
+        "Roles",
+        "Principio de mínimo privilegio"
+      ],
+      "importance": "IAM es fundamental para trabajar con seguridad en AWS. Un uso incorrecto de permisos puede provocar errores operativos y riesgos de seguridad.",
+      "official_resources": [
+        {
+          "label": "AWS IAM",
+          "url": "https://aws.amazon.com/es/iam/"
+        },
+        {
+          "label": "Aspectos básicos de la seguridad en AWS",
+          "url": "https://aws.amazon.com/es/getting-started/aws-security-essentials/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "IAM, S3 y EC2: Principales servicios y permisos en AWS",
+          "url": "https://www.youtube.com/watch?v=FZp4fb5SoY4"
+        }
+      ],
+      "practical_activity": [
+        "Crear un usuario",
+        "Crear un grupo",
+        "Asignar permisos",
+        "Explicar cuándo conviene usar un rol"
+      ],
+      "deliverable_evidence": [
+        "Tabla sencilla con:",
+        "usuario",
+        "grupo",
+        "política",
+        "caso de uso"
+      ],
+      "evaluation": "Quiz sobre diferencias entre usuario, grupo, política y rol."
+    },
+    {
+      "position": 4,
+      "title": "Amazon VPC y red en AWS",
+      "duration": "1 semana",
+      "objective": "Entender los conceptos básicos de red dentro de AWS.",
+      "contents": [
+        "Qué es una VPC",
+        "Subred pública y privada",
+        "Route tables",
+        "Internet Gateway",
+        "Security Groups",
+        "NACL"
+      ],
+      "importance": "La red es una parte esencial en cloud. Comprender VPC ayuda a entender conectividad, exposición a Internet y segmentación de recursos.",
+      "official_resources": [
+        {
+          "label": "Amazon VPC FAQ",
+          "url": "https://aws.amazon.com/es/vpc/faqs/"
+        },
+        {
+          "label": "Buenas prácticas para el diseño de IPv4 en Amazon VPC",
+          "url": "https://aws.amazon.com/es/blogs/aws-spanish/buenas-practicas-para-el-diseno-de-ipv4-para-su-amazon-vpc/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Amazon Web Services desde cero",
+          "url": "https://www.youtube.com/playlist?list=PL9T-KKyKXNCmOnsFmS_aWCmvMvd3HCB7b"
+        },
+        {
+          "label": "AWS Curso Básico en Español",
+          "url": "https://www.youtube.com/playlist?list=PLI8EoJwzDiPBDmfEybSDQP_1an2qt6rw-"
+        }
+      ],
+      "practical_activity": [
+        "Crear una VPC",
+        "Crear una subred pública",
+        "Asociar tabla de rutas",
+        "Añadir Internet Gateway",
+        "Lanzar una EC2 dentro de esa red"
+      ],
+      "deliverable_evidence": [
+        "Diagrama simple de red",
+        "Breve explicación del diseño realizado"
+      ],
+      "evaluation": "Preguntas sobre VPC, subred, route table y acceso público/privado."
+    },
+    {
+      "position": 5,
+      "title": "Amazon CloudWatch y observabilidad",
+      "duration": "1 semana",
+      "objective": "Introducir la monitorización básica de recursos en AWS.",
+      "contents": [
+        "Métricas",
+        "Logs",
+        "Alarmas",
+        "Eventos",
+        "Monitorización básica de EC2"
+      ],
+      "importance": "Un perfil DevOps no solo despliega recursos; también debe ser capaz de observar su estado y reaccionar ante incidencias básicas.",
+      "official_resources": [
+        {
+          "label": "Amazon CloudWatch",
+          "url": "https://aws.amazon.com/es/cloudwatch/"
+        },
+        {
+          "label": "Preguntas frecuentes sobre Amazon CloudWatch",
+          "url": "https://aws.amazon.com/es/cloudwatch/faqs/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "AWS Curso Básico en Español",
+          "url": "https://www.youtube.com/playlist?list=PLI8EoJwzDiPBDmfEybSDQP_1an2qt6rw-"
+        }
+      ],
+      "practical_activity": [
+        "Revisar métricas de una EC2",
+        "Crear una alarma de CPU",
+        "Explicar qué acciones tomar ante una subida de CPU"
+      ],
+      "deliverable_evidence": [
+        "Captura de la alarma creada",
+        "Mini informe de monitorización básica"
+      ],
+      "evaluation": "Quiz sobre métricas, logs y alarmas."
+    },
+    {
+      "position": 6,
+      "title": "AWS CLI",
+      "duration": "1 semana",
+      "objective": "Aprender a interactuar con AWS desde línea de comandos.",
+      "contents": [
+        "Instalación de AWS CLI",
+        "Configuración de credenciales",
+        "Perfiles",
+        "Comandos básicos sobre S3 y EC2"
+      ],
+      "importance": "La CLI es el paso natural entre el uso manual de la consola y la automatización de tareas repetitivas.",
+      "official_resources": [
+        {
+          "label": "Protección de sus claves de acceso en AWS",
+          "url": "https://aws.amazon.com/es/blogs/aws-spanish/proteccion-de-sus-claves-de-acceso-en-aws/"
+        },
+        {
+          "label": "Cómo rotar las claves de acceso para usuarios de IAM",
+          "url": "https://aws.amazon.com/es/blogs/aws-spanish/como-rotar-las-claves-de-acceso-para-los-usuarios-de-iam/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Tutorial configuración AWS CLI",
+          "url": "https://www.youtube.com/watch?v=5Ek9TxluVd8"
+        }
+      ],
+      "practical_activity": [
+        "Instalar AWS CLI",
+        "Configurar perfil",
+        "Ejecutar comando para listar buckets",
+        "Ejecutar comando para listar instancias"
+      ],
+      "deliverable_evidence": [
+        "Captura de terminal",
+        "Documento corto explicando qué ventajas aporta la CLI"
+      ],
+      "evaluation": "Quiz sobre perfiles, credenciales y comandos básicos."
+    },
+    {
+      "position": 7,
+      "title": "Terraform",
+      "duration": "1 semana",
+      "objective": "Introducir la Infraestructura como Código.",
+      "contents": [
+        "Qué es Terraform",
+        "init",
+        "plan",
+        "apply",
+        "destroy",
+        "Variables",
+        "Recursos"
+      ],
+      "importance": "Terraform ayuda a crear infraestructura reproducible, versionable y más profesional, alineada con prácticas DevOps reales.",
+      "official_resources": [
+        {
+          "label": "Terraform AWS Get Started",
+          "url": "https://developer.hashicorp.com/terraform/tutorials/aws-get-started"
+        },
+        {
+          "label": "Create infrastructure with Terraform",
+          "url": "https://developer.hashicorp.com/terraform/tutorials/aws-get-started/aws-create"
+        },
+        {
+          "label": "Manage infrastructure with Terraform",
+          "url": "https://developer.hashicorp.com/terraform/tutorials/aws-get-started/aws-manage"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Curso Completo de Terraform",
+          "url": "https://www.youtube.com/watch?v=Z94DYoF5ufg"
+        },
+        {
+          "label": "Introducción a Terraform y cómo conectarlo con AWS",
+          "url": "https://www.youtube.com/watch?v=KHeSXvN-c7s"
+        }
+      ],
+      "practical_activity": [
+        "Crear una EC2 o bucket S3 con Terraform",
+        "Ejecutar terraform init",
+        "Ejecutar terraform plan",
+        "Ejecutar terraform apply"
+      ],
+      "deliverable_evidence": [
+        "Repositorio GitHub",
+        "README",
+        "Captura del terraform plan"
+      ],
+      "evaluation": "Preguntas básicas sobre IaC y ciclo de vida de Terraform."
+    },
+    {
+      "position": 8,
+      "title": "Docker",
+      "duration": "1 semana",
+      "objective": "Introducir el uso de contenedores como paso previo a despliegues modernos.",
+      "contents": [
+        "Imágenes",
+        "Contenedores",
+        "Dockerfile",
+        "Puertos",
+        "Ejecución local"
+      ],
+      "importance": "Docker permite empaquetar aplicaciones de forma consistente y conecta muy bien con despliegue cloud y pipelines de CI/CD.",
+      "official_resources": [
+        {
+          "label": "Documentación oficial de Docker",
+          "url": "https://docs.docker.com/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Aprende Docker ahora",
+          "url": "https://www.youtube.com/watch?v=4Dko5W96WHg"
+        },
+        {
+          "label": "Curso Docker desde cero",
+          "url": "https://www.youtube.com/watch?v=rmty_WNvJvA"
+        }
+      ],
+      "practical_activity": [
+        "Crear un Dockerfile",
+        "Construir una imagen",
+        "Ejecutar un contenedor localmente"
+      ],
+      "deliverable_evidence": [
+        "Dockerfile",
+        "Captura del contenedor funcionando"
+      ],
+      "evaluation": "Quiz sobre imagen, contenedor y Dockerfile."
+    },
+    {
+      "position": 9,
+      "title": "GitHub Actions",
+      "duration": "1 semana",
+      "objective": "Dar los primeros pasos en integración continua y automatización de workflows.",
+      "contents": [
+        "Qué es CI/CD",
+        "Workflows",
+        "Jobs",
+        "Triggers",
+        "Secrets",
+        "Ejecución automática al hacer push"
+      ],
+      "importance": "GitHub Actions permite pasar del despliegue o validación manual a un proceso reproducible y automatizado.",
+      "official_resources": [
+        {
+          "label": "Descripción de GitHub Actions",
+          "url": "https://docs.github.com/es/actions/get-started/understand-github-actions"
+        },
+        {
+          "label": "Quickstart de GitHub Actions",
+          "url": "https://docs.github.com/es/enterprise-server%403.14/actions/get-started/quickstart"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "GitHub Actions desde Cero para Principiantes",
+          "url": "https://www.youtube.com/watch?v=Rs3SBnED5QY"
+        },
+        {
+          "label": "Aprende GitHub Actions con Midudev",
+          "url": "https://www.youtube.com/watch?v=-8haKKGc55Y"
+        }
+      ],
+      "practical_activity": [
+        "Crear un workflow que se ejecute al hacer push",
+        "Validar un archivo o lanzar un proceso simple"
+      ],
+      "deliverable_evidence": [
+        "YAML del workflow",
+        "Captura de la ejecución correcta"
+      ],
+      "evaluation": "Quiz sobre workflow, job y trigger."
+    },
+    {
+      "position": 10,
+      "title": "Proyecto final",
+      "duration": "1 o 2 semanas",
+      "objective": "Aplicar de forma integrada lo aprendido durante el itinerario.",
+      "contents": [
+        "Integración de GitHub",
+        "Docker",
+        "EC2",
+        "S3",
+        "IAM",
+        "CloudWatch",
+        "Terraform opcional"
+      ],
+      "importance": "Este módulo permite convertir teoría y laboratorios aislados en una entrega real orientada a empleabilidad.",
+      "official_resources": [
+        {
+          "label": "AWS Builder Labs",
+          "url": "https://aws.amazon.com/es/training/digital/aws-builder-labs/"
+        },
+        {
+          "label": "AWS Cloud Quest",
+          "url": "https://aws.amazon.com/es/training/digital/aws-cloud-quest/"
+        },
+        {
+          "label": "AWS Jam",
+          "url": "https://aws.amazon.com/es/training/digital/aws-jam/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Reutilizar vídeos anteriores según la solución elegida"
+        }
+      ],
+      "practical_activity": [
+        "Construcción de una pequeña solución en AWS con documentación técnica."
+      ],
+      "deliverable_evidence": [
+        "Repositorio GitHub",
+        "README completo",
+        "Diagrama de arquitectura",
+        "Capturas o vídeo corto",
+        "Documento de incidencias encontradas y resolución"
+      ],
+      "evaluation": "Defensa técnica o revisión del proyecto."
+    }
+  ]
+}

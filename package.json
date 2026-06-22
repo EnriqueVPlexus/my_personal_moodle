@@ -1,0 +1,59 @@
+{
+  "name": "cantera-hub",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint --ext .js,.jsx,.ts,.tsx .",
+    "test": "bash ./test/lint.test.sh",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "next": "15.5.15",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "sqlite": "5.1.1",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "20.19.39",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "@typescript-eslint/eslint-plugin": "8.59.1",
+    "@typescript-eslint/parser": "8.59.1",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.5",
+    "autoprefixer": "10.4.21",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.15",
+    "jsdom": "^29.1.1",
+    "postcss": "8.5.13",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.2.2",
+    "vitest": "^4.1.5"
+  },
+  "overrides": {
+    "minimatch": "latest",
+    "postcss": "8.5.13",
+    "serialize-javascript": "latest",
+    "devalue": "latest",
+    "elliptic": "latest",
+    "http-proxy": "latest",
+    "json5": "latest",
+    "loader-utils": "latest",
+    "terser": "latest",
+    "uuid": "latest",
+    "node-fetch": "latest",
+    "object-path": "latest",
+    "send": "latest",
+    "browserslist": "latest",
+    "cookie": "latest",
+    "on-headers": "latest"
+  }
+}
