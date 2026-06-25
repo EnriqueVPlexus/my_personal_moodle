@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 describe('SQLite database bootstrap', () => {
-  it('migrates schema, seeds the AWS roadmap and creates an env admin', async () => {
+  it('migrates schema, seeds initial roadmaps and creates an env admin', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-'))
     process.chdir(tmp)
     process.env.ADMIN_EMAIL = 'ADMIN@EXAMPLE.COM'
@@ -23,12 +23,21 @@ describe('SQLite database bootstrap', () => {
     const db = await openDb()
 
     const roadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS gratuito para cantera junior DevOps'])
-    const moduleCount = await db.get('SELECT COUNT(*) AS count FROM modules')
+    const aiRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap IA para SRE/DevOps - Versión 2.0'])
+    const moduleCounts = await db.all(`
+      SELECT roadmaps.title, COUNT(modules.id) AS count
+      FROM roadmaps
+      LEFT JOIN modules ON modules.roadmap_id = roadmaps.id
+      GROUP BY roadmaps.id
+    `)
     const admin = await db.get('SELECT email, role, is_active, password_hash FROM users WHERE email = ?', ['admin@example.com'])
     const auditColumns = await db.all('PRAGMA table_info(audit_logs)')
+    const modulesByRoadmap = Object.fromEntries(moduleCounts.map((row: any) => [row.title, row.count]))
 
     expect(roadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
-    expect(moduleCount.count).toBe(11)
+    expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
+    expect(modulesByRoadmap['Roadmap AWS gratuito para cantera junior DevOps']).toBe(11)
+    expect(modulesByRoadmap['Roadmap IA para SRE/DevOps - Versión 2.0']).toBe(11)
     expect(admin.role).toBe('admin')
     expect(admin.is_active).toBe(1)
     expect(admin.password_hash).toMatch(/^scrypt:/)
@@ -57,9 +66,14 @@ describe('SQLite database bootstrap', () => {
       'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
       ['Roadmap AWS gratuito para cantera junior DevOps']
     )
+    const aiRoadmapCount = await secondDb.get(
+      'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
+      ['Roadmap IA para SRE/DevOps - Versión 2.0']
+    )
     const adminCount = await secondDb.get('SELECT COUNT(*) AS count FROM users WHERE email = ?', ['admin@example.com'])
 
     expect(roadmapCount.count).toBe(1)
+    expect(aiRoadmapCount.count).toBe(1)
     expect(adminCount.count).toBe(1)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))
 

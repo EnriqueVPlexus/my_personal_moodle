@@ -42,11 +42,16 @@ function estimateDuration(modules: LearningModule[]) {
   return min === max ? `${min} semanas` : `${min}-${max} semanas`
 }
 
+function moduleDisclosureKey(module: LearningModule, index: number) {
+  return String(module.id ?? `${module.position ?? index}-${module.title}`)
+}
+
 export default function RoadmapDetailPage() {
   const router = useRouter()
   const { id } = router.query
   const { isAdmin } = useAuth()
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null)
+  const [openModuleKeys, setOpenModuleKeys] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     if (!id) return
@@ -64,6 +69,23 @@ export default function RoadmapDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    const firstModule = roadmap?.modules?.[0]
+    setOpenModuleKeys(firstModule ? new Set([moduleDisclosureKey(firstModule, 0)]) : new Set())
+  }, [roadmap?.id, roadmap?.modules])
+
+  function handleModuleToggle(key: string) {
+    setOpenModuleKeys(previous => {
+      const next = new Set(previous)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
 
   if (!roadmap) return (
     <Layout>
@@ -147,9 +169,29 @@ export default function RoadmapDetailPage() {
 
           <div className="mt-4 space-y-4">
             {roadmap.modules && roadmap.modules.length > 0 ? (
-              roadmap.modules.map((module, index) => (
-                <details key={module.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" open={index === 0}>
-                  <summary className="cursor-pointer list-none">
+              roadmap.modules.map((module, index) => {
+                const disclosureKey = moduleDisclosureKey(module, index)
+                const isOpen = openModuleKeys.has(disclosureKey)
+
+                return (
+                <details
+                  key={disclosureKey}
+                  className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+                  open={isOpen}
+                >
+                  <summary
+                    className="cursor-pointer list-none"
+                    onClick={event => {
+                      event.preventDefault()
+                      handleModuleToggle(disclosureKey)
+                    }}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        handleModuleToggle(disclosureKey)
+                      }
+                    }}
+                  >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div className="flex gap-4">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-950 text-sm font-bold text-white">
@@ -164,7 +206,7 @@ export default function RoadmapDetailPage() {
                         {module.duration && (
                           <span className="rounded-md bg-emerald-50 px-3 py-1 font-medium text-emerald-700">{module.duration}</span>
                         )}
-                        <span className="font-medium text-sky-700">Ver detalle</span>
+                        <span className="font-medium text-sky-700">{isOpen ? 'Ocultar detalle' : 'Ver detalle'}</span>
                       </div>
                     </div>
                   </summary>
@@ -178,7 +220,8 @@ export default function RoadmapDetailPage() {
                     )}
                   </div>
                 </details>
-              ))
+                )
+              })
             ) : (
               <p className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">
                 No hay módulos todavía.

@@ -163,6 +163,14 @@ describe('Next pages', () => {
     expect(screen.getByText('2-3 semanas')).toBeInTheDocument()
     expect(screen.getByText('Launch AWS')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Amazon EC2/i })).toHaveAttribute('href', 'https://aws.amazon.com/ec2/')
+    expect(screen.getByText('Ocultar detalle')).toBeInTheDocument()
+    expect(screen.getByText('Ver detalle')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('heading', { name: 'IAM' }))
+    expect(screen.getAllByText('Ocultar detalle')).toHaveLength(2)
+
+    fireEvent.click(screen.getByRole('heading', { name: 'EC2' }))
+    expect(screen.getAllByText('Ver detalle')).toHaveLength(1)
 
     fireEvent.change(screen.getByPlaceholderText('Título del módulo'), { target: { value: 'S3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir módulo' }))

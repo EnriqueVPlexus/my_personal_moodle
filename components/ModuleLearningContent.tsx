@@ -82,7 +82,7 @@ export default function ModuleLearningContent({ module }: Props) {
           <LinkList items={asLearningLinks(module.official_resources)} />
         </Section>
 
-        <Section title="Vídeos de apoyo">
+        <Section title="Recursos complementarios">
           <LinkList items={asLearningLinks(module.support_videos)} />
         </Section>
 
