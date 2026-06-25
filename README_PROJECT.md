@@ -90,7 +90,7 @@ scripts/                    Utilidades de mantenimiento.
 - `sessions`
 - `audit_logs`
 
-También inserta o actualiza el roadmap AWS desde `lib/awsRoadmapSeed.json`.
+También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
 
 ## Calidad Y Tests
 

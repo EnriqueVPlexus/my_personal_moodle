@@ -17,7 +17,7 @@ export default defineConfig({
         'pages/**/*.{ts,tsx}'
       ],
       exclude: [
-        'lib/awsRoadmapSeed.json'
+        'lib/roadmapSeeds/**/*.json'
       ],
       thresholds: {
         lines: 80,

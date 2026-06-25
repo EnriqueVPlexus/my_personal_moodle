@@ -45,7 +45,7 @@ describe('content API handlers', () => {
         .mockResolvedValueOnce({ id: 1, title: 'AWS Updated' })
         .mockResolvedValueOnce({ title: 'AWS Updated' }),
       all: vi.fn().mockResolvedValue([{ id: 1, title: 'EC2' }]),
-      run: vi.fn()
+      run: vi.fn().mockResolvedValue({ changes: 1 })
     }
     await mockApi(db)
     const handler = (await import('../pages/api/roadmaps/[id]')).default
@@ -88,7 +88,7 @@ describe('content API handlers', () => {
         .mockResolvedValueOnce({ id: 1, title: 'EC2 Updated' })
         .mockResolvedValueOnce({ title: 'EC2 Updated', roadmap_id: 1 }),
       all: vi.fn().mockResolvedValue([{ id: 1, title: 'Lesson' }]),
-      run: vi.fn()
+      run: vi.fn().mockResolvedValue({ changes: 1 })
     }
     await mockApi(db)
     const handler = (await import('../pages/api/modules/[id]')).default
@@ -134,7 +134,7 @@ describe('content API handlers', () => {
         .mockResolvedValueOnce({ id: 1, title: 'SSH' })
         .mockResolvedValueOnce({ id: 1, title: 'SSH', completed: 1 })
         .mockResolvedValueOnce({ title: 'SSH', module_id: 1 }),
-      run: vi.fn()
+      run: vi.fn().mockResolvedValue({ changes: 1 })
     }
     await mockApi(db)
     const handler = (await import('../pages/api/lessons/[id]')).default

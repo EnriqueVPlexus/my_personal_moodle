@@ -150,7 +150,7 @@ describe('users API handlers', () => {
         .mockResolvedValueOnce({ id: 2, email: 'user@example.com', role: 'user', is_active: 1 })
         .mockResolvedValueOnce({ id: 2, email: 'user@example.com', role: 'user', is_active: 1 })
         .mockResolvedValueOnce({ id: 2, email: 'user@example.com', role: 'user', is_active: 1 }),
-      run: vi.fn()
+      run: vi.fn().mockResolvedValue({ changes: 1 })
     }
     await mockBase(db)
     vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))

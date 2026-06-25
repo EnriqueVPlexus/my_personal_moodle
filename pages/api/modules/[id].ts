@@ -19,7 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
     const { title } = req.body
-    await db.run('UPDATE modules SET title = ? WHERE id = ?', [title, id])
+    const result = await db.run('UPDATE modules SET title = ? WHERE id = ?', [title, id])
+    if (!result.changes) return res.status(404).json({ error: 'module not found' })
+    
     const updated = await db.get('SELECT * FROM modules WHERE id = ?', [id])
     await writeAuditLog({
       db,
@@ -37,6 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
     const moduleRow = await db.get('SELECT title, roadmap_id FROM modules WHERE id = ?', [id])
+    if (!moduleRow) return res.status(404).json({ error: 'module not found' })
+    
     await db.run('DELETE FROM modules WHERE id = ?', [id])
     await writeAuditLog({
       db,

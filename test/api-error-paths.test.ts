@@ -173,15 +173,15 @@ describe('content API edge cases', () => {
   it('handles missing detail rows, nullable delete audit metadata and method guards', async () => {
     const db = {
       all: vi.fn().mockResolvedValue([]),
-      run: vi.fn(),
+      run: vi.fn().mockResolvedValue({ changes: 1 }),
       get: vi.fn()
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: 1, title: 'SSH', completed: 0 })
-        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null) // roadmap GET
+        .mockResolvedValueOnce({ id: 1, title: 'AWS' }) // roadmap DELETE check
+        .mockResolvedValueOnce(null) // module GET
+        .mockResolvedValueOnce({ id: 1, title: 'EC2' }) // module DELETE check
+        .mockResolvedValueOnce(null) // lesson GET
+        .mockResolvedValueOnce({ id: 1, title: 'SSH', completed: 0 }) // lesson PUT
+        .mockResolvedValueOnce({ id: 1, title: 'SSH', completed: 0 }) // lesson DELETE check
     }
     await mockContentApi(db)
     const roadmapDetail = (await import('../pages/api/roadmaps/[id]')).default
@@ -308,7 +308,7 @@ describe('users API edge cases', () => {
 
   it('validates user admin actions and protects sensitive states', async () => {
     const db = {
-      run: vi.fn(),
+      run: vi.fn().mockResolvedValue({ changes: 1 }), // Default return value for UPDATEs/DELETEs
       get: vi.fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 1, email: 'admin@example.com', role: 'admin', is_active: 1 })
@@ -364,7 +364,7 @@ describe('users API edge cases', () => {
   })
 
   it('stops user detail actions when admin authorization fails', async () => {
-    const db = { run: vi.fn(), get: vi.fn() }
+    const db = { run: vi.fn().mockResolvedValue({ changes: 1 }), get: vi.fn() }
     await mockUsersApi(db, { admin: null })
     const userDetail = (await import('../pages/api/users/[id]')).default
 
@@ -403,7 +403,7 @@ describe('auth API edge cases', () => {
   })
 
   it('uses same-origin protection for login and logout', async () => {
-    const db = { get: vi.fn(), run: vi.fn() }
+    const db = { get: vi.fn(), run: vi.fn().mockResolvedValue({ changes: 1 }) }
     await mockAuthApi(db, { sameOrigin: false })
     const login = (await import('../pages/api/auth/login')).default
     const logout = (await import('../pages/api/auth/logout')).default
@@ -418,7 +418,7 @@ describe('auth API edge cases', () => {
   })
 
   it('returns method guards for session and setup status endpoints', async () => {
-    const db = { get: vi.fn(), run: vi.fn() }
+    const db = { get: vi.fn(), run: vi.fn().mockResolvedValue({ changes: 1 }) }
     await mockAuthApi(db)
     const logout = (await import('../pages/api/auth/logout')).default
     const me = (await import('../pages/api/auth/me')).default
@@ -445,7 +445,7 @@ describe('auth API edge cases', () => {
         .mockResolvedValueOnce({ count: 0 })
         .mockResolvedValueOnce({ count: 0 })
         .mockResolvedValueOnce({ count: 0 }),
-      run: vi.fn().mockResolvedValue({})
+      run: vi.fn().mockResolvedValue({ changes: 1, lastID: 1 })
     }
     await mockAuthApi(db, { passwordError: 'weak password' })
     const setup = (await import('../pages/api/auth/setup')).default

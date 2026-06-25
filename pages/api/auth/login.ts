@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createSession, requireSameOrigin } from '../../../lib/auth'
+import { rateLimit, clearRateLimit } from '../../../lib/rateLimit'
 import { openDb } from '../../../lib/db'
 import { normalizeEmail, verifyPassword } from '../../../lib/password'
 
@@ -8,6 +9,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', 'POST')
     return res.status(405).end('Method Not Allowed')
   }
+
+  // Apply rate limiting to prevent brute force attacks
+  if (!rateLimit(req, res, { maxAttempts: 5, windowMs: 60 * 1000 })) return
 
   if (!requireSameOrigin(req, res)) return
 
@@ -26,6 +30,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'invalid credentials' })
   }
 
+  // Clear rate limit after successful login
+  clearRateLimit(req)
+  
   await createSession(res, user.id, db)
   return res.status(200).json({
     user: {

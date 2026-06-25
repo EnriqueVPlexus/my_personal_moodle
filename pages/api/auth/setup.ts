@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { createSession, requireSameOrigin, validateSetupToken } from '../../../lib/auth'
+import { rateLimit, clearRateLimit } from '../../../lib/rateLimit'
 import { openDb } from '../../../lib/db'
 import { hashPassword, normalizeEmail, validatePassword } from '../../../lib/password'
 
@@ -10,16 +11,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end('Method Not Allowed')
   }
 
+  // Apply rate limiting to prevent brute force attacks on setup
+  if (!rateLimit(req, res, { maxAttempts: 3, windowMs: 60 * 1000 })) return
+
+  // Validate setup token first before checking origin (fail faster on auth errors)
+  const { email, name, password, setupToken } = req.body || {}
+  if (!validateSetupToken(typeof setupToken === 'string' ? setupToken : undefined)) {
+    return res.status(403).json({ error: 'setup token required' })
+  }
+
   if (!requireSameOrigin(req, res)) return
 
   const db = await openDb()
   const row = await db.get('SELECT COUNT(*) AS count FROM users')
   if (Number(row.count) > 0) return res.status(409).json({ error: 'setup already completed' })
-
-  const { email, name, password, setupToken } = req.body || {}
-  if (!validateSetupToken(typeof setupToken === 'string' ? setupToken : undefined)) {
-    return res.status(403).json({ error: 'setup token required' })
-  }
 
   if (typeof email !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ error: 'email and password required' })
@@ -45,6 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!userId) return res.status(500).json({ error: 'user creation failed' })
 
   await createSession(res, userId, db)
+  clearRateLimit(req)
+  
   await writeAuditLog({
     db,
     req,

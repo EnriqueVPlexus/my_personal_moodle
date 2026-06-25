@@ -41,7 +41,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    await db.run('UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?', [isActive ? 1 : 0, new Date().toISOString(), userId])
+    // Double-check before update to prevent race condition where last admin gets deactivated
+    if (!isActive && target.role === 'admin') {
+      const adminCountCheck = await db.get(
+        'SELECT COUNT(*) AS count FROM users WHERE role = ? AND is_active = 1 AND id != ?',
+        ['admin', userId]
+      )
+      if (Number(adminCountCheck.count) === 0) {
+        return res.status(400).json({ error: 'cannot deactivate the last active admin' })
+      }
+    }
+
+    const result = await db.run('UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?', [isActive ? 1 : 0, new Date().toISOString(), userId])
+    if (!result.changes) return res.status(404).json({ error: 'user not found' })
+    
     if (!isActive) await db.run('DELETE FROM sessions WHERE user_id = ?', [userId])
 
     const updated = await db.get(
@@ -69,10 +82,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const validationError = validatePassword(password)
     if (validationError) return res.status(400).json({ error: validationError })
 
-    await db.run(
+    const result = await db.run(
       'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
       [await hashPassword(password), new Date().toISOString(), userId]
     )
+    if (!result.changes) return res.status(404).json({ error: 'user not found' })
+    
     await db.run('DELETE FROM sessions WHERE user_id = ?', [userId])
 
     const updated = await db.get(

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const seed = JSON.parse(fs.readFileSync(new URL('../lib/awsRoadmapSeed.json', import.meta.url), 'utf8'))
+const seed = JSON.parse(fs.readFileSync(new URL('../lib/roadmapSeeds/awsRoadmapSeed.json', import.meta.url), 'utf8'))
 const requiredFields = [
   'title',
   'duration',
@@ -11,7 +11,6 @@ const requiredFields = [
   'official_resources',
   'support_videos',
   'practical_activity',
-  'deliverable_evidence',
   'evaluation'
 ]
 
@@ -22,6 +21,10 @@ assert.deepEqual(Object.values(seed.evaluation_weights), ['20%', '40%', '20%', '
 seed.modules.forEach((module, index) => {
   assert.equal(module.position, index)
   requiredFields.forEach(field => assert.ok(module[field], `Module ${index} is missing ${field}`))
+  assert.ok(
+    module.deliverable_evidence || module.deliverable,
+    `Module ${index} is missing deliverable evidence`
+  )
   assert.ok(Array.isArray(module.contents), `Module ${index} contents must be a list`)
   assert.ok(Array.isArray(module.official_resources), `Module ${index} official resources must be a list`)
 })

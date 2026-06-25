@@ -2,8 +2,32 @@ import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 import path from 'path'
 import fs from 'fs'
-import awsRoadmapSeed from './awsRoadmapSeed.json'
+import awsRoadmapSeed from './roadmapSeeds/awsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
+
+type RoadmapSeed = {
+  title: string
+  description: string
+  objectives: string[]
+  methodology: string[]
+  evaluation_weights: Record<string, string>
+  modules: Array<{
+    position: number
+    title: string
+    duration: string
+    objective: string
+    contents: string[]
+    importance: string
+    official_resources: Array<{ label: string; url: string }>
+    support_videos: Array<{ label: string; url?: string }>
+    practical_activity: string | string[]
+    deliverable?: string | string[]
+    deliverable_evidence?: string | string[]
+    evaluation: string
+  }>
+}
+
+const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed]
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
@@ -19,7 +43,7 @@ export async function openDb() {
 
   if (!initialized) {
     await migrate(db)
-    await seedAwsRoadmap(db)
+    await seedRoadmaps(db)
     await seedInitialAdmin(db)
     initialized = true
   }
@@ -117,8 +141,13 @@ async function ensureColumn(db: any, table: string, column: string, definition: 
   }
 }
 
-async function seedAwsRoadmap(db: any) {
-  const seed = awsRoadmapSeed
+async function seedRoadmaps(db: any) {
+  for (const seed of roadmapSeeds) {
+    await seedRoadmap(db, seed)
+  }
+}
+
+async function seedRoadmap(db: any, seed: RoadmapSeed) {
   const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [seed.title])
   let roadmapId = existing?.id
 
@@ -151,6 +180,7 @@ async function seedAwsRoadmap(db: any) {
   }
 
   for (const moduleSeed of seed.modules) {
+    const deliverableEvidence = moduleSeed.deliverable_evidence ?? moduleSeed.deliverable ?? null
     const moduleRow = await db.get(
       'SELECT id FROM modules WHERE roadmap_id = ? AND (position = ? OR title = ?)',
       [roadmapId, moduleSeed.position, moduleSeed.title]
@@ -167,7 +197,7 @@ async function seedAwsRoadmap(db: any) {
       JSON.stringify(moduleSeed.official_resources),
       JSON.stringify(moduleSeed.support_videos),
       JSON.stringify(moduleSeed.practical_activity),
-      JSON.stringify(moduleSeed.deliverable_evidence),
+      JSON.stringify(deliverableEvidence),
       moduleSeed.evaluation
     ]
 

@@ -18,7 +18,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
     const { title, completed } = req.body
-    await db.run('UPDATE lessons SET title = ?, completed = ? WHERE id = ?', [title, completed ? 1 : 0, id])
+    const result = await db.run('UPDATE lessons SET title = ?, completed = ? WHERE id = ?', [title, completed ? 1 : 0, id])
+    if (!result.changes) return res.status(404).json({ error: 'lesson not found' })
+    
     const updated = await db.get('SELECT * FROM lessons WHERE id = ?', [id])
     await writeAuditLog({
       db,
@@ -36,6 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
     const lesson = await db.get('SELECT title, module_id FROM lessons WHERE id = ?', [id])
+    if (!lesson) return res.status(404).json({ error: 'lesson not found' })
+    
     await db.run('DELETE FROM lessons WHERE id = ?', [id])
     await writeAuditLog({
       db,

@@ -22,7 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
     const { title, description } = req.body
-    await db.run('UPDATE roadmaps SET title = ?, description = ? WHERE id = ?', [title, description || null, id])
+    const result = await db.run('UPDATE roadmaps SET title = ?, description = ? WHERE id = ?', [title, description || null, id])
+    if (!result.changes) return res.status(404).json({ error: 'roadmap not found' })
+    
     const updated = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
     await writeAuditLog({
       db,
