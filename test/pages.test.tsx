@@ -122,6 +122,7 @@ describe('Next pages', () => {
     const roadmap = {
       id: 7,
       title: 'AWS Roadmap',
+      duration: '6 meses (5-8 h/semana)',
       description: 'Cloud path',
       objectives: '["Launch AWS"]',
       methodology: ['Practicar con evidencias'],
@@ -160,7 +161,7 @@ describe('Next pages', () => {
     render(<RoadmapDetailPage />)
 
     expect(await screen.findByRole('heading', { name: 'AWS Roadmap' })).toBeInTheDocument()
-    expect(screen.getByText('2-3 semanas')).toBeInTheDocument()
+    expect(screen.getByText('6 meses (5-8 h/semana)')).toBeInTheDocument()
     expect(screen.getByText('Launch AWS')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Amazon EC2/i })).toHaveAttribute('href', 'https://aws.amazon.com/ec2/')
 
