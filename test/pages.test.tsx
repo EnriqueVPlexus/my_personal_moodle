@@ -173,7 +173,7 @@ describe('Next pages', () => {
     })
   })
 
-  it('renders module details, redirects protected reads and updates lessons', async () => {
+  it('renders module details, redirects protected reads and updates personal lesson progress', async () => {
     setRouter('/modules/4', { id: '4' })
     mockAuth({ user: adminUser, isAdmin: true })
 
@@ -191,7 +191,7 @@ describe('Next pages', () => {
     }
 
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
-      if (url === '/api/lessons/9' && init?.method === 'PUT') return jsonResponse({ ok: true })
+      if (url === '/api/progress/lessons/9' && init?.method === 'PUT') return jsonResponse({ ok: true })
       if (url === '/api/lessons' && init?.method === 'POST') return jsonResponse({ id: 11, title: 'Security groups' }, 201)
       return jsonResponse(moduleDetail)
     })
@@ -202,7 +202,7 @@ describe('Next pages', () => {
     expect(await screen.findByRole('heading', { name: 'EC2' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Marcar completada' }))
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/lessons/9', expect.objectContaining({ method: 'PUT' }))
+      expect(fetchMock).toHaveBeenCalledWith('/api/progress/lessons/9', expect.objectContaining({ method: 'PUT' }))
     })
 
     fireEvent.change(screen.getByPlaceholderText('Título de la lección'), { target: { value: 'Security groups' } })
@@ -243,6 +243,22 @@ describe('Next pages', () => {
     vi.resetModules()
     setRouter('/login')
     mockAuth()
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ user: adminUser }))
+
+    const DefaultLoginPage = (await import('../pages/login')).default
+    render(<DefaultLoginPage />)
+    fireEvent.change(screen.getByPlaceholderText('email@empresa.com'), { target: { value: 'admin@example.com' } })
+    fireEvent.change(screen.getByPlaceholderText('Contraseña'), { target: { value: 'valid-password-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    await waitFor(() => {
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/my-roadmaps')
+    })
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/login')
+    mockAuth()
     vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'invalid credentials' }, 401))
 
     const InvalidLoginPage = (await import('../pages/login')).default
@@ -267,6 +283,85 @@ describe('Next pages', () => {
 
     expect(await screen.findByText(/No se pudo conectar con el servidor/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Entrar' })).not.toBeDisabled()
+  })
+
+  it('renders personal roadmap dashboard and redirects anonymous users', async () => {
+    setRouter('/my-roadmaps')
+    mockAuth({ user: adminUser, isAdmin: true })
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      if (url === '/api/progress/roadmaps') {
+        return jsonResponse([
+          {
+            roadmap_id: 7,
+            title: 'IA para DevOps',
+            description: 'Ruta aplicada',
+            duration: '8 semanas',
+            last_activity_at: '2026-07-06T08:30:00.000Z',
+            completed_lessons_count: 3,
+            total_lessons: 8,
+            total_modules: 5,
+            time_spent_seconds: 4500,
+            progress_percentage: 38,
+            status: 'in_progress',
+            next_href: '/modules/15',
+            next_step_label: 'Continuar con Evaluacion de prompts',
+            current_module_title: 'Observabilidad'
+          },
+          {
+            roadmap_id: 8,
+            title: 'AWS',
+            description: 'Cloud path',
+            duration: '6 meses',
+            last_activity_at: '2026-07-07T10:00:00.000Z',
+            completed_lessons_count: 4,
+            total_lessons: 4,
+            total_modules: 2,
+            time_spent_seconds: 7200,
+            progress_percentage: 100,
+            status: 'completed',
+            next_href: '/modules/20',
+            next_step_label: 'Volver al roadmap',
+            current_module_title: 'EC2'
+          }
+        ])
+      }
+      return jsonResponse({})
+    })
+
+    const MyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<MyRoadmapsPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Mis roadmaps' })).toBeInTheDocument()
+    expect(screen.getByText('IA para DevOps')).toBeInTheDocument()
+    expect(screen.getByText('AWS')).toBeInTheDocument()
+    expect(screen.getByText('3 h 15 min')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/progress/roadmaps')
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/my-roadmaps')
+    mockAuth()
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({}, 401))
+
+    const ProtectedMyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<ProtectedMyRoadmapsPage />)
+
+    await waitFor(() => {
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/login?next=%2Fmy-roadmaps')
+    })
+  })
+
+  it('shows an empty state when the user has no started roadmaps', async () => {
+    setRouter('/my-roadmaps')
+    mockAuth({ user: adminUser })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse([]))
+
+    const MyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<MyRoadmapsPage />)
+
+    expect(await screen.findByText('Aún no has empezado ningún roadmap')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Explorar roadmaps' })).toHaveAttribute('href', '/roadmaps')
   })
 
   it('runs setup states, validation errors and successful first-admin creation', async () => {

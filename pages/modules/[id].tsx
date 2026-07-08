@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
@@ -11,9 +11,10 @@ import { branding } from '../../lib/branding'
 export default function ModulePage() {
   const router = useRouter()
   const { id } = router.query
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
   const [module, setModule] = useState<LearningModule | null>(null)
   const [lessons, setLessons] = useState<any[]>([])
+  const moduleOpenedAt = useRef(Date.now())
 
   const load = useCallback(async () => {
     if (!id) return
@@ -26,16 +27,21 @@ export default function ModulePage() {
       const data = await res.json()
       setModule(data)
       setLessons(data.lessons || [])
+      moduleOpenedAt.current = Date.now()
     }
   }, [id, router])
 
   useEffect(() => { load() }, [load])
 
   async function toggleComplete(lesson: any) {
-    const res = await fetch(`/api/lessons/${lesson.id}`, {
+    const elapsedSeconds = Math.max(30, Math.min(1800, Math.round((Date.now() - moduleOpenedAt.current) / 1000)))
+    const res = await fetch(`/api/progress/lessons/${lesson.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: lesson.title, completed: lesson.completed ? 0 : 1 })
+      body: JSON.stringify({
+        completed: !lesson.completed,
+        time_spent_seconds: lesson.completed ? 0 : elapsedSeconds
+      })
     })
     if (res.ok) load()
   }
@@ -82,7 +88,7 @@ export default function ModulePage() {
                   <div>
                     <div className={`text-sm ${l.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{l.title}</div>
                   </div>
-                  {isAdmin && (
+                  {user && (
                     <div className="space-x-2">
                       <button className="text-sm font-medium text-emerald-700" onClick={() => toggleComplete(l)}>
                         {l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
@@ -103,8 +109,10 @@ export default function ModulePage() {
                 <LessonForm moduleId={Number(id)} onCreate={() => load()} />
               </div>
             </div>
+          ) : user ? (
+            <p className="mt-4 text-sm text-slate-500">Tu progreso se guarda por usuario cuando marques lecciones.</p>
           ) : (
-            <p className="mt-4 text-sm text-slate-500">Modo lectura: solo admin puede añadir o marcar lecciones.</p>
+            <p className="mt-4 text-sm text-slate-500">Inicia sesión para guardar tu progreso en las lecciones.</p>
           )}
         </section>
         </div>

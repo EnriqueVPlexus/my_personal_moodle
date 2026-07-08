@@ -144,6 +144,18 @@ export async function requireAdmin(req: NextApiRequest, res: NextApiResponse, db
   return user
 }
 
+export async function requireUser(req: NextApiRequest, res: NextApiResponse, db?: any) {
+  if (!requireSameOrigin(req, res)) return null
+
+  const user = await getUserFromRequest(req, db)
+  if (!user) {
+    res.status(401).json({ error: 'authentication required' })
+    return null
+  }
+
+  return user
+}
+
 export function isReadAuthRequired() {
   return ['1', 'true', 'yes'].includes(String(process.env.REQUIRE_AUTH_FOR_READS || '').toLowerCase())
 }

@@ -35,6 +35,7 @@ La base local se crea automáticamente en `data/dev.db`.
 - **Roadmaps**: rutas formativas con descripción, objetivos, metodología y pesos de evaluación.
 - **Módulos**: unidades ordenadas dentro de un roadmap, con duración, objetivo, contenidos y recursos.
 - **Lecciones**: tareas simples asociadas a módulos, marcables como completadas por admin.
+- **Progreso personal**: seguimiento por usuario de roadmaps iniciados, lecciones completadas y tiempo de estudio acumulado.
 - **Usuarios**: cuentas con rol `admin` o `user`.
 - **Auditoría**: registro de acciones sensibles como altas, cambios y borrados.
 
@@ -58,6 +59,7 @@ La base local se crea automáticamente en `data/dev.db`.
 pages/
   index.tsx                 Home.
   roadmaps/                 Listado y detalle de roadmaps.
+  my-roadmaps.tsx           Resumen personal de progreso.
   modules/[id].tsx          Detalle de módulo y lecciones.
   login.tsx                 Login.
   setup.tsx                 Setup inicial.
@@ -89,6 +91,9 @@ scripts/                    Utilidades de mantenimiento.
 - `users`
 - `sessions`
 - `audit_logs`
+- `user_lesson_progress`
+- `user_roadmap_progress`
+- `user_quiz_attempts`
 
 También inserta o actualiza el roadmap AWS desde `lib/awsRoadmapSeed.json`.
 
@@ -136,6 +141,8 @@ Consulta y contenido:
 - `POST /api/lessons`
 - `PUT /api/lessons/:id`
 - `DELETE /api/lessons/:id`
+- `PUT /api/progress/lessons/:id`
+- `GET /api/progress/roadmaps`
 
 Auth, usuarios y auditoría:
 
