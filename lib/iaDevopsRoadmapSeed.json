@@ -29,7 +29,7 @@
       "position": 0,
       "title": "Fundamentos de IA, GenAI y modelos fundacionales",
       "duration": "2 semanas",
-      "objective": "Entender IA, ML, deep learning, LLMs, embeddings, tokens, ventanas de contexto, alucinaciones, RAG, agentes y fine-tuning.",
+      "objective": "Entender IA, ML, deep learning, LLMs, embeddings, tokens, ventanas de contexto, alucinaciones del modelo, RAG, agentes y fine-tuning.",
       "contents": [
         "IA vs ML vs Deep Learning",
         "Modelos fundacionales y LLMs",
@@ -194,7 +194,7 @@
         "metadata filters",
         "citaciones",
         "evaluación de respuestas",
-        "control de alucinaciones",
+        "control de alucinaciones del modelo",
         "Nivel: intermediate."
       ],
       "importance": "RAG es probablemente el caso de uso enterprise más directo para SRE: runbooks, KBs, procedimientos, incidencias pasadas y documentación interna.",
