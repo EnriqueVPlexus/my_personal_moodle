@@ -28,6 +28,10 @@ type LessonContext = {
   title: string
 }
 
+export const ROADMAP_PAUSED_AFTER_DAYS = 14
+
+export type RoadmapProgressStatus = 'started' | 'in_progress' | 'paused' | 'completed'
+
 export type UserRoadmapProgressSummary = {
   roadmap_id: number
   title: string
@@ -45,9 +49,13 @@ export type UserRoadmapProgressSummary = {
   current_lesson_id?: number | null
   current_lesson_title?: string | null
   progress_percentage: number
-  status: 'started' | 'in_progress' | 'completed'
+  status: RoadmapProgressStatus
   next_href: string
   next_step_label: string
+  quiz_attempts_count: number
+  average_quiz_percentage?: number | null
+  best_quiz_percentage?: number | null
+  last_quiz_percentage?: number | null
 }
 
 export type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
@@ -79,7 +87,7 @@ export type RoadmapDetailProgress = {
   current_lesson_id?: number | null
   current_lesson_title?: string | null
   progress_percentage: number
-  status: 'started' | 'in_progress' | 'completed'
+  status: RoadmapProgressStatus
   next_href: string
   next_step_label: string
   modules: RoadmapModuleProgressSummary[]
@@ -91,6 +99,41 @@ function nowIso() {
 
 function progressPercentage(completed: number, total: number) {
   return total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
+}
+
+function percentageValue(value: unknown) {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? Math.round(numeric) : null
+}
+
+function isPaused(lastActivityAt: unknown) {
+  if (!lastActivityAt) return false
+  const lastActivity = new Date(String(lastActivityAt)).getTime()
+  if (!Number.isFinite(lastActivity)) return false
+
+  const elapsedMs = Date.now() - lastActivity
+  const pausedAfterMs = ROADMAP_PAUSED_AFTER_DAYS * 24 * 60 * 60 * 1000
+  return elapsedMs >= pausedAfterMs
+}
+
+export function resolveRoadmapStatus(options: {
+  completedAt?: string | null
+  completedLessonsCount: number
+  totalLessons: number
+  currentModuleId?: number | null
+  lastActivityAt?: string | null
+}): RoadmapProgressStatus {
+  if (options.completedAt || (
+    options.totalLessons > 0 &&
+    options.completedLessonsCount >= options.totalLessons
+  )) {
+    return 'completed'
+  }
+
+  const hasMeaningfulProgress = options.completedLessonsCount > 0 || Boolean(options.currentModuleId)
+  if (hasMeaningfulProgress && isPaused(options.lastActivityAt)) return 'paused'
+  if (hasMeaningfulProgress) return 'in_progress'
+  return 'started'
 }
 
 function clampTimeSpent(value: unknown) {
@@ -297,6 +340,35 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
         current_module.title AS current_module_title,
         user_roadmap_progress.current_lesson_id,
         current_lesson.title AS current_lesson_title,
+        (
+          SELECT COUNT(*)
+          FROM user_quiz_attempts
+          WHERE user_quiz_attempts.user_id = ?
+            AND user_quiz_attempts.roadmap_id = user_roadmap_progress.roadmap_id
+        ) AS quiz_attempts_count,
+        (
+          SELECT AVG((score * 100.0) / max_score)
+          FROM user_quiz_attempts
+          WHERE user_quiz_attempts.user_id = ?
+            AND user_quiz_attempts.roadmap_id = user_roadmap_progress.roadmap_id
+            AND max_score > 0
+        ) AS average_quiz_percentage,
+        (
+          SELECT MAX((score * 100.0) / max_score)
+          FROM user_quiz_attempts
+          WHERE user_quiz_attempts.user_id = ?
+            AND user_quiz_attempts.roadmap_id = user_roadmap_progress.roadmap_id
+            AND max_score > 0
+        ) AS best_quiz_percentage,
+        (
+          SELECT (score * 100.0) / max_score
+          FROM user_quiz_attempts
+          WHERE user_quiz_attempts.user_id = ?
+            AND user_quiz_attempts.roadmap_id = user_roadmap_progress.roadmap_id
+            AND max_score > 0
+          ORDER BY datetime(submitted_at) DESC, id DESC
+          LIMIT 1
+        ) AS last_quiz_percentage,
         COUNT(DISTINCT modules.id) AS total_modules,
         COUNT(lessons.id) AS total_lessons
      FROM user_roadmap_progress
@@ -314,18 +386,20 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
        current_module.title,
        current_lesson.title
      ORDER BY datetime(user_roadmap_progress.last_activity_at) DESC, user_roadmap_progress.id DESC`,
-    [userId]
+    [userId, userId, userId, userId, userId]
   )
 
   return rows.map((row: any) => {
     const totalLessons = Number(row.total_lessons || 0)
     const completedLessonsCount = Number(row.completed_lessons_count || 0)
     const percentage = progressPercentage(completedLessonsCount, totalLessons)
-    const status = row.completed_at
-      ? 'completed'
-      : completedLessonsCount > 0 || row.current_module_id
-        ? 'in_progress'
-        : 'started'
+    const status = resolveRoadmapStatus({
+      completedAt: row.completed_at,
+      completedLessonsCount,
+      totalLessons,
+      currentModuleId: row.current_module_id,
+      lastActivityAt: row.last_activity_at
+    })
     const nextHref = row.current_module_id ? `/modules/${row.current_module_id}` : `/roadmaps/${row.roadmap_id}`
     const nextStepLabel = row.completed_at
       ? 'Volver al roadmap'
@@ -354,7 +428,11 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
       progress_percentage: percentage,
       status,
       next_href: nextHref,
-      next_step_label: nextStepLabel
+      next_step_label: nextStepLabel,
+      quiz_attempts_count: Number(row.quiz_attempts_count || 0),
+      average_quiz_percentage: percentageValue(row.average_quiz_percentage),
+      best_quiz_percentage: percentageValue(row.best_quiz_percentage),
+      last_quiz_percentage: percentageValue(row.last_quiz_percentage)
     } as UserRoadmapProgressSummary
   })
 }
@@ -472,11 +550,13 @@ export async function getRoadmapDetailProgress(
       : nextModule
         ? `Abrir ${nextModule.title}`
         : 'Revisar roadmap'
-  const status = completed
-    ? 'completed'
-    : completedLessonsCount > 0 || progressRow?.current_module_id
-      ? 'in_progress'
-      : 'started'
+  const status = resolveRoadmapStatus({
+    completedAt: progressRow?.completed_at,
+    completedLessonsCount,
+    totalLessons,
+    currentModuleId: progressRow?.current_module_id,
+    lastActivityAt: progressRow?.last_activity_at
+  })
 
   return {
     roadmap_id: roadmapId,

@@ -222,6 +222,21 @@ describe('Next pages', () => {
         next_lesson_title: 'SSH basics',
         time_spent_seconds: 900
       },
+      quiz: {
+        questions: [
+          {
+            id: 'module-content',
+            prompt: 'Que tema aparece en EC2?',
+            options: ['AMI', 'S3'],
+            explanation: 'Sale del contenido.'
+          }
+        ]
+      },
+      quiz_summary: {
+        attempts_count: 1,
+        best_score_percentage: 50,
+        average_score_percentage: 50
+      },
       lessons: [
         { id: 9, title: 'SSH basics', completed: 0, progress_time_spent_seconds: 0 },
         { id: 10, title: 'Instance review', completed: 1, progress_time_spent_seconds: 900 }
@@ -230,6 +245,29 @@ describe('Next pages', () => {
 
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/progress/lessons/9' && init?.method === 'PUT') return jsonResponse({ ok: true })
+      if (url === '/api/quizzes/modules/4' && init?.method === 'POST') {
+        return jsonResponse({
+          score: 1,
+          max_score: 1,
+          percentage: 100,
+          passed: true,
+          feedback: [
+            {
+              question_id: 'module-content',
+              prompt: 'Que tema aparece en EC2?',
+              selected_option: 'AMI',
+              correct_option: 'AMI',
+              is_correct: true,
+              explanation: 'Sale del contenido.'
+            }
+          ],
+          summary: {
+            attempts_count: 2,
+            best_score_percentage: 100,
+            average_score_percentage: 75
+          }
+        }, 201)
+      }
       if (url === '/api/lessons' && init?.method === 'POST') return jsonResponse({ id: 11, title: 'Security groups' }, 201)
       return jsonResponse(moduleDetail)
     })
@@ -241,6 +279,14 @@ describe('Next pages', () => {
     expect(screen.getByText('Progreso del módulo')).toBeInTheDocument()
     expect(screen.getByText('1/2 lecciones')).toBeInTheDocument()
     expect(screen.getByText('15 min acumulado en este módulo.')).toBeInTheDocument()
+    expect(screen.getByText('Quiz del módulo')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('AMI'))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar quiz' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/quizzes/modules/4', expect.objectContaining({ method: 'POST' }))
+    })
+    expect(await screen.findByText('1/1 respuestas correctas')).toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'Marcar completada' }))
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/progress/lessons/9', expect.objectContaining({ method: 'PUT' }))
@@ -370,7 +416,11 @@ describe('Next pages', () => {
             status: 'in_progress',
             next_href: '/modules/15',
             next_step_label: 'Continuar con Evaluacion de prompts',
-            current_module_title: 'Observabilidad'
+            current_module_title: 'Observabilidad',
+            quiz_attempts_count: 1,
+            average_quiz_percentage: 70,
+            best_quiz_percentage: 80,
+            last_quiz_percentage: 70
           },
           {
             roadmap_id: 8,
@@ -386,7 +436,28 @@ describe('Next pages', () => {
             status: 'completed',
             next_href: '/modules/20',
             next_step_label: 'Volver al roadmap',
-            current_module_title: 'EC2'
+            current_module_title: 'EC2',
+            quiz_attempts_count: 2,
+            average_quiz_percentage: 90,
+            best_quiz_percentage: 100,
+            last_quiz_percentage: 90
+          },
+          {
+            roadmap_id: 9,
+            title: 'Kubernetes',
+            description: 'Cluster path',
+            duration: '4 semanas',
+            last_activity_at: '2026-07-01T10:00:00.000Z',
+            completed_lessons_count: 1,
+            total_lessons: 5,
+            total_modules: 2,
+            time_spent_seconds: 0,
+            progress_percentage: 20,
+            status: 'paused',
+            next_href: '/modules/30',
+            next_step_label: 'Continuar con Pods',
+            current_module_title: 'Pods',
+            quiz_attempts_count: 0
           }
         ])
       }
@@ -399,6 +470,9 @@ describe('Next pages', () => {
     expect(await screen.findByRole('heading', { name: 'Mis roadmaps' })).toBeInTheDocument()
     expect(screen.getByText('IA para DevOps')).toBeInTheDocument()
     expect(screen.getByText('AWS')).toBeInTheDocument()
+    expect(screen.getByText('Kubernetes')).toBeInTheDocument()
+    expect(screen.getByText('pausados')).toBeInTheDocument()
+    expect(screen.getByText('media quiz')).toBeInTheDocument()
     expect(screen.getByText('3 h 15 min')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/progress/roadmaps')
 

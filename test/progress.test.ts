@@ -3,6 +3,8 @@ import { getRoadmapDetailProgress, listUserRoadmapProgress } from '../lib/progre
 
 describe('progress helpers', () => {
   it('builds roadmap summaries with next step and completion status', async () => {
+    const recentActivity = new Date().toISOString()
+    const pausedActivity = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
     const db = {
       all: vi.fn().mockResolvedValue([
         {
@@ -11,7 +13,7 @@ describe('progress helpers', () => {
           description: 'Ruta aplicada',
           duration: '8 semanas',
           started_at: '2026-07-01T09:00:00.000Z',
-          last_activity_at: '2026-07-06T08:30:00.000Z',
+          last_activity_at: recentActivity,
           completed_at: null,
           completed_lessons_count: 3,
           time_spent_seconds: 4500,
@@ -23,12 +25,33 @@ describe('progress helpers', () => {
           total_lessons: 8
         },
         {
+          roadmap_id: 10,
+          title: 'Kubernetes',
+          description: 'Cluster path',
+          duration: '4 semanas',
+          started_at: pausedActivity,
+          last_activity_at: pausedActivity,
+          completed_at: null,
+          completed_lessons_count: 1,
+          time_spent_seconds: 600,
+          current_module_id: 30,
+          current_module_title: 'Pods',
+          current_lesson_id: null,
+          current_lesson_title: null,
+          total_modules: 2,
+          total_lessons: 6,
+          quiz_attempts_count: 2,
+          average_quiz_percentage: 67.4,
+          best_quiz_percentage: 80,
+          last_quiz_percentage: 60
+        },
+        {
           roadmap_id: 8,
           title: 'AWS',
           description: 'Cloud path',
           duration: '6 meses',
           started_at: '2026-07-02T09:00:00.000Z',
-          last_activity_at: '2026-07-07T10:00:00.000Z',
+          last_activity_at: recentActivity,
           completed_at: '2026-07-07T10:00:00.000Z',
           completed_lessons_count: 4,
           time_spent_seconds: 7200,
@@ -45,7 +68,7 @@ describe('progress helpers', () => {
           description: null,
           duration: null,
           started_at: '2026-07-03T09:00:00.000Z',
-          last_activity_at: '2026-07-04T10:00:00.000Z',
+          last_activity_at: pausedActivity,
           completed_at: null,
           completed_lessons_count: 0,
           time_spent_seconds: 0,
@@ -62,22 +85,34 @@ describe('progress helpers', () => {
     const result = await listUserRoadmapProgress(db as any, 2)
 
     expect(db.all).toHaveBeenCalledOnce()
-    expect(result).toHaveLength(3)
+    expect(result).toHaveLength(4)
     expect(result[0]).toMatchObject({
       roadmap_id: 7,
       status: 'in_progress',
       progress_percentage: 38,
       next_href: '/modules/15',
-      next_step_label: 'Continuar con Evaluacion de prompts'
+      next_step_label: 'Continuar con Evaluacion de prompts',
+      quiz_attempts_count: 0
     })
     expect(result[1]).toMatchObject({
+      roadmap_id: 10,
+      status: 'paused',
+      progress_percentage: 17,
+      next_href: '/modules/30',
+      next_step_label: 'Continuar con Pods',
+      quiz_attempts_count: 2,
+      average_quiz_percentage: 67,
+      best_quiz_percentage: 80,
+      last_quiz_percentage: 60
+    })
+    expect(result[2]).toMatchObject({
       roadmap_id: 8,
       status: 'completed',
       progress_percentage: 100,
       next_href: '/modules/20',
       next_step_label: 'Volver al roadmap'
     })
-    expect(result[2]).toMatchObject({
+    expect(result[3]).toMatchObject({
       roadmap_id: 9,
       status: 'started',
       progress_percentage: 0,

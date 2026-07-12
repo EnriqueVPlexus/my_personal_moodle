@@ -25,6 +25,8 @@ del producto poco a poco.
 - [x] Suite de tests con cobertura automatizada.
 - [x] Progreso por usuario para roadmaps y lecciones: modelo, APIs,
   vista `Mis roadmaps`, porcentaje y tiempo aproximado.
+- [x] Quizzes por modulo con intentos, notas y estadisticas por usuario.
+- [x] Estados de progreso `iniciado`, `en curso`, `pausado` y `completado`.
 - [x] Favicon propio de CanteraHub para la pestana del navegador.
 
 ## Orden recomendado
@@ -41,12 +43,9 @@ del producto poco a poco.
 
 ## Prioridad alta
 
-### [ ] Progreso por usuario
+### [x] Progreso por usuario
 
-Estado: parcial. Ya hay modelo de datos, APIs, vista `Mis roadmaps`,
-porcentaje, siguiente paso, tiempo aproximado y detalle de progreso
-por roadmap/modulo. Quedan pendientes el flujo real de quizzes/notas
-y cerrar reglas de negocio avanzadas.
+Estado: hecho.
 
 Valor: convierte la app en una herramienta de seguimiento real, no
 solo en un catalogo de contenido.
@@ -155,10 +154,11 @@ Hecho cuando:
 - No depende de mantener la pestana abierta de forma perfecta.
 - Hay tests para acumulacion basica.
 
-#### [ ] Fase 6. Quizzes y notas
+#### [x] Fase 6. Quizzes y notas
 
-Estado: pendiente. La tabla `user_quiz_attempts` existe como base
-tecnica, pero aun no hay flujo de quiz real ni consulta de notas.
+Estado: hecho. Los quizzes se generan desde contenidos, actividades,
+recursos y evidencias del modulo. Los intentos quedan persistidos por
+usuario y se muestran mejor nota, media y ultimo intento.
 
 Tareas:
 
@@ -173,11 +173,10 @@ Hecho cuando:
 - La nota aparece en el contexto del roadmap o modulo.
 - Hay tests de intento, correccion y consulta.
 
-#### [ ] Fase 7. Estadisticas de aprendizaje
+#### [x] Fase 7. Estadisticas de aprendizaje
 
-Estado: parcial. `Mis roadmaps` ya muestra iniciados, completados y
-tiempo acumulado. Faltan pausados, media de quiz y base para metricas
-admin.
+Estado: hecho. `Mis roadmaps` muestra iniciados, completados,
+pausados, lecciones completadas, tiempo acumulado y media de quiz.
 
 Tareas:
 
@@ -190,11 +189,13 @@ Hecho cuando:
 - El usuario ve un resumen util de su actividad.
 - Las metricas no requieren consultas fragiles ni lentas.
 
-#### [ ] Fase 8. Reglas de negocio y experiencia
+#### [x] Fase 8. Reglas de negocio y experiencia
 
-Estado: parcial. Ya existen estados `started`, `in_progress` y
-`completed` en los resumenes de progreso. Queda definir `pausado`,
-reglas de cierre por quiz y copiar estados vacios/edge cases.
+Estado: hecho. `Iniciado` significa roadmap abierto sin avance real;
+`en curso`, actividad reciente con modulo o lecciones; `pausado`,
+roadmap sin completar con actividad anterior a 14 dias; `completado`,
+todas las lecciones cerradas. El quiz suma evaluacion y actividad,
+pero no bloquea el cierre del modulo.
 
 Tareas:
 

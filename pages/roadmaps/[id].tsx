@@ -29,7 +29,7 @@ type RoadmapProgress = {
   total_modules: number
   time_spent_seconds: number
   progress_percentage: number
-  status: 'started' | 'in_progress' | 'completed'
+  status: 'started' | 'in_progress' | 'paused' | 'completed'
   next_href: string
   next_step_label: string
 }
@@ -97,6 +97,7 @@ function formatStudyTime(totalSeconds: number) {
 
 function roadmapStatusLabel(status: RoadmapProgress['status']) {
   if (status === 'completed') return 'Completado'
+  if (status === 'paused') return 'Pausado'
   if (status === 'in_progress') return 'En curso'
   return 'Iniciado'
 }

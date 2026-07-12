@@ -16,10 +16,14 @@ type UserRoadmapProgress = {
   total_modules: number
   time_spent_seconds: number
   progress_percentage: number
-  status: 'started' | 'in_progress' | 'completed'
+  status: 'started' | 'in_progress' | 'paused' | 'completed'
   next_href: string
   next_step_label: string
   current_module_title?: string | null
+  quiz_attempts_count: number
+  average_quiz_percentage?: number | null
+  best_quiz_percentage?: number | null
+  last_quiz_percentage?: number | null
 }
 
 function formatStudyTime(totalSeconds: number) {
@@ -43,8 +47,13 @@ function formatActivityDate(value: string) {
 
 function statusLabel(status: UserRoadmapProgress['status']) {
   if (status === 'completed') return 'Completado'
+  if (status === 'paused') return 'Pausado'
   if (status === 'in_progress') return 'En curso'
   return 'Iniciado'
+}
+
+function formatQuizPercentage(value?: number | null) {
+  return value === null || value === undefined ? 'Sin nota' : `${value}%`
 }
 
 export default function MyRoadmapsPage() {
@@ -72,7 +81,13 @@ export default function MyRoadmapsPage() {
 
   const startedCount = roadmaps.length
   const completedCount = roadmaps.filter(roadmap => roadmap.status === 'completed').length
+  const pausedCount = roadmaps.filter(roadmap => roadmap.status === 'paused').length
   const totalStudySeconds = roadmaps.reduce((sum, roadmap) => sum + roadmap.time_spent_seconds, 0)
+  const totalCompletedLessons = roadmaps.reduce((sum, roadmap) => sum + roadmap.completed_lessons_count, 0)
+  const roadmapsWithQuiz = roadmaps.filter(roadmap => roadmap.average_quiz_percentage !== null && roadmap.average_quiz_percentage !== undefined)
+  const averageQuizPercentage = roadmapsWithQuiz.length > 0
+    ? Math.round(roadmapsWithQuiz.reduce((sum, roadmap) => sum + Number(roadmap.average_quiz_percentage || 0), 0) / roadmapsWithQuiz.length)
+    : null
 
   return (
     <Layout>
@@ -92,7 +107,7 @@ export default function MyRoadmapsPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
               <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <span className="block text-2xl font-bold text-slate-950">{startedCount}</span>
                 <span className="text-slate-600">iniciados</span>
@@ -100,6 +115,18 @@ export default function MyRoadmapsPage() {
               <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
                 <span className="block text-2xl font-bold text-emerald-700">{completedCount}</span>
                 <span className="text-emerald-900">completados</span>
+              </div>
+              <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
+                <span className="block text-2xl font-bold text-amber-700">{pausedCount}</span>
+                <span className="text-amber-900">pausados</span>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <span className="block text-2xl font-bold text-slate-950">{totalCompletedLessons}</span>
+                <span className="text-slate-600">lecciones</span>
+              </div>
+              <div className="rounded-lg border border-violet-100 bg-violet-50 p-4">
+                <span className="block text-2xl font-bold text-violet-700">{formatQuizPercentage(averageQuizPercentage)}</span>
+                <span className="text-violet-900">media quiz</span>
               </div>
               <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
                 <span className="block text-2xl font-bold text-sky-800">{formatStudyTime(totalStudySeconds)}</span>
@@ -145,6 +172,16 @@ export default function MyRoadmapsPage() {
                           {roadmap.completed_lessons_count}/{roadmap.total_lessons}
                         </span>
                       </div>
+                      <div className="rounded-md border border-violet-100 bg-violet-50 p-3">
+                        <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-violet-700">Quiz</span>
+                        <span className="mt-1 block text-2xl font-bold text-violet-800">
+                          {formatQuizPercentage(roadmap.best_quiz_percentage)}
+                        </span>
+                      </div>
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Intentos</span>
+                        <span className="mt-1 block text-2xl font-bold text-slate-950">{roadmap.quiz_attempts_count || 0}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -169,6 +206,9 @@ export default function MyRoadmapsPage() {
                       <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Actividad reciente</span>
                       <span className="mt-1 block font-medium text-slate-950">{formatActivityDate(roadmap.last_activity_at)}</span>
                       <span className="mt-1 block text-slate-600">{formatStudyTime(roadmap.time_spent_seconds)} acumulado</span>
+                      <span className="mt-1 block text-slate-600">
+                        Quiz medio: {formatQuizPercentage(roadmap.average_quiz_percentage)}
+                      </span>
                     </div>
                     <div className="flex gap-3">
                       <Link

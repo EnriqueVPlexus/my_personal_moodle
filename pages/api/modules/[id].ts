@@ -3,6 +3,7 @@ import { writeAuditLog } from '../../../lib/audit'
 import { getUserFromRequest, requireAdmin, requireReadAccess } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { touchRoadmapProgress } from '../../../lib/progress'
+import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
 
 function buildModuleProgress(lessons: any[]) {
   const totalLessons = lessons.length
@@ -66,10 +67,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         [user.id, id]
       )
       : await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [id])
+    const quiz = buildModuleQuiz(moduleRow)
+    const quizSummary = user ? await getModuleQuizSummary(db, user.id, moduleRow.id) : null
+
     return res.status(200).json({
       ...moduleRow,
       lessons,
-      progress: user ? buildModuleProgress(lessons) : null
+      progress: user ? buildModuleProgress(lessons) : null,
+      quiz: toPublicModuleQuiz(quiz),
+      quiz_summary: quizSummary
     })
   }
 

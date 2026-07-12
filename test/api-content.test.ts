@@ -186,7 +186,17 @@ describe('content API handlers', () => {
     const db = {
       get: vi.fn()
         .mockResolvedValueOnce({ id: 4, title: 'EC2', roadmap_id: 7 })
-        .mockResolvedValueOnce(null),
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          attempts_count: 1,
+          average_score_percentage: 75,
+          best_score_percentage: 75
+        })
+        .mockResolvedValueOnce({
+          score: 3,
+          max_score: 4,
+          submitted_at: '2026-07-12T08:00:00.000Z'
+        }),
       all: vi.fn().mockResolvedValue([
         { id: 9, title: 'SSH basics', completed: 1, progress_time_spent_seconds: 1800 },
         { id: 10, title: 'Instance review', completed: 1, progress_time_spent_seconds: 1800 }
@@ -208,6 +218,64 @@ describe('content API handlers', () => {
       next_lesson_id: null,
       time_spent_seconds: 3600
     })
+    expect(res.body.quiz_summary).toMatchObject({
+      attempts_count: 1,
+      best_score_percentage: 75,
+      latest_attempt: {
+        percentage: 75
+      }
+    })
+  })
+
+  it('submits module quiz attempts for authenticated users', async () => {
+    const db = {
+      get: vi.fn()
+        .mockResolvedValueOnce({
+          id: 4,
+          roadmap_id: 7,
+          title: 'EC2',
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]',
+          official_resources: '[{"label":"Amazon EC2"}]'
+        })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          attempts_count: 1,
+          average_score_percentage: 100,
+          best_score_percentage: 100
+        })
+        .mockResolvedValueOnce({
+          score: 3,
+          max_score: 3,
+          submitted_at: '2026-07-12T08:00:00.000Z'
+        }),
+      run: vi.fn()
+    }
+    await mockApi(db, { user })
+    const handler = (await import('../pages/api/quizzes/modules/[id]')).default
+
+    const res = createResponse()
+    await handler(createRequest({
+      method: 'POST',
+      query: { id: '4' },
+      body: {
+        answers: {
+          'module-content': 1,
+          'module-practice': 2,
+          'module-resource': 3
+        }
+      }
+    }), res)
+
+    expect(res.statusCode).toBe(201)
+    expect(res.body).toMatchObject({
+      max_score: 3,
+      summary: {
+        attempts_count: 1,
+        best_score_percentage: 100
+      }
+    })
+    expect(db.run).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_quiz_attempts'), expect.any(Array))
   })
 
   it('writes lesson progress for authenticated users', async () => {

@@ -17,8 +17,51 @@ type ModuleProgress = {
   time_spent_seconds: number
 }
 
+type QuizQuestion = {
+  id: string
+  prompt: string
+  options: string[]
+  explanation: string
+}
+
+type ModuleQuiz = {
+  questions: QuizQuestion[]
+}
+
+type QuizSummary = {
+  attempts_count: number
+  average_score_percentage?: number | null
+  best_score_percentage?: number | null
+  latest_attempt?: {
+    score: number
+    max_score: number
+    percentage: number
+    submitted_at: string
+  } | null
+}
+
+type QuizFeedbackItem = {
+  question_id: string
+  prompt: string
+  selected_option?: string | null
+  correct_option: string
+  is_correct: boolean
+  explanation: string
+}
+
+type QuizResult = {
+  score: number
+  max_score: number
+  percentage: number
+  passed: boolean
+  feedback: QuizFeedbackItem[]
+  summary?: QuizSummary
+}
+
 type ModuleDetail = LearningModule & {
   progress?: ModuleProgress | null
+  quiz?: ModuleQuiz | null
+  quiz_summary?: QuizSummary | null
 }
 
 type LessonWithProgress = {
@@ -42,6 +85,10 @@ function statusLabel(status: ModuleProgress['status']) {
   if (status === 'completed') return 'Completado'
   if (status === 'in_progress') return 'En curso'
   return 'No iniciado'
+}
+
+function formatQuizPercentage(value?: number | null) {
+  return value === null || value === undefined ? 'Sin nota' : `${value}%`
 }
 
 function fallbackProgress(lessons: LessonWithProgress[]): ModuleProgress {
@@ -75,6 +122,10 @@ export default function ModulePage() {
   const { isAdmin, user } = useAuth()
   const [module, setModule] = useState<ModuleDetail | null>(null)
   const [lessons, setLessons] = useState<LessonWithProgress[]>([])
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
+  const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
+  const [quizError, setQuizError] = useState('')
+  const [quizSubmitting, setQuizSubmitting] = useState(false)
   const moduleOpenedAt = useRef(Date.now())
 
   const load = useCallback(async () => {
@@ -88,6 +139,9 @@ export default function ModulePage() {
       const data = await res.json()
       setModule(data)
       setLessons(data.lessons || [])
+      setQuizAnswers({})
+      setQuizResult(null)
+      setQuizError('')
       moduleOpenedAt.current = Date.now()
     }
   }, [id, router])
@@ -107,6 +161,34 @@ export default function ModulePage() {
     if (res.ok) load()
   }
 
+  async function submitQuiz() {
+    if (!module?.quiz) return
+    setQuizSubmitting(true)
+    setQuizError('')
+
+    try {
+      const res = await fetch(`/api/quizzes/modules/${module.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: quizAnswers })
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setQuizError(data.error || 'No se pudo guardar el intento.')
+        return
+      }
+
+      const data = await res.json()
+      setQuizResult(data)
+      setModule(current => current ? { ...current, quiz_summary: data.summary } : current)
+    } catch {
+      setQuizError('No se pudo conectar con el servidor.')
+    } finally {
+      setQuizSubmitting(false)
+    }
+  }
+
   if (!module) return (
     <Layout>
       <main className="container py-8 text-sm text-slate-600">Cargando...</main>
@@ -114,6 +196,8 @@ export default function ModulePage() {
   )
 
   const progress = user ? module.progress || fallbackProgress(lessons) : null
+  const quiz = module.quiz
+  const quizSummary = module.quiz_summary
 
   return (
     <Layout>
@@ -228,6 +312,101 @@ export default function ModulePage() {
             <p className="mt-4 text-sm text-slate-500">Inicia sesión para guardar tu progreso en las lecciones.</p>
           )}
         </section>
+
+        {quiz && quiz.questions.length > 0 && (
+          <section className="panel mt-6 p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Evaluación</p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-950">Quiz del módulo</h2>
+              </div>
+              {user && (
+                <div className="grid gap-3 text-sm sm:grid-cols-3 lg:w-[520px]">
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Intentos</span>
+                    <span className="mt-1 block text-xl font-bold text-slate-950">{quizSummary?.attempts_count || 0}</span>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Mejor</span>
+                    <span className="mt-1 block text-xl font-bold text-slate-950">{formatQuizPercentage(quizSummary?.best_score_percentage)}</span>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Media</span>
+                    <span className="mt-1 block text-xl font-bold text-slate-950">{formatQuizPercentage(quizSummary?.average_score_percentage)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {quiz.questions.map((question, questionIndex) => (
+                <fieldset key={question.id} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <legend className="px-1 text-sm font-semibold text-slate-950">
+                    {questionIndex + 1}. {question.prompt}
+                  </legend>
+                  <div className="mt-3 grid gap-2">
+                    {question.options.map((option, optionIndex) => (
+                      <label key={option} className="flex items-start gap-3 rounded-md bg-white p-3 text-sm text-slate-700 shadow-sm">
+                        <input
+                          type="radio"
+                          name={`quiz-${question.id}`}
+                          checked={quizAnswers[question.id] === optionIndex}
+                          disabled={!user || quizSubmitting}
+                          onChange={() => setQuizAnswers(current => ({ ...current, [question.id]: optionIndex }))}
+                          className="mt-1"
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+            </div>
+
+            {quizError && (
+              <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{quizError}</p>
+            )}
+
+            {quizResult && (
+              <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-2xl font-bold text-emerald-700">{quizResult.percentage}%</span>
+                  <span className="text-sm font-semibold text-emerald-900">
+                    {quizResult.score}/{quizResult.max_score} respuestas correctas
+                  </span>
+                  <span className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {quizResult.passed ? 'Superado' : 'A reforzar'}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-2">
+                  {quizResult.feedback.map(item => (
+                    <div key={item.question_id} className="rounded-md bg-white p-3 text-sm text-slate-700">
+                      <div className="font-semibold text-slate-950">{item.prompt}</div>
+                      <div className="mt-1">
+                        {item.is_correct ? 'Correcta' : `Correcta: ${item.correct_option}`}
+                      </div>
+                      <div className="mt-1 text-slate-600">{item.explanation}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5">
+              {user ? (
+                <button
+                  onClick={submitQuiz}
+                  disabled={quizSubmitting}
+                  className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {quizSubmitting ? 'Guardando...' : 'Enviar quiz'}
+                </button>
+              ) : (
+                <p className="text-sm text-slate-500">Inicia sesión para guardar intentos y notas de quiz.</p>
+              )}
+            </div>
+          </section>
+        )}
         </div>
       </main>
     </Layout>
