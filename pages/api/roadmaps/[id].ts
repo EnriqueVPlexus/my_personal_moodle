@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getUserFromRequest, requireAdmin, requireReadAccess } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
-import { touchRoadmapProgress } from '../../../lib/progress'
+import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progress'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -21,11 +21,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
 
+    const progress = user
+      ? await getRoadmapDetailProgress(db, user.id, roadmap.id)
+      : null
     const modules = await db.all(
       'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
       [id]
     )
-    return res.status(200).json({ ...roadmap, modules })
+    const modulesWithProgress = progress
+      ? modules.map((module: any) => ({
+        ...module,
+        progress: progress.modules.find(item => item.module_id === module.id) || null
+      }))
+      : modules
+
+    return res.status(200).json({ ...roadmap, modules: modulesWithProgress, progress })
   }
 
   if (req.method === 'PUT') {

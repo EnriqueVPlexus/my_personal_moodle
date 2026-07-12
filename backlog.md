@@ -23,6 +23,9 @@ del producto poco a poco.
 - [x] Seed inicial de roadmaps segmentados.
 - [x] Roadmap `IA para DevOps`.
 - [x] Suite de tests con cobertura automatizada.
+- [x] Progreso por usuario para roadmaps y lecciones: modelo, APIs,
+  vista `Mis roadmaps`, porcentaje y tiempo aproximado.
+- [x] Favicon propio de CanteraHub para la pestana del navegador.
 
 ## Orden recomendado
 
@@ -40,7 +43,10 @@ del producto poco a poco.
 
 ### [ ] Progreso por usuario
 
-Estado: pendiente.
+Estado: parcial. Ya hay modelo de datos, APIs, vista `Mis roadmaps`,
+porcentaje, siguiente paso, tiempo aproximado y detalle de progreso
+por roadmap/modulo. Quedan pendientes el flujo real de quizzes/notas
+y cerrar reglas de negocio avanzadas.
 
 Valor: convierte la app en una herramienta de seguimiento real, no
 solo en un catalogo de contenido.
@@ -63,9 +69,9 @@ Alcance funcional:
 
 Desglose tecnico propuesto:
 
-#### [ ] Fase 1. Modelo de datos de progreso
+#### [x] Fase 1. Modelo de datos de progreso
 
-Estado: pendiente.
+Estado: hecho.
 
 Tareas:
 
@@ -80,9 +86,10 @@ Hecho cuando:
 - Las migraciones son idempotentes.
 - Hay tests de bootstrap y persistencia.
 
-#### [ ] Fase 2. Escritura de progreso
+#### [x] Fase 2. Escritura de progreso
 
-Estado: pendiente.
+Estado: hecho para acceso a roadmaps/modulos y avance de lecciones.
+La escritura de intentos de quiz queda en la fase 6.
 
 Tareas:
 
@@ -97,9 +104,9 @@ Hecho cuando:
 - El progreso sobrevive reinicios de sesion.
 - Hay tests de API para flujos de avance y reanudacion.
 
-#### [ ] Fase 3. Resumen visible al iniciar sesion
+#### [x] Fase 3. Resumen visible al iniciar sesion
 
-Estado: pendiente.
+Estado: hecho.
 
 Tareas:
 
@@ -114,9 +121,9 @@ Hecho cuando:
 - El estado de cada roadmap se ve sin entrar en el detalle.
 - Hay tests de UI del dashboard de inicio.
 
-#### [ ] Fase 4. Detalle de roadmap y modulo con progreso
+#### [x] Fase 4. Detalle de roadmap y modulo con progreso
 
-Estado: pendiente.
+Estado: hecho.
 
 Tareas:
 
@@ -130,9 +137,10 @@ Hecho cuando:
 - El detalle de roadmap y modulo refleja progreso persistente.
 - La lectura del contenido sigue siendo limpia y no se vuelve recargada.
 
-#### [ ] Fase 5. Tiempo de estudio
+#### [x] Fase 5. Tiempo de estudio
 
-Estado: pendiente.
+Estado: hecho con estimacion simple por interaccion al completar
+lecciones y acumulado visible en `Mis roadmaps`.
 
 Tareas:
 
@@ -149,7 +157,8 @@ Hecho cuando:
 
 #### [ ] Fase 6. Quizzes y notas
 
-Estado: pendiente.
+Estado: pendiente. La tabla `user_quiz_attempts` existe como base
+tecnica, pero aun no hay flujo de quiz real ni consulta de notas.
 
 Tareas:
 
@@ -166,7 +175,9 @@ Hecho cuando:
 
 #### [ ] Fase 7. Estadisticas de aprendizaje
 
-Estado: pendiente.
+Estado: parcial. `Mis roadmaps` ya muestra iniciados, completados y
+tiempo acumulado. Faltan pausados, media de quiz y base para metricas
+admin.
 
 Tareas:
 
@@ -181,7 +192,9 @@ Hecho cuando:
 
 #### [ ] Fase 8. Reglas de negocio y experiencia
 
-Estado: pendiente.
+Estado: parcial. Ya existen estados `started`, `in_progress` y
+`completed` en los resumenes de progreso. Queda definir `pausado`,
+reglas de cierre por quiz y copiar estados vacios/edge cases.
 
 Tareas:
 

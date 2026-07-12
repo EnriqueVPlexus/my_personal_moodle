@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { listUserRoadmapProgress } from '../lib/progress'
+import { getRoadmapDetailProgress, listUserRoadmapProgress } from '../lib/progress'
 
 describe('progress helpers', () => {
   it('builds roadmap summaries with next step and completion status', async () => {
@@ -84,5 +84,89 @@ describe('progress helpers', () => {
       next_href: '/roadmaps/9',
       next_step_label: 'Retomar roadmap'
     })
+  })
+
+  it('builds detailed roadmap progress grouped by module', async () => {
+    const db = {
+      get: vi.fn().mockResolvedValue({
+        roadmap_id: 7,
+        started_at: '2026-07-01T09:00:00.000Z',
+        last_activity_at: '2026-07-06T08:30:00.000Z',
+        completed_at: null,
+        current_module_id: 15,
+        current_module_title: 'Observabilidad',
+        current_lesson_id: 42,
+        current_lesson_title: 'Evaluacion de prompts'
+      }),
+      all: vi.fn()
+        .mockResolvedValueOnce([
+          {
+            module_id: 15,
+            title: 'Observabilidad',
+            position: 1,
+            total_lessons: 2,
+            completed_lessons_count: 1,
+            last_activity_at: '2026-07-06T08:30:00.000Z'
+          },
+          {
+            module_id: 16,
+            title: 'CI/CD',
+            position: 2,
+            total_lessons: 1,
+            completed_lessons_count: 0,
+            last_activity_at: null
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            lesson_id: 42,
+            lesson_title: 'Evaluacion de prompts',
+            module_id: 15,
+            completed: 1,
+            time_spent_seconds: 1200
+          },
+          {
+            lesson_id: 43,
+            lesson_title: 'Alertas',
+            module_id: 15,
+            completed: 0,
+            time_spent_seconds: 0
+          },
+          {
+            lesson_id: 44,
+            lesson_title: 'Pipeline',
+            module_id: 16,
+            completed: 0,
+            time_spent_seconds: 0
+          }
+        ])
+    }
+
+    const result = await getRoadmapDetailProgress(db as any, 2, 7)
+
+    expect(result).toMatchObject({
+      roadmap_id: 7,
+      completed_lessons_count: 1,
+      total_lessons: 3,
+      progress_percentage: 33,
+      status: 'in_progress',
+      next_href: '/modules/15',
+      next_step_label: 'Continuar con Alertas',
+      time_spent_seconds: 1200
+    })
+    expect(result.modules).toEqual([
+      expect.objectContaining({
+        module_id: 15,
+        status: 'in_progress',
+        progress_percentage: 50,
+        next_lesson_title: 'Alertas'
+      }),
+      expect.objectContaining({
+        module_id: 16,
+        status: 'not_started',
+        progress_percentage: 0,
+        next_lesson_title: 'Pipeline'
+      })
+    ])
   })
 })

@@ -127,6 +127,16 @@ describe('Next pages', () => {
       objectives: '["Launch AWS"]',
       methodology: ['Practicar con evidencias'],
       evaluation_weights: '{"Quiz":"20%","Laboratorio":"80%"}',
+      progress: {
+        completed_lessons_count: 1,
+        total_lessons: 3,
+        total_modules: 2,
+        time_spent_seconds: 3900,
+        progress_percentage: 33,
+        status: 'in_progress',
+        next_href: '/modules/10',
+        next_step_label: 'Continuar con Instance review'
+      },
       modules: [
         {
           id: 10,
@@ -140,14 +150,28 @@ describe('Next pages', () => {
           support_videos: '["Curso AWS"]',
           practical_activity: '["Crear instancia"]',
           deliverable_evidence: '["Captura"]',
-          evaluation: 'Revisión práctica'
+          evaluation: 'Revisión práctica',
+          progress: {
+            total_lessons: 2,
+            completed_lessons_count: 1,
+            progress_percentage: 50,
+            status: 'in_progress',
+            next_lesson_title: 'Instance review'
+          }
         },
         {
           id: 11,
           position: 2,
           title: 'IAM',
           duration: '1 semana',
-          objective: 'Gestionar accesos'
+          objective: 'Gestionar accesos',
+          progress: {
+            total_lessons: 1,
+            completed_lessons_count: 0,
+            progress_percentage: 0,
+            status: 'not_started',
+            next_lesson_title: 'Policies'
+          }
         }
       ]
     }
@@ -163,6 +187,12 @@ describe('Next pages', () => {
     expect(await screen.findByRole('heading', { name: 'AWS Roadmap' })).toBeInTheDocument()
     expect(screen.getByText('6 meses (5-8 h/semana)')).toBeInTheDocument()
     expect(screen.getByText('Launch AWS')).toBeInTheDocument()
+    expect(screen.getByText('Tu progreso en este roadmap')).toBeInTheDocument()
+    expect(screen.getByText('Continuar con Instance review')).toBeInTheDocument()
+    expect(screen.getByText((_content, element) => (
+      element?.tagName.toLowerCase() === 'p' &&
+      Boolean(element.textContent?.includes('1/3 lecciones completadas'))
+    ))).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Amazon EC2/i })).toHaveAttribute('href', 'https://aws.amazon.com/ec2/')
 
     fireEvent.change(screen.getByPlaceholderText('Título del módulo'), { target: { value: 'S3' } })
@@ -184,9 +214,17 @@ describe('Next pages', () => {
       duration: '1 semana',
       objective: 'Compute foundations',
       contents: '[]',
+      progress: {
+        total_lessons: 2,
+        completed_lessons_count: 1,
+        progress_percentage: 50,
+        status: 'in_progress',
+        next_lesson_title: 'SSH basics',
+        time_spent_seconds: 900
+      },
       lessons: [
-        { id: 9, title: 'SSH basics', completed: 0 },
-        { id: 10, title: 'Instance review', completed: 1 }
+        { id: 9, title: 'SSH basics', completed: 0, progress_time_spent_seconds: 0 },
+        { id: 10, title: 'Instance review', completed: 1, progress_time_spent_seconds: 900 }
       ]
     }
 
@@ -200,6 +238,9 @@ describe('Next pages', () => {
     render(<ModulePage />)
 
     expect(await screen.findByRole('heading', { name: 'EC2' })).toBeInTheDocument()
+    expect(screen.getByText('Progreso del módulo')).toBeInTheDocument()
+    expect(screen.getByText('1/2 lecciones')).toBeInTheDocument()
+    expect(screen.getByText('15 min acumulado en este módulo.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Marcar completada' }))
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/progress/lessons/9', expect.objectContaining({ method: 'PUT' }))
@@ -210,6 +251,29 @@ describe('Next pages', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/lessons', expect.objectContaining({ method: 'POST' }))
     })
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/modules/5', { id: '5' })
+    mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' } })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      id: 5,
+      title: 'IAM',
+      position: 2,
+      duration: '2 semanas',
+      objective: 'Access foundations',
+      contents: '[]',
+      lessons: [
+        { id: 12, title: 'Policies', completed: 1, progress_time_spent_seconds: 3600 }
+      ]
+    }))
+
+    const CompletedModulePage = (await import('../pages/modules/[id]')).default
+    render(<CompletedModulePage />)
+
+    expect(await screen.findByRole('heading', { name: 'IAM' })).toBeInTheDocument()
+    expect(screen.getByText('Módulo completado')).toBeInTheDocument()
+    expect(screen.getByText('1 h acumulado en este módulo.')).toBeInTheDocument()
 
     cleanup()
     vi.resetModules()

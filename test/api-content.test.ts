@@ -66,6 +66,79 @@ describe('content API handlers', () => {
     expect(deleteRes.statusCode).toBe(204)
   })
 
+  it('returns personal progress on roadmap detail reads', async () => {
+    const db = {
+      get: vi.fn()
+        .mockResolvedValueOnce({ id: 7, title: 'IA para DevOps' })
+        .mockResolvedValueOnce({
+          user_id: 2,
+          roadmap_id: 7,
+          current_module_id: 15,
+          current_lesson_id: 42,
+          completed_lessons_count: 1,
+          time_spent_seconds: 1200,
+          completed_at: null
+        })
+        .mockResolvedValueOnce({
+          roadmap_id: 7,
+          started_at: '2026-07-01T09:00:00.000Z',
+          last_activity_at: '2026-07-06T08:30:00.000Z',
+          completed_at: null,
+          current_module_id: 15,
+          current_module_title: 'Observabilidad',
+          current_lesson_id: 42,
+          current_lesson_title: 'Evaluacion de prompts'
+        }),
+      all: vi.fn()
+        .mockResolvedValueOnce([
+          {
+            module_id: 15,
+            title: 'Observabilidad',
+            position: 1,
+            total_lessons: 2,
+            completed_lessons_count: 1,
+            last_activity_at: '2026-07-06T08:30:00.000Z'
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            lesson_id: 42,
+            lesson_title: 'Evaluacion de prompts',
+            module_id: 15,
+            completed: 1,
+            time_spent_seconds: 1200
+          },
+          {
+            lesson_id: 43,
+            lesson_title: 'Alertas',
+            module_id: 15,
+            completed: 0,
+            time_spent_seconds: 0
+          }
+        ])
+        .mockResolvedValueOnce([{ id: 15, title: 'Observabilidad' }]),
+      run: vi.fn()
+    }
+    await mockApi(db, { user })
+    const handler = (await import('../pages/api/roadmaps/[id]')).default
+
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET', query: { id: '7' } }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.progress).toMatchObject({
+      roadmap_id: 7,
+      progress_percentage: 50,
+      next_href: '/modules/15',
+      next_step_label: 'Continuar con Alertas'
+    })
+    expect(res.body.modules[0].progress).toMatchObject({
+      module_id: 15,
+      status: 'in_progress',
+      completed_lessons_count: 1
+    })
+  })
+
   it('lists and creates modules', async () => {
     const db = {
       all: vi.fn().mockResolvedValue([{ id: 1, title: 'EC2' }]),
@@ -107,6 +180,34 @@ describe('content API handlers', () => {
     const deleteRes = createResponse()
     await handler(createRequest({ method: 'DELETE', query: { id: '1' } }), deleteRes)
     expect(deleteRes.statusCode).toBe(204)
+  })
+
+  it('returns personal progress on module detail reads', async () => {
+    const db = {
+      get: vi.fn()
+        .mockResolvedValueOnce({ id: 4, title: 'EC2', roadmap_id: 7 })
+        .mockResolvedValueOnce(null),
+      all: vi.fn().mockResolvedValue([
+        { id: 9, title: 'SSH basics', completed: 1, progress_time_spent_seconds: 1800 },
+        { id: 10, title: 'Instance review', completed: 1, progress_time_spent_seconds: 1800 }
+      ]),
+      run: vi.fn()
+    }
+    await mockApi(db, { user })
+    const handler = (await import('../pages/api/modules/[id]')).default
+
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET', query: { id: '4' } }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.progress).toMatchObject({
+      total_lessons: 2,
+      completed_lessons_count: 2,
+      progress_percentage: 100,
+      status: 'completed',
+      next_lesson_id: null,
+      time_spent_seconds: 3600
+    })
   })
 
   it('writes lesson progress for authenticated users', async () => {

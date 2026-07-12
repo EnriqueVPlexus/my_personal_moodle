@@ -50,8 +50,47 @@ export type UserRoadmapProgressSummary = {
   next_step_label: string
 }
 
+export type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
+
+export type RoadmapModuleProgressSummary = {
+  module_id: number
+  title: string
+  position?: number | null
+  total_lessons: number
+  completed_lessons_count: number
+  progress_percentage: number
+  status: ModuleProgressStatus
+  last_activity_at?: string | null
+  next_lesson_id?: number | null
+  next_lesson_title?: string | null
+}
+
+export type RoadmapDetailProgress = {
+  roadmap_id: number
+  started_at?: string | null
+  last_activity_at?: string | null
+  completed_at?: string | null
+  completed_lessons_count: number
+  total_lessons: number
+  total_modules: number
+  time_spent_seconds: number
+  current_module_id?: number | null
+  current_module_title?: string | null
+  current_lesson_id?: number | null
+  current_lesson_title?: string | null
+  progress_percentage: number
+  status: 'started' | 'in_progress' | 'completed'
+  next_href: string
+  next_step_label: string
+  modules: RoadmapModuleProgressSummary[]
+}
+
 function nowIso() {
   return new Date().toISOString()
+}
+
+function progressPercentage(completed: number, total: number) {
+  return total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
 }
 
 function clampTimeSpent(value: unknown) {
@@ -281,9 +320,7 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
   return rows.map((row: any) => {
     const totalLessons = Number(row.total_lessons || 0)
     const completedLessonsCount = Number(row.completed_lessons_count || 0)
-    const progressPercentage = totalLessons > 0
-      ? Math.min(100, Math.round((completedLessonsCount / totalLessons) * 100))
-      : 0
+    const percentage = progressPercentage(completedLessonsCount, totalLessons)
     const status = row.completed_at
       ? 'completed'
       : completedLessonsCount > 0 || row.current_module_id
@@ -314,10 +351,150 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
       current_module_title: row.current_module_title,
       current_lesson_id: row.current_lesson_id,
       current_lesson_title: row.current_lesson_title,
-      progress_percentage: progressPercentage,
+      progress_percentage: percentage,
       status,
       next_href: nextHref,
       next_step_label: nextStepLabel
     } as UserRoadmapProgressSummary
   })
+}
+
+export async function getRoadmapDetailProgress(
+  db: DbHandle,
+  userId: number,
+  roadmapId: number
+): Promise<RoadmapDetailProgress> {
+  const progressRow = await db.get(
+    `SELECT
+        user_roadmap_progress.*,
+        current_module.title AS current_module_title,
+        current_lesson.title AS current_lesson_title
+     FROM user_roadmap_progress
+     LEFT JOIN modules AS current_module
+       ON current_module.id = user_roadmap_progress.current_module_id
+     LEFT JOIN lessons AS current_lesson
+       ON current_lesson.id = user_roadmap_progress.current_lesson_id
+     WHERE user_roadmap_progress.user_id = ?
+       AND user_roadmap_progress.roadmap_id = ?`,
+    [userId, roadmapId]
+  )
+
+  const moduleRows = await db.all(
+    `SELECT
+        modules.id AS module_id,
+        modules.title,
+        modules.position,
+        COUNT(lessons.id) AS total_lessons,
+        COALESCE(SUM(CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0)
+          AS completed_lessons_count,
+        MAX(user_lesson_progress.last_activity_at) AS last_activity_at
+     FROM modules
+     LEFT JOIN lessons ON lessons.module_id = modules.id
+     LEFT JOIN user_lesson_progress
+       ON user_lesson_progress.lesson_id = lessons.id
+      AND user_lesson_progress.user_id = ?
+     WHERE modules.roadmap_id = ?
+     GROUP BY modules.id, modules.title, modules.position
+     ORDER BY COALESCE(modules.position, modules.id), modules.id`,
+    [userId, roadmapId]
+  )
+
+  const lessonRows = await db.all(
+    `SELECT
+        lessons.id AS lesson_id,
+        lessons.title AS lesson_title,
+        lessons.module_id,
+        modules.title AS module_title,
+        CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END AS completed,
+        COALESCE(user_lesson_progress.time_spent_seconds, 0) AS time_spent_seconds
+     FROM lessons
+     INNER JOIN modules ON modules.id = lessons.module_id
+     LEFT JOIN user_lesson_progress
+       ON user_lesson_progress.lesson_id = lessons.id
+      AND user_lesson_progress.user_id = ?
+     WHERE modules.roadmap_id = ?
+     ORDER BY COALESCE(modules.position, modules.id), modules.id, lessons.id`,
+    [userId, roadmapId]
+  )
+
+  const lessonsByModule = new Map<number, any[]>()
+  lessonRows.forEach((lesson: any) => {
+    const moduleId = Number(lesson.module_id)
+    const items = lessonsByModule.get(moduleId) || []
+    items.push(lesson)
+    lessonsByModule.set(moduleId, items)
+  })
+
+  const moduleSummaries = moduleRows.map((row: any) => {
+    const moduleId = Number(row.module_id)
+    const moduleLessons = lessonsByModule.get(moduleId) || []
+    const totalLessons = Number(row.total_lessons || 0)
+    const completedLessonsCount = Number(row.completed_lessons_count || 0)
+    const isCurrentModule = Number(progressRow?.current_module_id || 0) === moduleId
+    const hasActivity = Boolean(row.last_activity_at) || isCurrentModule || completedLessonsCount > 0
+    const status: ModuleProgressStatus = totalLessons > 0 && completedLessonsCount >= totalLessons
+      ? 'completed'
+      : hasActivity
+        ? 'in_progress'
+        : 'not_started'
+    const nextLesson = moduleLessons.find((lesson: any) => Number(lesson.completed) !== 1)
+
+    return {
+      module_id: moduleId,
+      title: row.title,
+      position: row.position,
+      total_lessons: totalLessons,
+      completed_lessons_count: completedLessonsCount,
+      progress_percentage: progressPercentage(completedLessonsCount, totalLessons),
+      status,
+      last_activity_at: row.last_activity_at,
+      next_lesson_id: nextLesson?.lesson_id ?? null,
+      next_lesson_title: nextLesson?.lesson_title ?? null
+    } as RoadmapModuleProgressSummary
+  })
+
+  const totalLessons = moduleSummaries.reduce((sum, module) => sum + module.total_lessons, 0)
+  const completedLessonsCount = moduleSummaries.reduce((sum, module) => sum + module.completed_lessons_count, 0)
+  const timeSpentSeconds = lessonRows.reduce((sum: number, lesson: any) => (
+    sum + Number(lesson.time_spent_seconds || 0)
+  ), 0)
+  const completed = totalLessons > 0 && completedLessonsCount >= totalLessons
+  const nextModule = moduleSummaries.find(module => module.status !== 'completed') || moduleSummaries[0]
+  const nextHref = completed
+    ? `/roadmaps/${roadmapId}`
+    : nextModule
+      ? `/modules/${nextModule.module_id}`
+      : `/roadmaps/${roadmapId}`
+  const nextStepLabel = completed
+    ? 'Roadmap completado'
+    : nextModule?.next_lesson_title
+      ? `Continuar con ${nextModule.next_lesson_title}`
+      : nextModule
+        ? `Abrir ${nextModule.title}`
+        : 'Revisar roadmap'
+  const status = completed
+    ? 'completed'
+    : completedLessonsCount > 0 || progressRow?.current_module_id
+      ? 'in_progress'
+      : 'started'
+
+  return {
+    roadmap_id: roadmapId,
+    started_at: progressRow?.started_at ?? null,
+    last_activity_at: progressRow?.last_activity_at ?? null,
+    completed_at: progressRow?.completed_at ?? null,
+    completed_lessons_count: completedLessonsCount,
+    total_lessons: totalLessons,
+    total_modules: moduleSummaries.length,
+    time_spent_seconds: timeSpentSeconds,
+    current_module_id: progressRow?.current_module_id ?? null,
+    current_module_title: progressRow?.current_module_title ?? null,
+    current_lesson_id: progressRow?.current_lesson_id ?? null,
+    current_lesson_title: progressRow?.current_lesson_title ?? null,
+    progress_percentage: progressPercentage(completedLessonsCount, totalLessons),
+    status,
+    next_href: nextHref,
+    next_step_label: nextStepLabel,
+    modules: moduleSummaries
+  }
 }

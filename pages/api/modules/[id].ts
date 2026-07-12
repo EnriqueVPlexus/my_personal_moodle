@@ -4,6 +4,33 @@ import { getUserFromRequest, requireAdmin, requireReadAccess } from '../../../li
 import { openDb } from '../../../lib/db'
 import { touchRoadmapProgress } from '../../../lib/progress'
 
+function buildModuleProgress(lessons: any[]) {
+  const totalLessons = lessons.length
+  const completedLessonsCount = lessons.filter(lesson => Number(lesson.completed) === 1).length
+  const progressPercentage = totalLessons > 0
+    ? Math.min(100, Math.round((completedLessonsCount / totalLessons) * 100))
+    : 0
+  const nextLesson = lessons.find(lesson => Number(lesson.completed) !== 1)
+  const timeSpentSeconds = lessons.reduce((sum, lesson) => (
+    sum + Number(lesson.progress_time_spent_seconds || 0)
+  ), 0)
+  const status = totalLessons > 0 && completedLessonsCount >= totalLessons
+    ? 'completed'
+    : completedLessonsCount > 0
+      ? 'in_progress'
+      : 'not_started'
+
+  return {
+    total_lessons: totalLessons,
+    completed_lessons_count: completedLessonsCount,
+    progress_percentage: progressPercentage,
+    status,
+    next_lesson_id: nextLesson?.id ?? null,
+    next_lesson_title: nextLesson?.title ?? null,
+    time_spent_seconds: timeSpentSeconds
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { id } = req.query
@@ -39,7 +66,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         [user.id, id]
       )
       : await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [id])
-    return res.status(200).json({ ...moduleRow, lessons })
+    return res.status(200).json({
+      ...moduleRow,
+      lessons,
+      progress: user ? buildModuleProgress(lessons) : null
+    })
   }
 
   if (req.method === 'PUT') {
