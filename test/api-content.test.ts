@@ -41,6 +41,41 @@ describe('content API handlers', () => {
     expect(db.run).toHaveBeenCalledWith('INSERT INTO roadmaps (title, description) VALUES (?, ?)', ['New', 'Desc'])
   })
 
+  it('searches roadmaps by normalized module content and keeps private search text out of responses', async () => {
+    const db = {
+      all: vi.fn().mockResolvedValue([
+        {
+          id: 2,
+          title: 'AWS',
+          description: 'Cloud',
+          module_count: 2,
+          module_search_text: 'Instancias EC2 y redes'
+        },
+        {
+          id: 1,
+          title: 'IA para DevOps',
+          description: 'Automatizacion',
+          module_count: 3,
+          module_search_text: 'Evaluación de prompts'
+        }
+      ])
+    }
+    await mockApi(db)
+    const handler = (await import('../pages/api/roadmaps/index')).default
+
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET', query: { q: 'evaluacion' } }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual([{
+      id: 1,
+      title: 'IA para DevOps',
+      description: 'Automatizacion',
+      module_count: 3
+    }])
+    expect(db.all).toHaveBeenCalledWith(expect.stringContaining('GROUP_CONCAT'))
+  })
+
   it('reads, updates and deletes a roadmap', async () => {
     const db = {
       get: vi.fn()

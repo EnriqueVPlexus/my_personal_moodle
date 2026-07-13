@@ -260,21 +260,137 @@ Hecho cuando:
 
 ### [ ] Buscador y filtros
 
-Estado: pendiente.
+Estado: en curso. Fase 1 completada; fases 2 a 5 pendientes.
 
 Valor: prepara la aplicacion para crecer sin perder usabilidad.
 
-Alcance inicial:
+Situacion actual y decisiones:
 
-- Buscar por titulo, descripcion y contenido de roadmap o modulo.
-- Filtrar por categoria o tema, por ejemplo `AWS`, `IA`, `Kubernetes`, `DevOps`.
-- Filtrar por duracion y por nivel si existe el dato.
+- El listado actual solo recibe titulo, descripcion y numero de modulos. La
+  busqueda sobre contenido de modulos debe resolverse en servidor, sin enviar
+  todo el contenido tecnico al navegador.
+- No existen campos normalizados de categoria o tags. No se deben inferir de
+  titulos porque produciria filtros inconsistentes al crecer el catalogo.
+- Algunos seeds incluyen `level`, pero el dato no se persiste en `modules`.
+  Las duraciones se guardan como texto libre y no permiten rangos fiables.
+- La URL sera la fuente de verdad de busqueda, filtros y orden para conservar
+  estado al recargar, navegar atras o compartir un resultado.
+- La busqueda sera insensible a mayusculas y acentos. Los caracteres especiales
+  de SQL se trataran como texto y todas las consultas seran parametrizadas.
+- Se aplicara `AND` entre familias de filtros y `OR` dentro de una misma familia;
+  por ejemplo: tema `AWS` o `DevOps`, con nivel `intermedio`.
+
+#### [x] Fase 1. Busqueda textual en API
+
+Estado: hecho.
+
+Tareas:
+
+- Ampliar `GET /api/roadmaps` con un parametro `q` opcional y retrocompatible.
+- Buscar por titulo, descripcion, objetivos y metodologia del roadmap, y por
+  titulo, objetivo y contenidos de sus modulos mediante una unica consulta
+  agregada, evitando duplicados y N+1.
+- Normalizar espacios, mayusculas y acentos, limitar la longitud de la consulta
+  y escapar comodines de `LIKE` como texto literal.
+- Definir un orden estable: coincidencia en titulo, coincidencia en descripcion,
+  coincidencia en modulo y, como desempate, titulo o id.
+- Mantener la respuesta actual cuando no se envia `q`.
+- Eliminar el texto agregado de modulos antes de construir la respuesta publica.
+
+Hecho cuando:
+
+- La API encuentra coincidencias de roadmap y modulo sin exponer contenido extra.
+- Consultas vacias, con acentos o caracteres especiales son predecibles y seguras.
+- Hay tests de API para coincidencias, ausencia de resultados y compatibilidad.
+
+#### [ ] Fase 2. Experiencia de busqueda en el catalogo
+
+Estado: pendiente.
+
+Tareas:
+
+- Incorporar un campo de busqueda accesible, boton de limpiar y contador de
+  resultados en `/roadmaps`.
+- Sincronizar `q` con la URL y restaurarlo al recargar o navegar atras.
+- Aplicar un debounce corto y cancelar peticiones anteriores para impedir que
+  una respuesta lenta sobrescriba una busqueda mas reciente.
+- Diferenciar claramente carga inicial, error con reintento, catalogo vacio y
+  busqueda sin coincidencias.
+- Mantener visible y funcional el formulario admin sin que los filtros lo oculten.
+
+Hecho cuando:
+
+- Buscar, limpiar y usar atras/adelante conserva un estado coherente.
+- La UI no parpadea ni muestra resultados antiguos durante escritura rapida.
+- Teclado y lectores de pantalla pueden identificar busqueda, estado y resultados.
+
+#### [ ] Fase 3. Metadatos fiables para filtros
+
+Estado: pendiente.
+
+Tareas:
+
+- Definir una categoria principal y topics normalizados para cada roadmap,
+  preferiblemente con una tabla relacional para evitar tags duplicados.
+- Persistir `level` en modulos y acordar los valores permitidos en espanol o
+  mediante claves estables (`beginner`, `intermediate`, `advanced`, `capstone`).
+- Guardar limites de duracion comparables en semanas en vez de filtrar el texto
+  mostrado; conservar el texto original para presentacion.
+- Actualizar migraciones, seeds, tipos, altas/ediciones admin y tests de
+  idempotencia sin perder roadmaps existentes.
+- Generar las opciones disponibles desde los datos de la API, no desde listas
+  duplicadas en React.
+
+Hecho cuando:
+
+- Todos los roadmaps sembrados tienen metadatos explicitos o un estado visible
+  de `sin clasificar`.
+- Nivel y duracion se pueden consultar sin parsear textos en el navegador.
+- Las migraciones sobreviven bases existentes y ejecuciones repetidas.
+
+#### [ ] Fase 4. Filtros combinables y ordenacion
+
+Estado: pendiente.
+
+Tareas:
+
+- Filtrar por categoria o topic, nivel y rangos de duracion.
+- Permitir combinar filtros con `q` y mostrar cada filtro activo como chip
+  eliminable, junto con una accion unica `Limpiar todo`.
+- Incorporar ordenacion minima por relevancia, titulo y duracion.
+- Incluir filtros y orden en la URL con valores validados y canonicos.
+- Devolver las facetas y cantidades necesarias sin ejecutar una consulta por
+  tarjeta ni ocultar opciones por el orden accidental de las respuestas.
+
+Hecho cuando:
+
+- Las combinaciones siguen las reglas `AND`/`OR` documentadas.
+- Quitar un chip solo elimina ese criterio y `Limpiar todo` restaura el catalogo.
+- URLs invalidas se normalizan sin romper la pagina ni la API.
+
+#### [ ] Fase 5. Calidad, rendimiento y cierre
+
+Estado: pendiente.
+
+Tareas:
+
+- Cubrir busqueda, combinacion de filtros, orden, URL, borrado, errores y estados
+  vacios con tests de API y UI.
+- Verificar que el layout funciona en movil, con nombres largos y muchas opciones.
+- Medir consultas con el volumen esperado e incorporar indices utiles.
+- Mantener la consulta agregada y el filtrado en servidor mientras el catalogo
+  sea pequeno; valorar SQLite FTS5 solo si las medidas muestran que aporta valor
+  y encapsularlo para el futuro cambio de base de datos previsto en despliegue.
+- Revisar copy, foco, regiones `aria-live` y contraste antes de cerrar la tarea.
 
 Hecho cuando:
 
 - El usuario puede localizar un roadmap concreto en pocos segundos.
-- Los filtros no rompen el layout actual.
-- Hay cobertura para estados vacios, combinacion de filtros y borrado de busqueda.
+- Puede combinar y compartir filtros sin perder el contexto de navegacion.
+- Los filtros no rompen el layout ni la creacion admin actual.
+- La busqueda no expone SQL, no devuelve duplicados y evita respuestas fuera de orden.
+- Hay cobertura para estados vacios, errores, combinaciones, URL y borrado.
+- El rendimiento esta medido y es suficiente para el volumen objetivo.
 
 ### [ ] Importador JSON de roadmaps
 

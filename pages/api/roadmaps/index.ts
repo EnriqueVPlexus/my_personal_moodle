@@ -2,20 +2,23 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { requireAdmin, requireReadAccess } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import {
+  filterAndRankRoadmaps,
+  parseRoadmapSearchQuery,
+  ROADMAP_CATALOG_SEARCH_SQL
+} from '../../../lib/roadmapSearch'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
     if (!(await requireReadAccess(req, res, db))) return
-    const rows = await db.all(`
-      SELECT roadmaps.*, COUNT(modules.id) AS module_count
-      FROM roadmaps
-      LEFT JOIN modules ON modules.roadmap_id = roadmaps.id
-      GROUP BY roadmaps.id
-      ORDER BY roadmaps.id DESC
-    `)
-    return res.status(200).json(rows)
+    const search = parseRoadmapSearchQuery(req.query.q)
+    if (search.tooLong) {
+      return res.status(400).json({ error: 'search query must be 100 characters or fewer' })
+    }
+    const rows = await db.all(ROADMAP_CATALOG_SEARCH_SQL)
+    return res.status(200).json(filterAndRankRoadmaps(rows, search))
   }
 
   if (req.method === 'POST') {

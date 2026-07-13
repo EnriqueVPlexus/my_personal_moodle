@@ -173,6 +173,11 @@ describe('content API edge cases', () => {
     await roadmaps(createRequest({ method: 'DELETE' }), roadmap405)
     expect(roadmap405.statusCode).toBe(405)
 
+    const longSearch = createResponse()
+    await roadmaps(createRequest({ method: 'GET', query: { q: 'a'.repeat(101) } }), longSearch)
+    expect(longSearch.statusCode).toBe(400)
+    expect(longSearch.body.error).toContain('100 characters or fewer')
+
     const modulesWithoutRoadmap = createResponse()
     await modules(createRequest({ method: 'GET' }), modulesWithoutRoadmap)
     expect(modulesWithoutRoadmap.statusCode).toBe(200)
