@@ -127,6 +127,16 @@ describe('Next pages', () => {
       objectives: '["Launch AWS"]',
       methodology: ['Practicar con evidencias'],
       evaluation_weights: '{"Quiz":"20%","Laboratorio":"80%"}',
+      progress: {
+        completed_lessons_count: 1,
+        total_lessons: 3,
+        total_modules: 2,
+        time_spent_seconds: 3900,
+        progress_percentage: 33,
+        status: 'in_progress',
+        next_href: '/modules/10',
+        next_step_label: 'Continuar con Instance review'
+      },
       modules: [
         {
           id: 10,
@@ -140,14 +150,28 @@ describe('Next pages', () => {
           support_videos: '["Curso AWS"]',
           practical_activity: '["Crear instancia"]',
           deliverable_evidence: '["Captura"]',
-          evaluation: 'Revisión práctica'
+          evaluation: 'Revisión práctica',
+          progress: {
+            total_lessons: 2,
+            completed_lessons_count: 1,
+            progress_percentage: 50,
+            status: 'in_progress',
+            next_lesson_title: 'Instance review'
+          }
         },
         {
           id: 11,
           position: 2,
           title: 'IAM',
           duration: '1 semana',
-          objective: 'Gestionar accesos'
+          objective: 'Gestionar accesos',
+          progress: {
+            total_lessons: 1,
+            completed_lessons_count: 0,
+            progress_percentage: 0,
+            status: 'not_started',
+            next_lesson_title: 'Policies'
+          }
         }
       ]
     }
@@ -163,6 +187,12 @@ describe('Next pages', () => {
     expect(await screen.findByRole('heading', { name: 'AWS Roadmap' })).toBeInTheDocument()
     expect(screen.getByText('6 meses (5-8 h/semana)')).toBeInTheDocument()
     expect(screen.getByText('Launch AWS')).toBeInTheDocument()
+    expect(screen.getByText('Tu progreso en este roadmap')).toBeInTheDocument()
+    expect(screen.getByText('Continuar con Instance review')).toBeInTheDocument()
+    expect(screen.getByText((_content, element) => (
+      element?.tagName.toLowerCase() === 'p' &&
+      Boolean(element.textContent?.includes('1/3 lecciones completadas'))
+    ))).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Amazon EC2/i })).toHaveAttribute('href', 'https://aws.amazon.com/ec2/')
     expect(screen.getByText('Ocultar detalle')).toBeInTheDocument()
     expect(screen.getByText('Ver detalle')).toBeInTheDocument()
@@ -181,7 +211,7 @@ describe('Next pages', () => {
     })
   })
 
-  it('renders module details, redirects protected reads and updates lessons', async () => {
+  it('renders module details, redirects protected reads and updates personal lesson progress', async () => {
     setRouter('/modules/4', { id: '4' })
     mockAuth({ user: adminUser, isAdmin: true })
 
@@ -192,14 +222,60 @@ describe('Next pages', () => {
       duration: '1 semana',
       objective: 'Compute foundations',
       contents: '[]',
+      progress: {
+        total_lessons: 2,
+        completed_lessons_count: 1,
+        progress_percentage: 50,
+        status: 'in_progress',
+        next_lesson_title: 'SSH basics',
+        time_spent_seconds: 900
+      },
+      quiz: {
+        questions: [
+          {
+            id: 'module-content',
+            prompt: 'Que tema aparece en EC2?',
+            options: ['AMI', 'S3'],
+            explanation: 'Sale del contenido.'
+          }
+        ]
+      },
+      quiz_summary: {
+        attempts_count: 1,
+        best_score_percentage: 50,
+        average_score_percentage: 50
+      },
       lessons: [
-        { id: 9, title: 'SSH basics', completed: 0 },
-        { id: 10, title: 'Instance review', completed: 1 }
+        { id: 9, title: 'SSH basics', completed: 0, progress_time_spent_seconds: 0 },
+        { id: 10, title: 'Instance review', completed: 1, progress_time_spent_seconds: 900 }
       ]
     }
 
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
-      if (url === '/api/lessons/9' && init?.method === 'PUT') return jsonResponse({ ok: true })
+      if (url === '/api/progress/lessons/9' && init?.method === 'PUT') return jsonResponse({ ok: true })
+      if (url === '/api/quizzes/modules/4' && init?.method === 'POST') {
+        return jsonResponse({
+          score: 1,
+          max_score: 1,
+          percentage: 100,
+          passed: true,
+          feedback: [
+            {
+              question_id: 'module-content',
+              prompt: 'Que tema aparece en EC2?',
+              selected_option: 'AMI',
+              correct_option: 'AMI',
+              is_correct: true,
+              explanation: 'Sale del contenido.'
+            }
+          ],
+          summary: {
+            attempts_count: 2,
+            best_score_percentage: 100,
+            average_score_percentage: 75
+          }
+        }, 201)
+      }
       if (url === '/api/lessons' && init?.method === 'POST') return jsonResponse({ id: 11, title: 'Security groups' }, 201)
       return jsonResponse(moduleDetail)
     })
@@ -208,9 +284,20 @@ describe('Next pages', () => {
     render(<ModulePage />)
 
     expect(await screen.findByRole('heading', { name: 'EC2' })).toBeInTheDocument()
+    expect(screen.getByText('Progreso del módulo')).toBeInTheDocument()
+    expect(screen.getByText('1/2 lecciones')).toBeInTheDocument()
+    expect(screen.getByText('15 min acumulado en este módulo.')).toBeInTheDocument()
+    expect(screen.getByText('Quiz del módulo')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('AMI'))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar quiz' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/quizzes/modules/4', expect.objectContaining({ method: 'POST' }))
+    })
+    expect(await screen.findByText('1/1 respuestas correctas')).toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'Marcar completada' }))
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/lessons/9', expect.objectContaining({ method: 'PUT' }))
+      expect(fetchMock).toHaveBeenCalledWith('/api/progress/lessons/9', expect.objectContaining({ method: 'PUT' }))
     })
 
     fireEvent.change(screen.getByPlaceholderText('Título de la lección'), { target: { value: 'Security groups' } })
@@ -218,6 +305,29 @@ describe('Next pages', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/lessons', expect.objectContaining({ method: 'POST' }))
     })
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/modules/5', { id: '5' })
+    mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' } })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      id: 5,
+      title: 'IAM',
+      position: 2,
+      duration: '2 semanas',
+      objective: 'Access foundations',
+      contents: '[]',
+      lessons: [
+        { id: 12, title: 'Policies', completed: 1, progress_time_spent_seconds: 3600 }
+      ]
+    }))
+
+    const CompletedModulePage = (await import('../pages/modules/[id]')).default
+    render(<CompletedModulePage />)
+
+    expect(await screen.findByRole('heading', { name: 'IAM' })).toBeInTheDocument()
+    expect(screen.getByText('Módulo completado')).toBeInTheDocument()
+    expect(screen.getByText('1 h acumulado en este módulo.')).toBeInTheDocument()
 
     cleanup()
     vi.resetModules()
@@ -251,6 +361,22 @@ describe('Next pages', () => {
     vi.resetModules()
     setRouter('/login')
     mockAuth()
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ user: adminUser }))
+
+    const DefaultLoginPage = (await import('../pages/login')).default
+    render(<DefaultLoginPage />)
+    fireEvent.change(screen.getByPlaceholderText('email@empresa.com'), { target: { value: 'admin@example.com' } })
+    fireEvent.change(screen.getByPlaceholderText('Contraseña'), { target: { value: 'valid-password-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    await waitFor(() => {
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/my-roadmaps')
+    })
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/login')
+    mockAuth()
     vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'invalid credentials' }, 401))
 
     const InvalidLoginPage = (await import('../pages/login')).default
@@ -275,6 +401,135 @@ describe('Next pages', () => {
 
     expect(await screen.findByText(/No se pudo conectar con el servidor/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Entrar' })).not.toBeDisabled()
+  })
+
+  it('renders personal roadmap dashboard and redirects anonymous users', async () => {
+    setRouter('/my-roadmaps')
+    mockAuth({ user: adminUser, isAdmin: true })
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      if (url === '/api/progress/roadmaps') {
+        return jsonResponse([
+          {
+            roadmap_id: 7,
+            title: 'IA para DevOps',
+            description: 'Ruta aplicada',
+            duration: '8 semanas',
+            last_activity_at: '2026-07-06T08:30:00.000Z',
+            completed_lessons_count: 3,
+            total_lessons: 8,
+            total_modules: 5,
+            time_spent_seconds: 4500,
+            progress_percentage: 38,
+            status: 'in_progress',
+            next_href: '/modules/15',
+            next_step_label: 'Continuar con Evaluacion de prompts',
+            current_module_title: 'Observabilidad',
+            quiz_attempts_count: 1,
+            average_quiz_percentage: 70,
+            best_quiz_percentage: 80,
+            last_quiz_percentage: 70
+          },
+          {
+            roadmap_id: 8,
+            title: 'AWS',
+            description: 'Cloud path',
+            duration: '6 meses',
+            last_activity_at: '2026-07-07T10:00:00.000Z',
+            completed_lessons_count: 4,
+            total_lessons: 4,
+            total_modules: 2,
+            time_spent_seconds: 7200,
+            progress_percentage: 100,
+            status: 'completed',
+            next_href: '/modules/20',
+            next_step_label: 'Volver al roadmap',
+            current_module_title: 'EC2',
+            quiz_attempts_count: 2,
+            average_quiz_percentage: 90,
+            best_quiz_percentage: 100,
+            last_quiz_percentage: 90
+          },
+          {
+            roadmap_id: 9,
+            title: 'Kubernetes',
+            description: 'Cluster path',
+            duration: '4 semanas',
+            last_activity_at: '2026-07-01T10:00:00.000Z',
+            completed_lessons_count: 1,
+            total_lessons: 5,
+            total_modules: 2,
+            time_spent_seconds: 0,
+            progress_percentage: 20,
+            status: 'paused',
+            next_href: '/modules/30',
+            next_step_label: 'Continuar con Pods',
+            current_module_title: 'Pods',
+            quiz_attempts_count: 0
+          }
+        ])
+      }
+      return jsonResponse({})
+    })
+
+    const MyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<MyRoadmapsPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Mis roadmaps' })).toBeInTheDocument()
+    expect(screen.getByText('IA para DevOps')).toBeInTheDocument()
+    expect(screen.getByText('AWS')).toBeInTheDocument()
+    expect(screen.getByText('Kubernetes')).toBeInTheDocument()
+    expect(screen.getByText('pausados')).toBeInTheDocument()
+    expect(screen.getByText('media quiz')).toBeInTheDocument()
+    expect(screen.getByText('83%')).toBeInTheDocument()
+    expect(screen.getByText('3 h 15 min')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/progress/roadmaps')
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/my-roadmaps')
+    mockAuth()
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({}, 401))
+
+    const ProtectedMyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<ProtectedMyRoadmapsPage />)
+
+    await waitFor(() => {
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/login?next=%2Fmy-roadmaps')
+    })
+  })
+
+  it('shows an empty state when the user has no started roadmaps', async () => {
+    setRouter('/my-roadmaps')
+    mockAuth({ user: adminUser })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse([]))
+
+    const MyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<MyRoadmapsPage />)
+
+    expect(await screen.findByText('Aún no has empezado ningún roadmap')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Explorar roadmaps' })).toHaveAttribute('href', '/roadmaps')
+  })
+
+  it('shows progress loading errors and allows retrying', async () => {
+    setRouter('/my-roadmaps')
+    mockAuth({ user: adminUser })
+    let attempts = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      attempts += 1
+      return attempts === 1
+        ? jsonResponse({ error: 'temporary failure' }, 500)
+        : jsonResponse([])
+    })
+
+    const MyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<MyRoadmapsPage />)
+
+    expect(await screen.findByText('No se pudo cargar tu progreso.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByText('Aún no has empezado ningún roadmap')).toBeInTheDocument()
+    expect(attempts).toBe(2)
   })
 
   it('runs setup states, validation errors and successful first-admin creation', async () => {

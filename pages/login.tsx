@@ -52,7 +52,7 @@ export default function LoginPage() {
     } catch {
       // La cookie ya se ha creado; la siguiente pantalla volverá a consultar la sesión.
     }
-    router.push(typeof router.query.next === 'string' ? router.query.next : '/roadmaps')
+    router.push(typeof router.query.next === 'string' ? router.query.next : '/my-roadmaps')
   }
 
   return (

@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getUserFromRequest, requireAdmin, requireReadAccess } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progress'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -11,11 +12,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!(await requireReadAccess(req, res, db))) return
     const roadmap = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
     if (!roadmap) return res.status(404).json({ error: 'not found' })
+    const user = await getUserFromRequest(req, db)
+
+    if (user) {
+      await touchRoadmapProgress(db, {
+        userId: user.id,
+        roadmapId: roadmap.id
+      })
+    }
+
+    const progress = user
+      ? await getRoadmapDetailProgress(db, user.id, roadmap.id)
+      : null
     const modules = await db.all(
       'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
       [id]
     )
-    return res.status(200).json({ ...roadmap, modules })
+    const modulesWithProgress = progress
+      ? modules.map((module: any) => ({
+        ...module,
+        progress: progress.modules.find(item => item.module_id === module.id) || null
+      }))
+      : modules
+
+    return res.status(200).json({ ...roadmap, modules: modulesWithProgress, progress })
   }
 
   if (req.method === 'PUT') {

@@ -34,6 +34,9 @@ describe('SQLite database bootstrap', () => {
     const admin = await db.get('SELECT email, role, is_active, password_hash FROM users WHERE email = ?', ['admin@example.com'])
     const auditColumns = await db.all('PRAGMA table_info(audit_logs)')
     const modulesByRoadmap = Object.fromEntries(moduleCounts.map((row: any) => [row.title, row.count]))
+    const lessonProgressColumns = await db.all('PRAGMA table_info(user_lesson_progress)')
+    const roadmapProgressColumns = await db.all('PRAGMA table_info(user_roadmap_progress)')
+    const quizAttemptColumns = await db.all('PRAGMA table_info(user_quiz_attempts)')
 
     expect(awsRoadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
     expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
@@ -45,6 +48,32 @@ describe('SQLite database bootstrap', () => {
     expect(admin.is_active).toBe(1)
     expect(admin.password_hash).toMatch(/^scrypt:/)
     expect(auditColumns.map((column: any) => column.name)).toContain('action')
+    expect(lessonProgressColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
+      'user_id',
+      'lesson_id',
+      'started_at',
+      'last_activity_at',
+      'completed_at',
+      'time_spent_seconds'
+    ]))
+    expect(roadmapProgressColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
+      'user_id',
+      'roadmap_id',
+      'current_module_id',
+      'current_lesson_id',
+      'completed_lessons_count',
+      'time_spent_seconds'
+    ]))
+    expect(quizAttemptColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
+      'user_id',
+      'roadmap_id',
+      'module_id',
+      'quiz_scope',
+      'score',
+      'max_score',
+      'answers',
+      'submitted_at'
+    ]))
 
     await db.close()
   })
@@ -79,12 +108,35 @@ describe('SQLite database bootstrap', () => {
     )
     const moduleCount = await secondDb.get('SELECT COUNT(*) AS count FROM modules')
     const adminCount = await secondDb.get('SELECT COUNT(*) AS count FROM users WHERE email = ?', ['admin@example.com'])
+    const roadmapProgressTable = await secondDb.get(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_roadmap_progress'"
+    )
+    const lessonProgressIndexes = await secondDb.all("PRAGMA index_list('user_lesson_progress')")
+    const roadmapProgressIndexes = await secondDb.all("PRAGMA index_list('user_roadmap_progress')")
+    const quizAttemptIndexes = await secondDb.all("PRAGMA index_list('user_quiz_attempts')")
 
     expect(roadmapCount.count).toBe(1)
     expect(aiRoadmapCount.count).toBe(1)
     expect(iaRoadmapCount.count).toBe(1)
     expect(moduleCount.count).toBe(33)
     expect(adminCount.count).toBe(1)
+    expect(roadmapProgressTable.name).toBe('user_roadmap_progress')
+    expect(lessonProgressIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
+      'idx_user_lesson_progress_user_id',
+      'idx_user_lesson_progress_lesson_id',
+      'idx_user_lesson_progress_last_activity'
+    ]))
+    expect(roadmapProgressIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
+      'idx_user_roadmap_progress_user_id',
+      'idx_user_roadmap_progress_roadmap_id',
+      'idx_user_roadmap_progress_last_activity'
+    ]))
+    expect(quizAttemptIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
+      'idx_user_quiz_attempts_user_id',
+      'idx_user_quiz_attempts_roadmap_id',
+      'idx_user_quiz_attempts_module_id',
+      'idx_user_quiz_attempts_submitted_at'
+    ]))
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))
 
     await secondDb.close()

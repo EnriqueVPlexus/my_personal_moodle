@@ -13,6 +13,31 @@ import {
   asTextList
 } from '../../lib/roadmapPresentation'
 
+type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
+
+type ModuleProgress = {
+  total_lessons: number
+  completed_lessons_count: number
+  progress_percentage: number
+  status: ModuleProgressStatus
+  next_lesson_title?: string | null
+}
+
+type RoadmapProgress = {
+  completed_lessons_count: number
+  total_lessons: number
+  total_modules: number
+  time_spent_seconds: number
+  progress_percentage: number
+  status: 'started' | 'in_progress' | 'paused' | 'completed'
+  next_href: string
+  next_step_label: string
+}
+
+type RoadmapModule = LearningModule & {
+  progress?: ModuleProgress | null
+}
+
 type RoadmapDetail = {
   id: number
   title: string
@@ -21,7 +46,8 @@ type RoadmapDetail = {
   objectives?: unknown
   methodology?: unknown
   evaluation_weights?: unknown
-  modules?: LearningModule[]
+  modules?: RoadmapModule[]
+  progress?: RoadmapProgress | null
 }
 
 function formatWeekCount(value: number) {
@@ -61,6 +87,35 @@ function estimateDuration(modules: LearningModule[]) {
 
 function moduleDisclosureKey(module: LearningModule, index: number) {
   return String(module.id ?? `${module.position ?? index}-${module.title}`)
+}
+
+function formatStudyTime(totalSeconds: number) {
+  if (!totalSeconds) return '0 min'
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+  if (!hours) return `${Math.max(1, minutes)} min`
+  if (!minutes) return `${hours} h`
+  return `${hours} h ${minutes} min`
+}
+
+function roadmapStatusLabel(status: RoadmapProgress['status']) {
+  if (status === 'completed') return 'Completado'
+  if (status === 'paused') return 'Pausado'
+  if (status === 'in_progress') return 'En curso'
+  return 'Iniciado'
+}
+
+function moduleStatusLabel(status: ModuleProgressStatus) {
+  if (status === 'completed') return 'Completado'
+  if (status === 'in_progress') return 'En curso'
+  return 'No iniciado'
+}
+
+function moduleStatusClass(status: ModuleProgressStatus) {
+  if (status === 'completed') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'in_progress') return 'bg-sky-50 text-sky-700'
+  return 'bg-slate-100 text-slate-600'
 }
 
 export default function RoadmapDetailPage() {
@@ -139,6 +194,45 @@ export default function RoadmapDetailPage() {
         </section>
 
         <div className="container py-8">
+        {roadmap.progress && (
+          <section className="panel mb-6 p-5">
+            <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    {roadmapStatusLabel(roadmap.progress.status)}
+                  </span>
+                  <span className="rounded-md bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                    {roadmap.progress.progress_percentage}% completado
+                  </span>
+                </div>
+                <h2 className="mt-3 text-lg font-semibold text-slate-950">Tu progreso en este roadmap</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {roadmap.progress.completed_lessons_count}/{roadmap.progress.total_lessons} lecciones completadas
+                  · {formatStudyTime(roadmap.progress.time_spent_seconds)} acumulado.
+                </p>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-sky-600 transition-all"
+                    style={{ width: `${roadmap.progress.progress_percentage}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="min-w-[220px] rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
+                <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Siguiente paso</span>
+                <span className="mt-1 block font-semibold text-slate-950">{roadmap.progress.next_step_label}</span>
+                <Link
+                  href={roadmap.progress.next_href}
+                  className="mt-4 inline-flex rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  Continuar
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
           <div className="panel p-5">
             <h2 className="text-lg font-semibold text-slate-950">Objetivos generales</h2>
@@ -211,12 +305,37 @@ export default function RoadmapDetailPage() {
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div className="flex gap-4">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-950 text-sm font-bold text-white">
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-sm font-bold ${
+                          module.progress?.status === 'completed'
+                            ? 'bg-emerald-600 text-white'
+                            : module.progress?.status === 'in_progress'
+                              ? 'bg-sky-600 text-white'
+                              : 'bg-slate-950 text-white'
+                        }`}>
                           {module.position}
                         </span>
-                        <div>
+                        <div className="min-w-0">
+                          {module.progress && (
+                            <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${moduleStatusClass(module.progress.status)}`}>
+                              {moduleStatusLabel(module.progress.status)}
+                            </span>
+                          )}
                           <h3 className="text-lg font-semibold text-slate-950">{module.title}</h3>
                           {module.objective && <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{module.objective}</p>}
+                          {module.progress && (
+                            <div className="mt-3 max-w-xl">
+                              <div className="flex items-center justify-between gap-3 text-xs font-medium text-slate-600">
+                                <span>{module.progress.completed_lessons_count}/{module.progress.total_lessons} lecciones</span>
+                                <span>{module.progress.progress_percentage}%</span>
+                              </div>
+                              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                                <div
+                                  className="h-full rounded-full bg-sky-600"
+                                  style={{ width: `${module.progress.progress_percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-sm">

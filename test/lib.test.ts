@@ -8,6 +8,13 @@ import {
   parseJsonValue
 } from '../lib/roadmapPresentation'
 import {
+  buildModuleQuiz,
+  gradeModuleQuiz,
+  getModuleQuizSummary,
+  saveModuleQuizAttempt,
+  toPublicModuleQuiz
+} from '../lib/quizzes'
+import {
   hashPassword,
   normalizeEmail,
   validatePassword,
@@ -54,6 +61,82 @@ describe('roadmap presentation helpers', () => {
     expect(asLearningLinks('plain')).toEqual([{ label: 'plain' }])
 
     expect(asEvaluationWeights('{"Quiz":"20%"}')).toEqual([{ label: 'Quiz', value: '20%' }])
+  })
+})
+
+describe('quiz helpers', () => {
+  const moduleFixture = {
+    id: 4,
+    roadmap_id: 7,
+    title: 'EC2',
+    contents: '["AMI","Security groups"]',
+    official_resources: '[{"label":"Amazon EC2","url":"https://aws.amazon.com/ec2/"}]',
+    practical_activity: '["Crear instancia"]',
+    deliverable_evidence: '["Captura de la instancia"]',
+    evaluation: 'Quiz sobre EC2'
+  }
+
+  it('builds public module quizzes from roadmap content and grades answers', () => {
+    const quiz = buildModuleQuiz(moduleFixture)
+    const publicQuiz = toPublicModuleQuiz(quiz)
+
+    expect(quiz.questions).toHaveLength(3)
+    expect(quiz.questions[0].prompt).toContain('EC2')
+    expect(publicQuiz.questions[0]).not.toHaveProperty('correct_option_index')
+
+    const answers = Object.fromEntries(
+      quiz.questions.map(question => [question.id, question.correct_option_index])
+    )
+    const grade = gradeModuleQuiz(moduleFixture, answers)
+
+    expect(grade).toMatchObject({
+      score: 3,
+      max_score: 3,
+      percentage: 100,
+      passed: true
+    })
+    expect(grade.feedback.every(item => item.is_correct)).toBe(true)
+  })
+
+  it('stores quiz attempts and builds quiz summaries', async () => {
+    const db = {
+      run: vi.fn(),
+      get: vi.fn()
+        .mockResolvedValueOnce({
+          attempts_count: 2,
+          average_score_percentage: 66.6,
+          best_score_percentage: 100
+        })
+        .mockResolvedValueOnce({
+          score: 2,
+          max_score: 3,
+          submitted_at: '2026-07-12T08:00:00.000Z'
+        })
+    }
+
+    const attempt = await saveModuleQuizAttempt(db as any, 2, moduleFixture, {
+      'module-content': 0
+    })
+    const summary = await getModuleQuizSummary(db as any, 2, 4)
+
+    expect(db.run).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_quiz_attempts'), expect.arrayContaining([
+      2,
+      7,
+      4,
+      'module',
+      attempt.score,
+      attempt.max_score
+    ]))
+    expect(summary).toMatchObject({
+      attempts_count: 2,
+      average_score_percentage: 67,
+      best_score_percentage: 100,
+      latest_attempt: {
+        score: 2,
+        max_score: 3,
+        percentage: 67
+      }
+    })
   })
 })
 

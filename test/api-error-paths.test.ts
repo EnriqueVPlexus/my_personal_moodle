@@ -11,7 +11,7 @@ function denyAdmin(res: any) {
 
 async function mockContentApi(
   db: any,
-  options: { admin?: typeof admin | null; read?: boolean } = {}
+  options: { admin?: typeof admin | null; read?: boolean; user?: typeof normalUser | null } = {}
 ) {
   vi.resetModules()
   vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
@@ -27,6 +27,15 @@ async function mockContentApi(
         return false
       }
       return true
+    }),
+    getUserFromRequest: vi.fn().mockResolvedValue(options.user === undefined ? null : options.user),
+    requireUser: vi.fn((_req: any, res: any) => {
+      const actor = options.user === undefined ? null : options.user
+      if (!actor) {
+        res.status(401).json({ error: 'authentication required' })
+        return null
+      }
+      return actor
     })
   }))
 }
@@ -101,8 +110,11 @@ describe('content API edge cases', () => {
     const moduleDetail = (await import('../pages/api/modules/[id]')).default
     const lessons = (await import('../pages/api/lessons/index')).default
     const lessonDetail = (await import('../pages/api/lessons/[id]')).default
+    const lessonProgress = (await import('../pages/api/progress/lessons/[id]')).default
+    const roadmapProgress = (await import('../pages/api/progress/roadmaps')).default
+    const moduleQuiz = (await import('../pages/api/quizzes/modules/[id]')).default
 
-    for (const handler of [roadmaps, modules, lessons, roadmapDetail, moduleDetail, lessonDetail]) {
+    for (const handler of [roadmaps, modules, lessons, roadmapDetail, moduleDetail, lessonDetail, moduleQuiz]) {
       const res = createResponse()
       await handler(createRequest({ method: 'GET', query: { id: '1', roadmap_id: '1', module_id: '1' } }), res)
       expect(res.statusCode).toBe(401)
@@ -123,6 +135,18 @@ describe('content API edge cases', () => {
       await handler(createRequest({ method: 'DELETE', query: { id: '1' } }), deleteRes)
       expect(deleteRes.statusCode).toBe(403)
     }
+
+    const progressRes = createResponse()
+    await lessonProgress(createRequest({ method: 'PUT', query: { id: '1' }, body: { completed: true } }), progressRes)
+    expect(progressRes.statusCode).toBe(401)
+
+    const roadmapProgressRes = createResponse()
+    await roadmapProgress(createRequest({ method: 'GET' }), roadmapProgressRes)
+    expect(roadmapProgressRes.statusCode).toBe(401)
+
+    const quizSubmitRes = createResponse()
+    await moduleQuiz(createRequest({ method: 'POST', query: { id: '1' }, body: { answers: {} } }), quizSubmitRes)
+    expect(quizSubmitRes.statusCode).toBe(401)
   })
 
   it('validates collection payloads and unsupported methods', async () => {
@@ -187,6 +211,8 @@ describe('content API edge cases', () => {
     const roadmapDetail = (await import('../pages/api/roadmaps/[id]')).default
     const moduleDetail = (await import('../pages/api/modules/[id]')).default
     const lessonDetail = (await import('../pages/api/lessons/[id]')).default
+    const lessonProgress = (await import('../pages/api/progress/lessons/[id]')).default
+    const roadmapProgress = (await import('../pages/api/progress/roadmaps')).default
 
     const roadmap404 = createResponse()
     await roadmapDetail(createRequest({ method: 'GET', query: { id: '1' } }), roadmap404)
@@ -227,6 +253,120 @@ describe('content API edge cases', () => {
     const lesson405 = createResponse()
     await lessonDetail(createRequest({ method: 'PATCH', query: { id: '1' } }), lesson405)
     expect(lesson405.statusCode).toBe(405)
+
+    const progress405 = createResponse()
+    await lessonProgress(createRequest({ method: 'PATCH', query: { id: '1' } }), progress405)
+    expect(progress405.statusCode).toBe(405)
+
+    const roadmapProgress405 = createResponse()
+    await roadmapProgress(createRequest({ method: 'POST' }), roadmapProgress405)
+    expect(roadmapProgress405.statusCode).toBe(405)
+  })
+
+  it('validates lesson progress payloads and missing rows', async () => {
+    const db = {
+      get: vi.fn().mockResolvedValue(null),
+      run: vi.fn()
+    }
+    await mockContentApi(db, { user: normalUser })
+    const lessonProgress = (await import('../pages/api/progress/lessons/[id]')).default
+
+    const invalidId = createResponse()
+    await lessonProgress(createRequest({ method: 'PUT', query: { id: 'NaN' }, body: { completed: true } }), invalidId)
+    expect(invalidId.statusCode).toBe(400)
+
+    const fractionalId = createResponse()
+    await lessonProgress(createRequest({ method: 'PUT', query: { id: '1.5' }, body: { completed: true } }), fractionalId)
+    expect(fractionalId.statusCode).toBe(400)
+
+    const invalidBody = createResponse()
+    await lessonProgress(createRequest({ method: 'PUT', query: { id: '1' }, body: { completed: 'maybe' } }), invalidBody)
+    expect(invalidBody.statusCode).toBe(400)
+
+    const invalidTime = createResponse()
+    await lessonProgress(createRequest({
+      method: 'PUT',
+      query: { id: '1' },
+      body: { completed: true, time_spent_seconds: -1 }
+    }), invalidTime)
+    expect(invalidTime.statusCode).toBe(400)
+
+    const missingLesson = createResponse()
+    await lessonProgress(createRequest({ method: 'PUT', query: { id: '1' }, body: { completed: true } }), missingLesson)
+    expect(missingLesson.statusCode).toBe(404)
+  })
+
+  it('validates module quiz payloads and method guards', async () => {
+    const db = {
+      get: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 1, title: 'Empty module', roadmap_id: 7 })
+        .mockResolvedValueOnce({
+          id: 1,
+          title: 'EC2',
+          roadmap_id: 7,
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]'
+        })
+        .mockResolvedValueOnce({
+          id: 1,
+          title: 'EC2',
+          roadmap_id: 7,
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]'
+        })
+        .mockResolvedValueOnce({
+          id: 1,
+          title: 'EC2',
+          roadmap_id: 7,
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]'
+        }),
+      run: vi.fn()
+    }
+    await mockContentApi(db, { user: normalUser })
+    const moduleQuiz = (await import('../pages/api/quizzes/modules/[id]')).default
+
+    const invalidId = createResponse()
+    await moduleQuiz(createRequest({ method: 'GET', query: { id: 'NaN' } }), invalidId)
+    expect(invalidId.statusCode).toBe(400)
+
+    const fractionalId = createResponse()
+    await moduleQuiz(createRequest({ method: 'GET', query: { id: '1.5' } }), fractionalId)
+    expect(fractionalId.statusCode).toBe(400)
+
+    const missingModule = createResponse()
+    await moduleQuiz(createRequest({ method: 'GET', query: { id: '1' } }), missingModule)
+    expect(missingModule.statusCode).toBe(404)
+
+    const noQuestions = createResponse()
+    await moduleQuiz(createRequest({ method: 'POST', query: { id: '1' }, body: { answers: {} } }), noQuestions)
+    expect(noQuestions.statusCode).toBe(422)
+
+    const missingAnswers = createResponse()
+    await moduleQuiz(createRequest({ method: 'POST', query: { id: '1' }, body: {} }), missingAnswers)
+    expect(missingAnswers.statusCode).toBe(400)
+
+    const incompleteAnswers = createResponse()
+    await moduleQuiz(createRequest({
+      method: 'POST',
+      query: { id: '1' },
+      body: { answers: { 'module-content': 0 } }
+    }), incompleteAnswers)
+    expect(incompleteAnswers.statusCode).toBe(400)
+    expect(incompleteAnswers.body.error).toContain('answer every quiz question')
+
+    const nullableAnswer = createResponse()
+    await moduleQuiz(createRequest({
+      method: 'POST',
+      query: { id: '1' },
+      body: { answers: { 'module-content': null, 'module-practice': 0 } }
+    }), nullableAnswer)
+    expect(nullableAnswer.statusCode).toBe(400)
+
+    const methodGuard = createResponse()
+    await moduleQuiz(createRequest({ method: 'DELETE', query: { id: '1' } }), methodGuard)
+    expect(methodGuard.statusCode).toBe(405)
   })
 })
 
