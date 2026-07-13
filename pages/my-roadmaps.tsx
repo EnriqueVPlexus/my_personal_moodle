@@ -60,19 +60,27 @@ export default function MyRoadmapsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [roadmaps, setRoadmaps] = useState<UserRoadmapProgress[]>([])
+  const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/progress/roadmaps')
-    if (res.status === 401) {
-      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
-      return
-    }
-
-    if (res.ok) {
+    setError('')
+    try {
+      const res = await fetch('/api/progress/roadmaps')
+      if (res.status === 401) {
+        router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+        return
+      }
+      if (!res.ok) {
+        setError('No se pudo cargar tu progreso.')
+        return
+      }
       setRoadmaps(await res.json())
+    } catch {
+      setError('No se pudo conectar con el servidor.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [router])
 
   useEffect(() => {
@@ -84,9 +92,16 @@ export default function MyRoadmapsPage() {
   const pausedCount = roadmaps.filter(roadmap => roadmap.status === 'paused').length
   const totalStudySeconds = roadmaps.reduce((sum, roadmap) => sum + roadmap.time_spent_seconds, 0)
   const totalCompletedLessons = roadmaps.reduce((sum, roadmap) => sum + roadmap.completed_lessons_count, 0)
-  const roadmapsWithQuiz = roadmaps.filter(roadmap => roadmap.average_quiz_percentage !== null && roadmap.average_quiz_percentage !== undefined)
-  const averageQuizPercentage = roadmapsWithQuiz.length > 0
-    ? Math.round(roadmapsWithQuiz.reduce((sum, roadmap) => sum + Number(roadmap.average_quiz_percentage || 0), 0) / roadmapsWithQuiz.length)
+  const roadmapsWithQuiz = roadmaps.filter(roadmap => (
+    roadmap.quiz_attempts_count > 0 &&
+    roadmap.average_quiz_percentage !== null &&
+    roadmap.average_quiz_percentage !== undefined
+  ))
+  const totalQuizAttempts = roadmapsWithQuiz.reduce((sum, roadmap) => sum + roadmap.quiz_attempts_count, 0)
+  const averageQuizPercentage = totalQuizAttempts > 0
+    ? Math.round(roadmapsWithQuiz.reduce((sum, roadmap) => (
+      sum + Number(roadmap.average_quiz_percentage) * roadmap.quiz_attempts_count
+    ), 0) / totalQuizAttempts)
     : null
 
   return (
@@ -139,6 +154,11 @@ export default function MyRoadmapsPage() {
         <section className="container py-8">
           {loading ? (
             <div className="panel p-5 text-sm text-slate-600">Cargando tu progreso...</div>
+          ) : error ? (
+            <div className="rounded-md border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+              <p>{error}</p>
+              <button className="mt-3 font-semibold underline" onClick={() => load()}>Reintentar</button>
+            </div>
           ) : roadmaps.length > 0 ? (
             <div className="grid gap-4">
               {roadmaps.map(roadmap => (

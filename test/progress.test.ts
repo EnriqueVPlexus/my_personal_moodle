@@ -1,5 +1,12 @@
+import sqlite3 from 'sqlite3'
+import { open } from 'sqlite'
 import { describe, expect, it, vi } from 'vitest'
-import { getRoadmapDetailProgress, listUserRoadmapProgress } from '../lib/progress'
+import {
+  getRoadmapDetailProgress,
+  listUserRoadmapProgress,
+  setLessonProgress,
+  touchRoadmapProgress
+} from '../lib/progress'
 
 describe('progress helpers', () => {
   it('builds roadmap summaries with next step and completion status', async () => {
@@ -21,6 +28,10 @@ describe('progress helpers', () => {
           current_module_title: 'Observabilidad',
           current_lesson_id: 42,
           current_lesson_title: 'Evaluacion de prompts',
+          next_module_id: 15,
+          next_module_title: 'Observabilidad',
+          next_lesson_id: 43,
+          next_lesson_title: 'Alertas',
           total_modules: 5,
           total_lessons: 8
         },
@@ -91,7 +102,7 @@ describe('progress helpers', () => {
       status: 'in_progress',
       progress_percentage: 38,
       next_href: '/modules/15',
-      next_step_label: 'Continuar con Evaluacion de prompts',
+      next_step_label: 'Continuar con Alertas',
       quiz_attempts_count: 0
     })
     expect(result[1]).toMatchObject({
@@ -109,7 +120,7 @@ describe('progress helpers', () => {
       roadmap_id: 8,
       status: 'completed',
       progress_percentage: 100,
-      next_href: '/modules/20',
+      next_href: '/roadmaps/8',
       next_step_label: 'Volver al roadmap'
     })
     expect(result[3]).toMatchObject({
@@ -203,5 +214,126 @@ describe('progress helpers', () => {
         next_lesson_title: 'Pipeline'
       })
     ])
+  })
+
+  it('derives fresh summaries, resumes the first pending lesson and reopens stale completion', async () => {
+    const db = await open({ filename: ':memory:', driver: sqlite3.Database })
+    await db.exec(`
+      CREATE TABLE roadmaps (id INTEGER PRIMARY KEY, title TEXT, description TEXT, duration TEXT);
+      CREATE TABLE modules (id INTEGER PRIMARY KEY, roadmap_id INTEGER, title TEXT, position INTEGER);
+      CREATE TABLE lessons (id INTEGER PRIMARY KEY, module_id INTEGER, title TEXT);
+      CREATE TABLE user_lesson_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, lesson_id INTEGER,
+        started_at TEXT, last_activity_at TEXT, completed_at TEXT,
+        time_spent_seconds INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT,
+        UNIQUE(user_id, lesson_id)
+      );
+      CREATE TABLE user_roadmap_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, roadmap_id INTEGER,
+        current_module_id INTEGER, current_lesson_id INTEGER, started_at TEXT,
+        last_activity_at TEXT, completed_at TEXT, completed_lessons_count INTEGER DEFAULT 0,
+        time_spent_seconds INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT,
+        UNIQUE(user_id, roadmap_id)
+      );
+      CREATE TABLE user_quiz_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, roadmap_id INTEGER,
+        score REAL, max_score REAL, submitted_at TEXT
+      );
+      INSERT INTO roadmaps VALUES (1, 'AWS', 'Ruta cloud', '8 semanas');
+      INSERT INTO modules VALUES (10, 1, 'Fundamentos', 1);
+      INSERT INTO modules VALUES (11, 1, 'Operaciones', 2);
+      INSERT INTO lessons VALUES (100, 10, 'Introduccion');
+      INSERT INTO lessons VALUES (101, 10, 'Practica');
+      INSERT INTO lessons VALUES (102, 11, 'Observabilidad');
+      INSERT INTO user_lesson_progress (
+        user_id, lesson_id, started_at, last_activity_at, completed_at,
+        time_spent_seconds, created_at, updated_at
+      ) VALUES (2, 100, '2026-07-01', '2026-07-01', '2026-07-01', 120, '2026-07-01', '2026-07-01');
+      INSERT INTO user_roadmap_progress (
+        user_id, roadmap_id, current_module_id, current_lesson_id, started_at,
+        last_activity_at, completed_at, completed_lessons_count, time_spent_seconds,
+        created_at, updated_at
+      ) VALUES (2, 1, 10, 100, '2026-07-01', '2026-07-01', '2026-07-01', 99, 9999, '2026-07-01', '2026-07-01');
+    `)
+
+    const [summary] = await listUserRoadmapProgress(db as any, 2)
+
+    expect(summary).toMatchObject({
+      completed_lessons_count: 1,
+      total_lessons: 3,
+      time_spent_seconds: 120,
+      progress_percentage: 33,
+      status: 'in_progress',
+      completed_at: null,
+      next_href: '/modules/10',
+      next_step_label: 'Continuar con Practica',
+      average_quiz_percentage: null,
+      best_quiz_percentage: null,
+      last_quiz_percentage: null
+    })
+
+    await db.close()
+  })
+
+  it('caps study increments, preserves first completion and supports reopening', async () => {
+    const db = await open({ filename: ':memory:', driver: sqlite3.Database })
+    await db.exec(`
+      CREATE TABLE modules (id INTEGER PRIMARY KEY, roadmap_id INTEGER, title TEXT);
+      CREATE TABLE lessons (id INTEGER PRIMARY KEY, module_id INTEGER, title TEXT);
+      CREATE TABLE user_lesson_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, lesson_id INTEGER,
+        started_at TEXT, last_activity_at TEXT, completed_at TEXT,
+        time_spent_seconds INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT,
+        UNIQUE(user_id, lesson_id)
+      );
+      CREATE TABLE user_roadmap_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, roadmap_id INTEGER,
+        current_module_id INTEGER, current_lesson_id INTEGER, started_at TEXT,
+        last_activity_at TEXT, completed_at TEXT, completed_lessons_count INTEGER DEFAULT 0,
+        time_spent_seconds INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT,
+        UNIQUE(user_id, roadmap_id)
+      );
+      INSERT INTO modules VALUES (10, 1, 'Fundamentos');
+      INSERT INTO lessons VALUES (100, 10, 'Introduccion');
+    `)
+
+    const first = await setLessonProgress(db as any, {
+      userId: 2,
+      lessonId: 100,
+      completed: true,
+      timeSpentSeconds: 99_999
+    })
+    const second = await setLessonProgress(db as any, {
+      userId: 2,
+      lessonId: 100,
+      completed: true,
+      timeSpentSeconds: 60
+    })
+
+    expect(first?.time_spent_seconds).toBe(1800)
+    expect(second?.time_spent_seconds).toBe(1860)
+    expect(second?.completed_at).toBe(first?.completed_at)
+
+    const reopened = await setLessonProgress(db as any, {
+      userId: 2,
+      lessonId: 100,
+      completed: false,
+      timeSpentSeconds: 0
+    })
+    const roadmapProgress = await db.get(
+      'SELECT completed_at, completed_lessons_count FROM user_roadmap_progress WHERE user_id = 2 AND roadmap_id = 1'
+    )
+
+    expect(reopened?.completed_at).toBeNull()
+    expect(roadmapProgress).toMatchObject({ completed_at: null, completed_lessons_count: 0 })
+
+    await touchRoadmapProgress(db as any, { userId: 3, roadmapId: 1, moduleId: 10 })
+    await touchRoadmapProgress(db as any, { userId: 3, roadmapId: 1, lessonId: 100 })
+    const touched = await db.get(
+      'SELECT current_module_id, current_lesson_id FROM user_roadmap_progress WHERE user_id = 3 AND roadmap_id = 1'
+    )
+    expect(touched).toEqual({ current_module_id: 10, current_lesson_id: 100 })
+
+    await db.close()
   })
 })

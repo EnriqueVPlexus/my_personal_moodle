@@ -27,6 +27,8 @@ del producto poco a poco.
   vista `Mis roadmaps`, porcentaje y tiempo aproximado.
 - [x] Quizzes por modulo con intentos, notas y estadisticas por usuario.
 - [x] Estados de progreso `iniciado`, `en curso`, `pausado` y `completado`.
+- [x] Auditoria de robustez del progreso: calculos derivados, reanudacion,
+  concurrencia, validacion y recuperacion ante errores de red.
 - [x] Favicon propio de CanteraHub para la pestana del navegador.
 
 ## Orden recomendado
@@ -218,6 +220,43 @@ Hecho cuando:
 - El detalle de roadmap y modulo refleja progreso persistente.
 - Hay tiempo de estudio y notas de quiz por usuario.
 - Hay tests de API y UI para el flujo principal.
+
+#### [x] Fase 9. Auditoria de robustez y puntos de ruptura
+
+Estado: hecho.
+
+Hallazgos corregidos:
+
+- El dashboard confiaba en contadores y tiempo duplicados en la tabla resumen;
+  al borrar o anadir lecciones podian quedar obsoletos. Ahora se derivan del
+  progreso real por leccion en cada consulta.
+- Un roadmap podia seguir figurando como completado despues de anadir una
+  leccion nueva. La finalizacion ahora exige que todas las lecciones actuales
+  esten completadas.
+- `Continuar` podia recomendar la ultima leccion visitada aunque ya estuviera
+  terminada. Ahora busca la primera leccion pendiente segun el orden del roadmap.
+- Volver a guardar una leccion completada reemplazaba su fecha original. Se
+  conserva la primera finalizacion y se limpia correctamente al reabrirla.
+- Las escrituras de progreso usaban lectura seguida de escritura y eran
+  vulnerables a colisiones. Ahora usan `UPSERT` y el tiempo se acumula en SQL.
+- El cliente podia enviar cantidades de tiempo arbitrariamente altas. El API
+  valida el dato y limita cada incremento a 30 minutos.
+- IDs decimales y respuestas parciales o invalidas de quiz podian aceptarse.
+  Ahora se rechazan antes de persistir intentos o progreso.
+- La ausencia de intentos de quiz podia convertirse en `0%` y la media global
+  no tenia en cuenta cuantos intentos habia en cada roadmap. Ahora `sin nota`
+  sigue siendo nulo y la media se pondera por intentos reales.
+- Abrir un modulo autenticado podia mostrarlo como `no iniciado` en esa misma
+  respuesta. Ahora el estado visible es coherente con la actividad registrada.
+- Los fallos de carga o guardado podian parecer estados vacios o cargas
+  infinitas. Las pantallas de progreso ofrecen error explicito y reintento.
+
+Hecho cuando:
+
+- Cambios en el catalogo no dejan porcentajes ni estados obsoletos.
+- La reanudacion siempre apunta a contenido pendiente.
+- Repeticiones y peticiones concurrentes no pierden tiempo ni duplican filas.
+- Los limites de confianza se aplican en servidor y estan cubiertos por tests.
 
 ### [ ] Buscador y filtros
 

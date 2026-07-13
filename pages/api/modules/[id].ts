@@ -5,7 +5,7 @@ import { openDb } from '../../../lib/db'
 import { touchRoadmapProgress } from '../../../lib/progress'
 import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
 
-function buildModuleProgress(lessons: any[]) {
+function buildModuleProgress(lessons: any[], opened: boolean) {
   const totalLessons = lessons.length
   const completedLessonsCount = lessons.filter(lesson => Number(lesson.completed) === 1).length
   const progressPercentage = totalLessons > 0
@@ -17,7 +17,7 @@ function buildModuleProgress(lessons: any[]) {
   ), 0)
   const status = totalLessons > 0 && completedLessonsCount >= totalLessons
     ? 'completed'
-    : completedLessonsCount > 0
+    : completedLessonsCount > 0 || opened
       ? 'in_progress'
       : 'not_started'
 
@@ -73,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       ...moduleRow,
       lessons,
-      progress: user ? buildModuleProgress(lessons) : null,
+      progress: user ? buildModuleProgress(lessons, true) : null,
       quiz: toPublicModuleQuiz(quiz),
       quiz_summary: quizSummary
     })

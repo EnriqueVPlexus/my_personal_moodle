@@ -126,23 +126,34 @@ export default function ModulePage() {
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
   const [quizError, setQuizError] = useState('')
   const [quizSubmitting, setQuizSubmitting] = useState(false)
+  const [progressError, setProgressError] = useState('')
+  const [lessonUpdatingId, setLessonUpdatingId] = useState<number | null>(null)
+  const [loadError, setLoadError] = useState('')
   const moduleOpenedAt = useRef(Date.now())
 
   const load = useCallback(async () => {
     if (!id) return
-    const res = await fetch(`/api/modules/${id}`)
-    if (res.status === 401) {
-      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
-      return
-    }
-    if (res.ok) {
+    setLoadError('')
+    try {
+      const res = await fetch(`/api/modules/${id}`)
+      if (res.status === 401) {
+        router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+        return
+      }
+      if (!res.ok) {
+        setLoadError(res.status === 404 ? 'El módulo ya no existe.' : 'No se pudo cargar el módulo.')
+        return
+      }
       const data = await res.json()
       setModule(data)
       setLessons(data.lessons || [])
       setQuizAnswers({})
       setQuizResult(null)
       setQuizError('')
+      setProgressError('')
       moduleOpenedAt.current = Date.now()
+    } catch {
+      setLoadError('No se pudo conectar con el servidor.')
     }
   }, [id, router])
 
@@ -150,15 +161,28 @@ export default function ModulePage() {
 
   async function toggleComplete(lesson: LessonWithProgress) {
     const elapsedSeconds = Math.max(30, Math.min(1800, Math.round((Date.now() - moduleOpenedAt.current) / 1000)))
-    const res = await fetch(`/api/progress/lessons/${lesson.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        completed: !lesson.completed,
-        time_spent_seconds: lesson.completed ? 0 : elapsedSeconds
+    setLessonUpdatingId(lesson.id)
+    setProgressError('')
+    try {
+      const res = await fetch(`/api/progress/lessons/${lesson.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          completed: !lesson.completed,
+          time_spent_seconds: lesson.completed ? 0 : elapsedSeconds
+        })
       })
-    })
-    if (res.ok) load()
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setProgressError(data.error || 'No se pudo actualizar la lección.')
+        return
+      }
+      await load()
+    } catch {
+      setProgressError('No se pudo conectar con el servidor.')
+    } finally {
+      setLessonUpdatingId(null)
+    }
   }
 
   async function submitQuiz() {
@@ -191,13 +215,21 @@ export default function ModulePage() {
 
   if (!module) return (
     <Layout>
-      <main className="container py-8 text-sm text-slate-600">Cargando...</main>
+      <main className="container py-8 text-sm text-slate-600">
+        {loadError ? (
+          <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
+            <p>{loadError}</p>
+            <button className="mt-3 font-semibold underline" onClick={() => load()}>Reintentar</button>
+          </div>
+        ) : 'Cargando...'}
+      </main>
     </Layout>
   )
 
   const progress = user ? module.progress || fallbackProgress(lessons) : null
   const quiz = module.quiz
   const quizSummary = module.quiz_summary
+  const quizComplete = Boolean(quiz?.questions.every(question => Number.isInteger(quizAnswers[question.id])))
 
   return (
     <Layout>
@@ -274,6 +306,9 @@ export default function ModulePage() {
         <section className="panel mt-6 p-5">
           <h2 className="text-lg font-semibold text-slate-950">Lecciones</h2>
           <div className="mt-3 space-y-2">
+            {progressError && (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{progressError}</p>
+            )}
             {lessons.length > 0 ? (
               lessons.map(l => (
                 <div key={l.id} className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:flex-row md:items-center md:justify-between">
@@ -287,8 +322,14 @@ export default function ModulePage() {
                   </div>
                   {user && (
                     <div className="space-x-2">
-                      <button className="text-sm font-medium text-emerald-700" onClick={() => toggleComplete(l)}>
-                        {l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
+                      <button
+                        className="text-sm font-medium text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                        disabled={lessonUpdatingId !== null}
+                        onClick={() => toggleComplete(l)}
+                      >
+                        {lessonUpdatingId === l.id
+                          ? 'Guardando...'
+                          : l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
                       </button>
                     </div>
                   )}
@@ -396,10 +437,10 @@ export default function ModulePage() {
               {user ? (
                 <button
                   onClick={submitQuiz}
-                  disabled={quizSubmitting}
+                  disabled={quizSubmitting || !quizComplete}
                   className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
-                  {quizSubmitting ? 'Guardando...' : 'Enviar quiz'}
+                  {quizSubmitting ? 'Guardando...' : quizComplete ? 'Enviar quiz' : 'Responde todas las preguntas'}
                 </button>
               ) : (
                 <p className="text-sm text-slate-500">Inicia sesión para guardar intentos y notas de quiz.</p>

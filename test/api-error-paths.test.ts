@@ -275,9 +275,21 @@ describe('content API edge cases', () => {
     await lessonProgress(createRequest({ method: 'PUT', query: { id: 'NaN' }, body: { completed: true } }), invalidId)
     expect(invalidId.statusCode).toBe(400)
 
+    const fractionalId = createResponse()
+    await lessonProgress(createRequest({ method: 'PUT', query: { id: '1.5' }, body: { completed: true } }), fractionalId)
+    expect(fractionalId.statusCode).toBe(400)
+
     const invalidBody = createResponse()
     await lessonProgress(createRequest({ method: 'PUT', query: { id: '1' }, body: { completed: 'maybe' } }), invalidBody)
     expect(invalidBody.statusCode).toBe(400)
+
+    const invalidTime = createResponse()
+    await lessonProgress(createRequest({
+      method: 'PUT',
+      query: { id: '1' },
+      body: { completed: true, time_spent_seconds: -1 }
+    }), invalidTime)
+    expect(invalidTime.statusCode).toBe(400)
 
     const missingLesson = createResponse()
     await lessonProgress(createRequest({ method: 'PUT', query: { id: '1' }, body: { completed: true } }), missingLesson)
@@ -295,6 +307,20 @@ describe('content API edge cases', () => {
           roadmap_id: 7,
           contents: '["AMI"]',
           practical_activity: '["Crear instancia"]'
+        })
+        .mockResolvedValueOnce({
+          id: 1,
+          title: 'EC2',
+          roadmap_id: 7,
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]'
+        })
+        .mockResolvedValueOnce({
+          id: 1,
+          title: 'EC2',
+          roadmap_id: 7,
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]'
         }),
       run: vi.fn()
     }
@@ -304,6 +330,10 @@ describe('content API edge cases', () => {
     const invalidId = createResponse()
     await moduleQuiz(createRequest({ method: 'GET', query: { id: 'NaN' } }), invalidId)
     expect(invalidId.statusCode).toBe(400)
+
+    const fractionalId = createResponse()
+    await moduleQuiz(createRequest({ method: 'GET', query: { id: '1.5' } }), fractionalId)
+    expect(fractionalId.statusCode).toBe(400)
 
     const missingModule = createResponse()
     await moduleQuiz(createRequest({ method: 'GET', query: { id: '1' } }), missingModule)
@@ -316,6 +346,23 @@ describe('content API edge cases', () => {
     const missingAnswers = createResponse()
     await moduleQuiz(createRequest({ method: 'POST', query: { id: '1' }, body: {} }), missingAnswers)
     expect(missingAnswers.statusCode).toBe(400)
+
+    const incompleteAnswers = createResponse()
+    await moduleQuiz(createRequest({
+      method: 'POST',
+      query: { id: '1' },
+      body: { answers: { 'module-content': 0 } }
+    }), incompleteAnswers)
+    expect(incompleteAnswers.statusCode).toBe(400)
+    expect(incompleteAnswers.body.error).toContain('answer every quiz question')
+
+    const nullableAnswer = createResponse()
+    await moduleQuiz(createRequest({
+      method: 'POST',
+      query: { id: '1' },
+      body: { answers: { 'module-content': null, 'module-practice': 0 } }
+    }), nullableAnswer)
+    expect(nullableAnswer.statusCode).toBe(400)
 
     const methodGuard = createResponse()
     await moduleQuiz(createRequest({ method: 'DELETE', query: { id: '1' } }), methodGuard)

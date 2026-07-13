@@ -11,7 +11,7 @@ import {
 
 function getId(queryId: string | string[] | undefined) {
   const value = Number(Array.isArray(queryId) ? queryId[0] : queryId)
-  return Number.isFinite(value) && value > 0 ? value : null
+  return Number.isInteger(value) && value > 0 ? value : null
 }
 
 function getAnswers(body: unknown) {
@@ -60,8 +60,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!answers) {
       return res.status(400).json({ error: 'answers object required' })
     }
+    const normalizedAnswers: Record<string, number> = {}
+    const hasInvalidAnswer = quiz.questions.some(question => {
+      const rawAnswer = answers[question.id]
+      if (typeof rawAnswer !== 'number') return true
+      const answer = rawAnswer
+      if (!Number.isInteger(answer) || answer < 0 || answer >= question.options.length) return true
+      normalizedAnswers[question.id] = answer
+      return false
+    })
+    if (hasInvalidAnswer) {
+      return res.status(400).json({ error: 'answer every quiz question with a valid option' })
+    }
 
-    const attempt = await saveModuleQuizAttempt(db, user.id, moduleRow, answers)
+    const attempt = await saveModuleQuizAttempt(db, user.id, moduleRow, normalizedAnswers)
     await touchRoadmapProgress(db, {
       userId: user.id,
       roadmapId: moduleRow.roadmap_id,

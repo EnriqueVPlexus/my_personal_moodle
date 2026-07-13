@@ -473,6 +473,7 @@ describe('Next pages', () => {
     expect(screen.getByText('Kubernetes')).toBeInTheDocument()
     expect(screen.getByText('pausados')).toBeInTheDocument()
     expect(screen.getByText('media quiz')).toBeInTheDocument()
+    expect(screen.getByText('83%')).toBeInTheDocument()
     expect(screen.getByText('3 h 15 min')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/progress/roadmaps')
 
@@ -500,6 +501,27 @@ describe('Next pages', () => {
 
     expect(await screen.findByText('Aún no has empezado ningún roadmap')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Explorar roadmaps' })).toHaveAttribute('href', '/roadmaps')
+  })
+
+  it('shows progress loading errors and allows retrying', async () => {
+    setRouter('/my-roadmaps')
+    mockAuth({ user: adminUser })
+    let attempts = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      attempts += 1
+      return attempts === 1
+        ? jsonResponse({ error: 'temporary failure' }, 500)
+        : jsonResponse([])
+    })
+
+    const MyRoadmapsPage = (await import('../pages/my-roadmaps')).default
+    render(<MyRoadmapsPage />)
+
+    expect(await screen.findByText('No se pudo cargar tu progreso.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByText('Aún no has empezado ningún roadmap')).toBeInTheDocument()
+    expect(attempts).toBe(2)
   })
 
   it('runs setup states, validation errors and successful first-admin creation', async () => {

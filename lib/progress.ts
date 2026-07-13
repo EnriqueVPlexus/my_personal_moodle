@@ -29,6 +29,7 @@ type LessonContext = {
 }
 
 export const ROADMAP_PAUSED_AFTER_DAYS = 14
+export const MAX_LESSON_TIME_INCREMENT_SECONDS = 30 * 60
 
 export type RoadmapProgressStatus = 'started' | 'in_progress' | 'paused' | 'completed'
 
@@ -102,6 +103,7 @@ function progressPercentage(completed: number, total: number) {
 }
 
 function percentageValue(value: unknown) {
+  if (value === null || value === undefined) return null
   const numeric = Number(value)
   return Number.isFinite(numeric) ? Math.round(numeric) : null
 }
@@ -123,10 +125,7 @@ export function resolveRoadmapStatus(options: {
   currentModuleId?: number | null
   lastActivityAt?: string | null
 }): RoadmapProgressStatus {
-  if (options.completedAt || (
-    options.totalLessons > 0 &&
-    options.completedLessonsCount >= options.totalLessons
-  )) {
+  if (options.totalLessons > 0 && options.completedLessonsCount >= options.totalLessons) {
     return 'completed'
   }
 
@@ -139,20 +138,25 @@ export function resolveRoadmapStatus(options: {
 function clampTimeSpent(value: unknown) {
   const numeric = typeof value === 'number' ? value : Number(value || 0)
   if (!Number.isFinite(numeric) || numeric <= 0) return 0
-  return Math.round(numeric)
+  return Math.min(MAX_LESSON_TIME_INCREMENT_SECONDS, Math.round(numeric))
 }
 
 async function getRoadmapProgressSnapshot(db: DbHandle, userId: number, roadmapId: number) {
   const totals = await db.get(
     `SELECT
         COALESCE(SUM(user_lesson_progress.time_spent_seconds), 0) AS time_spent_seconds,
-        COALESCE(SUM(CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS completed_lessons_count
+        COALESCE(SUM(CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS completed_lessons_count,
+        (
+          SELECT completed_at
+          FROM user_roadmap_progress
+          WHERE user_id = ? AND roadmap_id = ?
+        ) AS completed_at
      FROM user_lesson_progress
      INNER JOIN lessons ON lessons.id = user_lesson_progress.lesson_id
      INNER JOIN modules ON modules.id = lessons.module_id
      WHERE user_lesson_progress.user_id = ?
        AND modules.roadmap_id = ?`,
-    [userId, roadmapId]
+    [userId, roadmapId, userId, roadmapId]
   )
 
   const lessonCount = await db.get(
@@ -169,7 +173,9 @@ async function getRoadmapProgressSnapshot(db: DbHandle, userId: number, roadmapI
   return {
     completedLessonsCount,
     timeSpentSeconds: Number(totals?.time_spent_seconds || 0),
-    completedAt: totalLessons > 0 && completedLessonsCount >= totalLessons ? nowIso() : null
+    completedAt: totalLessons > 0 && completedLessonsCount >= totalLessons
+      ? totals?.completed_at || nowIso()
+      : null
   }
 }
 
@@ -186,48 +192,35 @@ export async function touchRoadmapProgress(db: DbHandle, options: RoadmapProgres
   const timeSpentSeconds = options.timeSpentSeconds ?? existing?.time_spent_seconds ?? 0
   const completedAt = options.completedAt === undefined ? existing?.completed_at ?? null : options.completedAt
 
-  if (existing) {
-    await db.run(
-      `UPDATE user_roadmap_progress
-       SET current_module_id = ?, current_lesson_id = ?, started_at = COALESCE(started_at, ?),
-           last_activity_at = ?, completed_at = ?, completed_lessons_count = ?,
-           time_spent_seconds = ?, updated_at = ?
-       WHERE user_id = ? AND roadmap_id = ?`,
-      [
-        currentModuleId,
-        currentLessonId,
-        now,
-        now,
-        completedAt,
-        completedLessonsCount,
-        timeSpentSeconds,
-        now,
-        options.userId,
-        options.roadmapId
-      ]
-    )
-  } else {
-    await db.run(
-      `INSERT INTO user_roadmap_progress (
-        user_id, roadmap_id, current_module_id, current_lesson_id, started_at,
-        last_activity_at, completed_at, completed_lessons_count, time_spent_seconds,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        options.userId,
-        options.roadmapId,
-        currentModuleId,
-        currentLessonId,
-        now,
-        now,
-        completedAt,
-        completedLessonsCount,
-        timeSpentSeconds,
-        now,
-        now
-      ]
-    )
-  }
+  await db.run(
+    `INSERT INTO user_roadmap_progress (
+      user_id, roadmap_id, current_module_id, current_lesson_id, started_at,
+      last_activity_at, completed_at, completed_lessons_count, time_spent_seconds,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, roadmap_id) DO UPDATE SET
+      current_module_id = excluded.current_module_id,
+      current_lesson_id = excluded.current_lesson_id,
+      started_at = COALESCE(user_roadmap_progress.started_at, excluded.started_at),
+      last_activity_at = excluded.last_activity_at,
+      completed_at = excluded.completed_at,
+      completed_lessons_count = excluded.completed_lessons_count,
+      time_spent_seconds = excluded.time_spent_seconds,
+      updated_at = excluded.updated_at`,
+    [
+      options.userId,
+      options.roadmapId,
+      currentModuleId,
+      currentLessonId,
+      now,
+      now,
+      completedAt,
+      completedLessonsCount,
+      timeSpentSeconds,
+      now,
+      now
+    ]
+  )
 }
 
 async function getLessonContext(db: DbHandle, lessonId: number): Promise<LessonContext | null> {
@@ -254,49 +247,39 @@ export async function setLessonProgress(db: DbHandle, options: LessonProgressUpd
   if (!lesson) return null
 
   const now = nowIso()
-  const existing = await db.get(
+  const additionalTimeSpent = clampTimeSpent(options.timeSpentSeconds)
+  await db.run(
+    `INSERT INTO user_lesson_progress (
+      user_id, lesson_id, started_at, last_activity_at, completed_at,
+      time_spent_seconds, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, lesson_id) DO UPDATE SET
+      started_at = COALESCE(user_lesson_progress.started_at, excluded.started_at),
+      last_activity_at = excluded.last_activity_at,
+      completed_at = CASE
+        WHEN excluded.completed_at IS NULL THEN NULL
+        ELSE COALESCE(user_lesson_progress.completed_at, excluded.completed_at)
+      END,
+      time_spent_seconds = user_lesson_progress.time_spent_seconds + excluded.time_spent_seconds,
+      updated_at = excluded.updated_at`,
+    [
+      options.userId,
+      options.lessonId,
+      now,
+      now,
+      options.completed ? now : null,
+      additionalTimeSpent,
+      now,
+      now
+    ]
+  )
+  const updated = await db.get(
     'SELECT * FROM user_lesson_progress WHERE user_id = ? AND lesson_id = ?',
     [options.userId, options.lessonId]
   )
-  const additionalTimeSpent = clampTimeSpent(options.timeSpentSeconds)
-  const totalTimeSpent = Number(existing?.time_spent_seconds || 0) + additionalTimeSpent
-  const startedAt = existing?.started_at || now
-  const completedAt = options.completed ? now : null
-
-  if (existing) {
-    await db.run(
-      `UPDATE user_lesson_progress
-       SET started_at = ?, last_activity_at = ?, completed_at = ?,
-           time_spent_seconds = ?, updated_at = ?
-       WHERE user_id = ? AND lesson_id = ?`,
-      [
-        startedAt,
-        now,
-        completedAt,
-        totalTimeSpent,
-        now,
-        options.userId,
-        options.lessonId
-      ]
-    )
-  } else {
-    await db.run(
-      `INSERT INTO user_lesson_progress (
-        user_id, lesson_id, started_at, last_activity_at, completed_at,
-        time_spent_seconds, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        options.userId,
-        options.lessonId,
-        startedAt,
-        now,
-        completedAt,
-        totalTimeSpent,
-        now,
-        now
-      ]
-    )
-  }
+  const startedAt = updated?.started_at || now
+  const completedAt = updated?.completed_at ?? null
+  const totalTimeSpent = Number(updated?.time_spent_seconds || 0)
 
   const snapshot = await getRoadmapProgressSnapshot(db, options.userId, lesson.roadmapId)
   await touchRoadmapProgress(db, {
@@ -326,7 +309,25 @@ export async function setLessonProgress(db: DbHandle, options: LessonProgressUpd
 
 export async function listUserRoadmapProgress(db: DbHandle, userId: number): Promise<UserRoadmapProgressSummary[]> {
   const rows = await db.all(
-    `SELECT
+    `WITH next_lessons AS (
+       SELECT
+         modules.roadmap_id,
+         modules.id AS next_module_id,
+         modules.title AS next_module_title,
+         lessons.id AS next_lesson_id,
+         lessons.title AS next_lesson_title,
+         ROW_NUMBER() OVER (
+           PARTITION BY modules.roadmap_id
+           ORDER BY COALESCE(modules.position, modules.id), modules.id, lessons.id
+         ) AS sequence
+       FROM modules
+       INNER JOIN lessons ON lessons.module_id = modules.id
+       LEFT JOIN user_lesson_progress AS next_lesson_progress
+         ON next_lesson_progress.lesson_id = lessons.id
+        AND next_lesson_progress.user_id = ?
+       WHERE next_lesson_progress.completed_at IS NULL
+     )
+     SELECT
         user_roadmap_progress.roadmap_id,
         roadmaps.title,
         roadmaps.description,
@@ -334,12 +335,17 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
         user_roadmap_progress.started_at,
         user_roadmap_progress.last_activity_at,
         user_roadmap_progress.completed_at,
-        user_roadmap_progress.completed_lessons_count,
-        user_roadmap_progress.time_spent_seconds,
+        COALESCE(SUM(CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0)
+          AS completed_lessons_count,
+        COALESCE(SUM(user_lesson_progress.time_spent_seconds), 0) AS time_spent_seconds,
         user_roadmap_progress.current_module_id,
         current_module.title AS current_module_title,
         user_roadmap_progress.current_lesson_id,
         current_lesson.title AS current_lesson_title,
+        next_lessons.next_module_id,
+        next_lessons.next_module_title,
+        next_lessons.next_lesson_id,
+        next_lessons.next_lesson_title,
         (
           SELECT COUNT(*)
           FROM user_quiz_attempts
@@ -375,8 +381,14 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
      INNER JOIN roadmaps ON roadmaps.id = user_roadmap_progress.roadmap_id
      LEFT JOIN modules ON modules.roadmap_id = roadmaps.id
      LEFT JOIN lessons ON lessons.module_id = modules.id
+     LEFT JOIN user_lesson_progress
+       ON user_lesson_progress.lesson_id = lessons.id
+      AND user_lesson_progress.user_id = ?
      LEFT JOIN modules AS current_module ON current_module.id = user_roadmap_progress.current_module_id
      LEFT JOIN lessons AS current_lesson ON current_lesson.id = user_roadmap_progress.current_lesson_id
+     LEFT JOIN next_lessons
+       ON next_lessons.roadmap_id = user_roadmap_progress.roadmap_id
+      AND next_lessons.sequence = 1
      WHERE user_roadmap_progress.user_id = ?
      GROUP BY
        user_roadmap_progress.id,
@@ -384,9 +396,13 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
        roadmaps.description,
        roadmaps.duration,
        current_module.title,
-       current_lesson.title
+       current_lesson.title,
+       next_lessons.next_module_id,
+       next_lessons.next_module_title,
+       next_lessons.next_lesson_id,
+       next_lessons.next_lesson_title
      ORDER BY datetime(user_roadmap_progress.last_activity_at) DESC, user_roadmap_progress.id DESC`,
-    [userId, userId, userId, userId, userId]
+    [userId, userId, userId, userId, userId, userId, userId]
   )
 
   return rows.map((row: any) => {
@@ -400,13 +416,18 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
       currentModuleId: row.current_module_id,
       lastActivityAt: row.last_activity_at
     })
-    const nextHref = row.current_module_id ? `/modules/${row.current_module_id}` : `/roadmaps/${row.roadmap_id}`
-    const nextStepLabel = row.completed_at
+    const nextModuleId = row.next_module_id ?? row.current_module_id
+    const nextHref = status === 'completed'
+      ? `/roadmaps/${row.roadmap_id}`
+      : nextModuleId
+        ? `/modules/${nextModuleId}`
+        : `/roadmaps/${row.roadmap_id}`
+    const nextStepLabel = status === 'completed'
       ? 'Volver al roadmap'
-      : row.current_lesson_title
-        ? `Continuar con ${row.current_lesson_title}`
-        : row.current_module_title
-          ? `Continuar con ${row.current_module_title}`
+      : row.next_lesson_title
+        ? `Continuar con ${row.next_lesson_title}`
+        : row.next_module_title || row.current_module_title
+          ? `Continuar con ${row.next_module_title || row.current_module_title}`
           : 'Retomar roadmap'
 
     return {
@@ -416,7 +437,7 @@ export async function listUserRoadmapProgress(db: DbHandle, userId: number): Pro
       duration: row.duration,
       started_at: row.started_at,
       last_activity_at: row.last_activity_at,
-      completed_at: row.completed_at,
+      completed_at: status === 'completed' ? row.completed_at : null,
       completed_lessons_count: completedLessonsCount,
       total_lessons: totalLessons,
       total_modules: Number(row.total_modules || 0),
@@ -562,7 +583,7 @@ export async function getRoadmapDetailProgress(
     roadmap_id: roadmapId,
     started_at: progressRow?.started_at ?? null,
     last_activity_at: progressRow?.last_activity_at ?? null,
-    completed_at: progressRow?.completed_at ?? null,
+    completed_at: status === 'completed' ? progressRow?.completed_at ?? null : null,
     completed_lessons_count: completedLessonsCount,
     total_lessons: totalLessons,
     total_modules: moduleSummaries.length,
