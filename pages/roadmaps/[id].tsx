@@ -16,6 +16,7 @@ import {
 type RoadmapDetail = {
   id: number
   title: string
+  duration?: string
   description?: string
   objectives?: unknown
   methodology?: unknown
@@ -23,23 +24,39 @@ type RoadmapDetail = {
   modules?: LearningModule[]
 }
 
+function formatWeekCount(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
+}
+
+function formatDuration(min: number, max: number) {
+  if (min === max) return `${formatWeekCount(min)} ${min === 1 ? 'semana' : 'semanas'}`
+  return `${formatWeekCount(min)}-${formatWeekCount(max)} semanas`
+}
+
+function parseWeekDuration(duration: string) {
+  const normalized = duration.toLowerCase().replace(/,/g, '.')
+  const range = normalized.match(/(\d+(?:\.\d+)?)\s*(?:-|–|a|o)\s*(\d+(?:\.\d+)?)\s*seman/)
+  if (range) return [Number(range[1]), Number(range[2])]
+
+  const single = normalized.match(/(\d+(?:\.\d+)?)\s*seman/)
+  if (single) return [Number(single[1]), Number(single[1])]
+
+  return null
+}
+
 function estimateDuration(modules: LearningModule[]) {
   let min = 0
   let max = 0
 
   modules.forEach(module => {
-    const duration = module.duration || ''
-    if (duration.includes('1 o 2')) {
-      min += 1
-      max += 2
-    } else if (duration.includes('1')) {
-      min += 1
-      max += 1
-    }
+    const parsed = parseWeekDuration(module.duration || '')
+    if (!parsed) return
+    min += parsed[0]
+    max += parsed[1]
   })
 
   if (!min) return 'Por definir'
-  return min === max ? `${min} semanas` : `${min}-${max} semanas`
+  return formatDuration(min, max)
 }
 
 function moduleDisclosureKey(module: LearningModule, index: number) {
@@ -114,7 +131,7 @@ export default function RoadmapDetailPage() {
                 <span className="text-sky-950">módulos</span>
               </div>
               <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-                <span className="block text-2xl font-bold text-emerald-700">{estimateDuration(roadmap.modules || [])}</span>
+                <span className="block text-2xl font-bold text-emerald-700">{roadmap.duration || estimateDuration(roadmap.modules || [])}</span>
                 <span className="text-emerald-900">duración</span>
               </div>
             </div>

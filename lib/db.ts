@@ -4,6 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import aiRoadmapSeed from './roadmapSeeds/aiRoadmapSeed.json'
 import awsRoadmapSeed from './roadmapSeeds/awsRoadmapSeed.json'
+import iaDevopsRoadmapSeed from './iaDevopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
 
 type LearningResource = {
@@ -29,6 +30,7 @@ type ProjectSeed =
 
 type RoadmapSeed = {
   title: string
+  duration?: string
   description?: string
   positioning_goal?: string
   target_profile?: string[]
@@ -80,7 +82,7 @@ type RoadmapSeed = {
   }>
 }
 
-const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed]
+const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, iaDevopsRoadmapSeed]
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
@@ -170,6 +172,7 @@ async function migrate(db: any) {
   `)
 
   await ensureColumn(db, 'roadmaps', 'objectives', 'TEXT')
+  await ensureColumn(db, 'roadmaps', 'duration', 'TEXT')
   await ensureColumn(db, 'roadmaps', 'methodology', 'TEXT')
   await ensureColumn(db, 'roadmaps', 'evaluation_weights', 'TEXT')
 
@@ -216,10 +219,11 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
   if (roadmapId) {
     await db.run(
       `UPDATE roadmaps
-       SET description = ?, objectives = ?, methodology = ?, evaluation_weights = ?
+       SET description = ?, duration = ?, objectives = ?, methodology = ?, evaluation_weights = ?
        WHERE id = ?`,
       [
         description,
+        seed.duration ?? null,
         JSON.stringify(objectives),
         JSON.stringify(methodology),
         JSON.stringify(evaluationWeights),
@@ -228,11 +232,12 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
     )
   } else {
     const result = await db.run(
-      `INSERT INTO roadmaps (title, description, objectives, methodology, evaluation_weights)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO roadmaps (title, description, duration, objectives, methodology, evaluation_weights)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         seed.title,
         description,
+        seed.duration ?? null,
         JSON.stringify(objectives),
         JSON.stringify(methodology),
         JSON.stringify(evaluationWeights)

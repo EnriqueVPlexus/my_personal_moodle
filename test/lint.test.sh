@@ -4,7 +4,7 @@ set -e
 echo "Running linter..."
 npm run lint
 
-echo "Checking AWS roadmap seed..."
+echo "Checking roadmap seeds..."
 node test/aws-roadmap-seed.test.mjs
 
 echo "Running unit tests with coverage..."

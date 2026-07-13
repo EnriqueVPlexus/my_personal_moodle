@@ -1,0 +1,660 @@
+{
+  "title": "IA para DevOps",
+  "duration": "6 meses (5-8 h/semana)",
+  "description": "Convertir un perfil SRE/DevOps en AI Platform / LLMOps / MLOps Engineer capaz de construir, desplegar, securizar, observar y operar soluciones de IA generativa en producción. Itinerario compatible con trabajo a jornada completa y orientado a SRE, DevOps, Platform Engineering.",
+  "objectives": [
+    "Construir aplicaciones GenAI útiles para incidentes, logs, runbooks y troubleshooting.",
+    "Diseñar RAG, agentes y ChatOps con trazabilidad, fuentes y control humano.",
+    "Operar LLMOps/MLOps midiendo calidad, coste, latencia y feedback.",
+    "Desplegar workloads IA en Kubernetes/OpenShift con CI/CD y observabilidad.",
+    "Aplicar seguridad OWASP LLM, privacidad, RBAC, auditoría y gobierno.",
+    "Publicar un portfolio AI Platform/LLMOps orientado a SRE/DevOps."
+  ],
+  "methodology": [
+    "priorizar recursos oficiales, gratuitos y hands-on",
+    "usar Udemy Business y LinkedIn Learning como refuerzo cuando aporte práctica",
+    "cerrar cada módulo con un entregable reutilizable en GitHub o portfolio",
+    "aterrizar todos los casos en logs, alertas, runbooks, incidentes y Kubernetes/OpenShift",
+    "validar con quizzes, evidencias, README, diagramas y revisión operativa",
+    "mantener seguridad, observabilidad y costes visibles desde el primer prototipo"
+  ],
+  "evaluation_weights": {
+    "Entregables por módulo": "30%",
+    "Proyectos prácticos": "35%",
+    "Seguridad y observabilidad": "15%",
+    "Portfolio final": "20%"
+  },
+  "modules": [
+    {
+      "position": 0,
+      "title": "Fundamentos de IA, GenAI y modelos fundacionales",
+      "duration": "2 semanas",
+      "objective": "Entender IA, ML, deep learning, LLMs, embeddings, tokens, ventanas de contexto, alucinaciones del modelo, RAG, agentes y fine-tuning.",
+      "contents": [
+        "IA vs ML vs Deep Learning",
+        "Modelos fundacionales y LLMs",
+        "Tokens y contexto",
+        "Embeddings",
+        "RAG vs fine-tuning",
+        "Agentes",
+        "Limitaciones y riesgos",
+        "Nivel: beginner."
+      ],
+      "importance": "Permite hablar con equipos de datos, arquitectura y seguridad usando vocabulario correcto sin caer en humo de IA.",
+      "official_resources": [
+        {
+          "label": "Google Skills - AI learning platform",
+          "url": "https://www.skills.google/"
+        },
+        {
+          "label": "Microsoft Learn - Microsoft Certified: Azure AI Fundamentals",
+          "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/"
+        },
+        {
+          "label": "AWS Skill Builder - Artificial Intelligence training at AWS",
+          "url": "https://aws.amazon.com/training/learn-about/ai/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "LinkedIn Learning - Artificial Intelligence Foundations",
+          "url": "https://www.linkedin.com/learning/topics/artificial-intelligence-foundations"
+        },
+        {
+          "label": "Udemy Business - Buscar: Generative AI fundamentals, AI for beginners, Azure OpenAI fundamentals",
+          "url": "https://www.udemy.com/"
+        }
+      ],
+      "practical_activity": [
+        "Responder y justificar: ¿Cuándo tiene más sentido usar RAG frente a fine-tuning?",
+        "Responder y justificar: ¿Qué problema resuelven los embeddings?"
+      ],
+      "deliverable_evidence": [
+        "Mapa conceptual IA/ML/GenAI/RAG/LLMOps en Markdown.",
+        "Glosario de 30 términos IA para SRE/DevOps.",
+        "Post corto de LinkedIn explicando por qué un SRE debe aprender IA productiva."
+      ],
+      "evaluation": "Quiz aplicado: ¿Cuándo tiene más sentido usar RAG frente a fine-tuning? / ¿Qué problema resuelven los embeddings?"
+    },
+    {
+      "position": 1,
+      "title": "Python aplicado a AI Engineering",
+      "duration": "3 semanas",
+      "objective": "Construir APIs y automatizaciones Python que consuman modelos, validen salidas y se puedan desplegar.",
+      "contents": [
+        "Python moderno",
+        "FastAPI",
+        "Pydantic",
+        "httpx/requests",
+        "pytest",
+        "Docker",
+        "JSON estructurado",
+        "gestión de secretos",
+        "Nivel: beginner-intermediate."
+      ],
+      "importance": "Transforma scripts SRE en servicios internos de IA con APIs, tests, observabilidad y despliegue.",
+      "official_resources": [
+        {
+          "label": "FastAPI Docs - FastAPI Documentation",
+          "url": "https://fastapi.tiangolo.com/"
+        },
+        {
+          "label": "Pydantic Docs - Pydantic Documentation",
+          "url": "https://docs.pydantic.dev/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "LinkedIn Learning - Complete Guide to Python Fundamentals for MLOps",
+          "url": "https://www.linkedin.com/learning/complete-guide-to-python-fundamentals-for-mlops"
+        },
+        {
+          "label": "Udemy Business - Buscar: FastAPI, Python API, Python for DevOps, MLOps Python",
+          "url": "https://www.udemy.com/"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: AI Log Analyzer API v1.",
+        "API FastAPI que recibe logs de Kubernetes/OpenShift y devuelve diagnóstico estructurado en JSON.",
+        "Debe incluir: Endpoint /analyze-log.",
+        "Debe incluir: Validación de input con Pydantic.",
+        "Debe incluir: Salida JSON con causa probable, severidad y comandos sugeridos.",
+        "Debe incluir: Tests unitarios.",
+        "Debe incluir: Dockerfile."
+      ],
+      "deliverable_evidence": [
+        "Repositorio ai-log-analyzer-api.",
+        "README con ejemplo de request/response.",
+        "Pipeline CI simple con tests."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"AI Log Analyzer API v1\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 2,
+      "title": "Prompt engineering serio para DevOps/SRE",
+      "duration": "2 semanas",
+      "objective": "Diseñar prompts versionables, evaluables y resistentes a errores para casos de operación.",
+      "contents": [
+        "system prompts",
+        "few-shot prompting",
+        "salida estructurada",
+        "tool/function calling",
+        "prompt injection",
+        "evaluación de prompts",
+        "versionado de prompts",
+        "Nivel: beginner-intermediate."
+      ],
+      "importance": "Evita prompts improvisados y permite convertir IA en una pieza mantenible dentro de un sistema productivo.",
+      "official_resources": [
+        {
+          "label": "AWS Skill Builder - Foundations of Prompt Engineering",
+          "url": "https://skillbuilder.aws/learn/VF6H4SZ1BU/foundations-of-prompt-engineering/7U8XFUVXDT"
+        },
+        {
+          "label": "Google Skills - Prompt Design in Agent Platform / Vertex AI",
+          "url": "https://www.skills.google/course_templates/976"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "LinkedIn Learning - Introduction to Prompt Engineering for Generative AI",
+          "url": "https://www.linkedin.com/learning/introduction-to-prompt-engineering-for-generative-ai-24636124"
+        },
+        {
+          "label": "LinkedIn Learning - Prompt Engineering Skills for Developers",
+          "url": "https://www.linkedin.com/learning/paths/prompt-engineering-skills-for-developers"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: Prompt Pack SRE.",
+        "Repositorio de prompts versionados para analizar logs, eventos, manifiestos YAML y postmortems.",
+        "Debe incluir: Prompts separados por caso de uso.",
+        "Debe incluir: Plantillas de salida JSON.",
+        "Debe incluir: Dataset pequeño de ejemplos.",
+        "Debe incluir: Tests manuales y automáticos."
+      ],
+      "deliverable_evidence": [
+        "Carpeta prompts/ con versionado semántico.",
+        "Plantilla de prompt para análisis de incidencias.",
+        "Plantilla de prompt para comunicación de Major Incident."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"Prompt Pack SRE\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 3,
+      "title": "RAG para documentación, runbooks y troubleshooting",
+      "duration": "5 semanas",
+      "objective": "Construir un sistema RAG que consulte documentación técnica y responda con referencias.",
+      "contents": [
+        "chunking",
+        "embeddings",
+        "vector stores",
+        "retrieval",
+        "reranking",
+        "metadata filters",
+        "citaciones",
+        "evaluación de respuestas",
+        "control de alucinaciones del modelo",
+        "Nivel: intermediate."
+      ],
+      "importance": "RAG es probablemente el caso de uso enterprise más directo para SRE: runbooks, KBs, procedimientos, incidencias pasadas y documentación interna.",
+      "official_resources": [
+        {
+          "label": "DeepLearning.AI - Retrieval Augmented Generation (RAG)",
+          "url": "https://www.deeplearning.ai/courses/retrieval-augmented-generation"
+        },
+        {
+          "label": "DeepLearning.AI - LangChain: Chat with Your Data",
+          "url": "https://www.deeplearning.ai/courses/langchain-chat-with-your-data"
+        },
+        {
+          "label": "DeepLearning.AI - LangChain for LLM Application Development",
+          "url": "https://www.deeplearning.ai/courses/langchain"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Udemy Business - Build Chat Applications with OpenAI and LangChain",
+          "url": "https://www.udemy.com/course/build-chat-applications-with-openai-and-langchain/"
+        },
+        {
+          "label": "Udemy Business - Complete Generative AI Course With Langchain and Huggingface",
+          "url": "https://www.udemy.com/course/complete-generative-ai-course-with-langchain-and-huggingface/"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: Runbook AI Assistant.",
+        "Asistente RAG que consulta runbooks Markdown/PDF y devuelve pasos de diagnóstico con referencias.",
+        "Debe incluir: Ingesta de Markdown/PDF.",
+        "Debe incluir: Vector store local.",
+        "Debe incluir: API de preguntas.",
+        "Debe incluir: Respuestas con fuente.",
+        "Debe incluir: Feedback del usuario.",
+        "Debe incluir: Docker Compose."
+      ],
+      "deliverable_evidence": [
+        "Runbook AI Assistant v1.",
+        "Dataset demo con 10 runbooks ficticios de Kubernetes/OpenShift.",
+        "Documentación de arquitectura RAG."
+      ],
+      "evaluation": "Quiz aplicado: ¿Por qué es importante guardar metadata en un vector store? / ¿Qué riesgo reduce una respuesta con fuentes?"
+    },
+    {
+      "position": 4,
+      "title": "Agentes de IA y ChatOps para operación",
+      "duration": "4 semanas",
+      "objective": "Entender agentes, tool calling, MCP y automatización controlada para tareas SRE.",
+      "contents": [
+        "AI agents",
+        "tool calling",
+        "MCP",
+        "function calling",
+        "human-in-the-loop",
+        "permisos y límites",
+        "ChatOps",
+        "automatización segura",
+        "Nivel: intermediate."
+      ],
+      "importance": "Un agente puede consultar logs, ejecutar comprobaciones, abrir tickets o resumir incidencias, pero debe tener límites, permisos y auditoría.",
+      "official_resources": [
+        {
+          "label": "Hugging Face - AI Agents Course",
+          "url": "https://huggingface.co/learn/agents-course/en/unit0/introduction"
+        },
+        {
+          "label": "Google Skills - Advanced: Generative AI for Developers",
+          "url": "https://www.skills.google/paths/183"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Udemy Business - Agentic AI Engineering with LangChain & LangGraph",
+          "url": "https://www.udemy.com/course/langchain/"
+        },
+        {
+          "label": "Udemy Business - AI Engineer Production Track: Deploy LLMs & Agents at Scale",
+          "url": "https://www.udemy.com/course/generative-and-agentic-ai-in-production/"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: SRE ChatOps Agent.",
+        "Agente con herramientas simuladas para consultar estado de pods, logs, métricas y runbooks.",
+        "Debe incluir: Tool calling con herramientas read-only.",
+        "Debe incluir: Modo simulación sin acceso real a producción.",
+        "Debe incluir: Aprobación humana antes de acciones peligrosas.",
+        "Debe incluir: Auditoría de acciones.",
+        "Debe incluir: Integración futura con Slack/Teams."
+      ],
+      "deliverable_evidence": [
+        "Agente ChatOps con herramientas simuladas.",
+        "Documento de threat model para agentes.",
+        "Lista de acciones permitidas/prohibidas."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"SRE ChatOps Agent\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 5,
+      "title": "Plataformas cloud de IA: Azure OpenAI, AWS Bedrock y Google Vertex AI",
+      "duration": "4 semanas",
+      "objective": "Conocer las principales plataformas cloud de IA sin casarse todavía con una sola.",
+      "contents": [
+        "Azure AI Foundry / Azure OpenAI",
+        "AWS Bedrock",
+        "Google Vertex AI / Gemini",
+        "model catalog",
+        "quotas",
+        "costes",
+        "seguridad",
+        "red privada",
+        "IAM/RBAC",
+        "Nivel: intermediate."
+      ],
+      "importance": "Permite diseñar arquitecturas enterprise, entender costes, seguridad, despliegue y restricciones de cada proveedor.",
+      "official_resources": [
+        {
+          "label": "Microsoft Learn - Azure AI Fundamentals",
+          "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/"
+        },
+        {
+          "label": "AWS Skill Builder - Generative AI",
+          "url": "https://skillbuilder.aws/generative-ai"
+        },
+        {
+          "label": "Google Skills - Machine learning and artificial intelligence training",
+          "url": "https://cloud.google.com/learn/training/machinelearning-ai"
+        },
+        {
+          "label": "Google Skills - Explore Generative AI with the Gemini API in Vertex AI",
+          "url": "https://www.skills.google/course_templates/959"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Udemy Business - Azure OpenAI Services - The Complete Guide",
+          "url": "https://www.udemy.com/course/azure-chatgpt-and-openai-service-the-complete-guide/"
+        },
+        {
+          "label": "Udemy Business - LangChain on Azure - Building Scalable LLM Applications",
+          "url": "https://www.udemy.com/course/langchain-on-azure-building-scalable-llm-applications/"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: Cloud AI Provider Comparison.",
+        "Comparativa práctica de Azure OpenAI, AWS Bedrock y Vertex AI para un caso RAG SRE.",
+        "Debe incluir: Tabla de costes aproximados.",
+        "Debe incluir: IAM/RBAC requerido.",
+        "Debe incluir: opciones de red privada.",
+        "Debe incluir: monitorización.",
+        "Debe incluir: restricciones de datos.",
+        "Debe incluir: ventajas/inconvenientes."
+      ],
+      "deliverable_evidence": [
+        "Documento architecture-decision-record.md.",
+        "Matriz de selección de proveedor IA para empresa.",
+        "PoC mínima con al menos un proveedor cloud."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"Cloud AI Provider Comparison\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 6,
+      "title": "MLOps y LLMOps",
+      "duration": "6 semanas",
+      "objective": "Aprender ciclo de vida, despliegue, versionado, trazabilidad, evaluación y operación de modelos y apps LLM.",
+      "contents": [
+        "ML lifecycle",
+        "model registry",
+        "experiment tracking",
+        "prompt management",
+        "evaluation",
+        "tracing",
+        "cost tracking",
+        "drift",
+        "CI/CD para IA",
+        "rollback y canary",
+        "Nivel: intermediate-advanced."
+      ],
+      "importance": "Es la fase donde un SRE/DevOps puede destacar: llevar IA a producción con fiabilidad, costes controlados, métricas y procesos.",
+      "official_resources": [
+        {
+          "label": "DeepLearning.AI - LLMOps",
+          "url": "https://www.deeplearning.ai/courses/llmops"
+        },
+        {
+          "label": "MLflow - MLflow GenAI documentation",
+          "url": "https://mlflow.org/docs/latest/genai/"
+        },
+        {
+          "label": "Langfuse - Langfuse documentation",
+          "url": "https://langfuse.com/docs"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "LinkedIn Learning - MLOps Essentials: Model Development and Integration",
+          "url": "https://www.linkedin.com/learning/mlops-essentials-model-development-and-integration"
+        },
+        {
+          "label": "LinkedIn Learning - MLOps Essentials: Model Deployment and Monitoring",
+          "url": "https://www.linkedin.com/learning/mlops-essentials-model-deployment-and-monitoring"
+        },
+        {
+          "label": "LinkedIn Learning - MLOps and Data Pipeline Orchestration for AI Systems",
+          "url": "https://www.linkedin.com/learning/mlops-and-data-pipeline-orchestration-for-ai-systems"
+        },
+        {
+          "label": "Udemy Business - MLflow for MLOps & LLMOps: Master MLflow with Databricks",
+          "url": "https://www.udemy.com/course/mlflow-for-mlops-llmops-master-mlflow-with-databricks/"
+        },
+        {
+          "label": "Udemy Business - LLMOps And AIOps Bootcamp With End To End Projects",
+          "url": "https://www.udemy.com/course/llmops-and-aiops-bootcamp-with-9-end-to-end-projects/"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: LLMOps Starter Kit.",
+        "Plantilla para apps LLM con tracing, evaluación, prompt management, métricas y CI/CD.",
+        "Debe incluir: prompt registry.",
+        "Debe incluir: tracing con Langfuse o MLflow.",
+        "Debe incluir: evaluación automática.",
+        "Debe incluir: métricas de coste/latencia.",
+        "Debe incluir: pipeline de despliegue.",
+        "Debe incluir: dashboard básico."
+      ],
+      "deliverable_evidence": [
+        "Repositorio llmops-starter-kit.",
+        "Dashboard de métricas.",
+        "Documento de operación SRE."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"LLMOps Starter Kit\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 7,
+      "title": "Kubernetes/OpenShift para IA: serving, escalado y operación",
+      "duration": "5 semanas",
+      "objective": "Desplegar apps IA y modelos en Kubernetes/OpenShift con buenas prácticas SRE.",
+      "contents": [
+        "serving en Kubernetes",
+        "KServe",
+        "Kubeflow",
+        "GPU basics",
+        "autoscaling",
+        "canary deployments",
+        "A/B testing",
+        "health checks",
+        "resource requests/limits",
+        "cost optimization",
+        "Nivel: advanced."
+      ],
+      "importance": "Conecta tu ventaja competitiva actual —Kubernetes/OpenShift— con IA productiva.",
+      "official_resources": [
+        {
+          "label": "KServe - KServe documentation",
+          "url": "https://kserve.github.io/website/"
+        },
+        {
+          "label": "KServe - Deploy Your First LLM with InferenceService",
+          "url": "https://kserve.github.io/website/docs/getting-started/genai-first-isvc"
+        },
+        {
+          "label": "Kubeflow - Kubeflow documentation",
+          "url": "https://www.kubeflow.org/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Udemy Business - MLOps Fundamentals for Beginners - Learn DevOps for ML",
+          "url": "https://www.udemy.com/course/devops-to-mlops-unlock-the-future-of-ai-and-cloud-careers/"
+        },
+        {
+          "label": "Udemy Business - AI System Design for Engineers and Interviews",
+          "url": "https://www.udemy.com/course/ai-system-design-for-engineers/"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: AI App on Kubernetes/OpenShift.",
+        "Desplegar Runbook AI Assistant en Kubernetes/OpenShift con Helm/Kustomize, probes, métricas y escalado.",
+        "Debe incluir: Helm chart.",
+        "Debe incluir: ConfigMaps/Secrets.",
+        "Debe incluir: readiness/liveness probes.",
+        "Debe incluir: HPA.",
+        "Debe incluir: ServiceMonitor o scraping Prometheus.",
+        "Debe incluir: rollback.",
+        "Debe incluir: canary opcional."
+      ],
+      "deliverable_evidence": [
+        "Helm chart o manifiestos Kustomize.",
+        "Diagrama de arquitectura.",
+        "Runbook de operación de la propia app IA."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"AI App on Kubernetes/OpenShift\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 8,
+      "title": "Observabilidad, evaluación y calidad de apps IA",
+      "duration": "4 semanas",
+      "objective": "Medir calidad, coste, latencia, errores, trazas, drift y feedback de usuarios en apps IA.",
+      "contents": [
+        "LLM tracing",
+        "evals",
+        "latencia",
+        "tokens y coste",
+        "feedback loops",
+        "quality gates",
+        "OpenTelemetry",
+        "SLOs para IA",
+        "dashboards",
+        "Nivel: advanced."
+      ],
+      "importance": "La IA en producción necesita SLOs: no basta con que responda, hay que medir si responde bien, cuánto cuesta y cuándo falla.",
+      "official_resources": [
+        {
+          "label": "MLflow - MLflow Tracing for LLM and Agent Observability",
+          "url": "https://mlflow.org/docs/latest/genai/tracing/"
+        },
+        {
+          "label": "Langfuse - LLM Observability & Application Tracing",
+          "url": "https://langfuse.com/docs/observability/overview"
+        },
+        {
+          "label": "OpenTelemetry - OpenTelemetry Documentation",
+          "url": "https://opentelemetry.io/docs/"
+        }
+      ],
+      "support_videos": [],
+      "practical_activity": [
+        "Proyecto: AI Observability Dashboard.",
+        "Dashboard para medir latencia, coste, ratio de errores, feedback y calidad de respuestas del Runbook AI Assistant.",
+        "Debe incluir: tracing de prompts y retrieval.",
+        "Debe incluir: métricas Prometheus.",
+        "Debe incluir: dashboard Grafana.",
+        "Debe incluir: feedback positivo/negativo.",
+        "Debe incluir: evals automáticas.",
+        "Debe incluir: alertas básicas."
+      ],
+      "deliverable_evidence": [
+        "Dashboard JSON de Grafana.",
+        "Documento SLOs para app IA.",
+        "Alertas propuestas."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"AI Observability Dashboard\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 9,
+      "title": "Seguridad, privacidad y gobierno de IA",
+      "duration": "4 semanas",
+      "objective": "Aplicar controles de seguridad, privacidad, compliance y gobierno a soluciones IA.",
+      "contents": [
+        "OWASP LLM Top 10",
+        "prompt injection",
+        "sensitive information disclosure",
+        "supply chain",
+        "excessive agency",
+        "model denial of service",
+        "AI RMF",
+        "auditoría",
+        "RBAC",
+        "retención de datos",
+        "políticas de uso",
+        "Nivel: advanced."
+      ],
+      "importance": "En banca y entornos regulados, la IA solo entra si hay seguridad, trazabilidad, RBAC, control de datos y gestión de riesgos.",
+      "official_resources": [
+        {
+          "label": "OWASP - OWASP Top 10 for Large Language Model Applications",
+          "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+        },
+        {
+          "label": "OWASP Gen AI Security Project - OWASP Top 10 for LLMs and Gen AI Apps",
+          "url": "https://genai.owasp.org/llm-top-10/"
+        },
+        {
+          "label": "NIST - AI Risk Management Framework",
+          "url": "https://www.nist.gov/itl/ai-risk-management-framework"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "LinkedIn Learning - MLOps Essentials for Developers and AI Engineers: Tools, Pipelines, Security",
+          "url": "https://www.linkedin.com/learning/paths/mlops-essentials-for-developers-and-ai-engineers-tools-pipelines-security"
+        }
+      ],
+      "practical_activity": [
+        "Proyecto: Secure Runbook AI Assistant.",
+        "Añadir controles de seguridad y compliance al asistente RAG.",
+        "Debe incluir: detección de secretos.",
+        "Debe incluir: bloqueo de prompts maliciosos básicos.",
+        "Debe incluir: RBAC por rol.",
+        "Debe incluir: auditoría de consultas.",
+        "Debe incluir: política de retención.",
+        "Debe incluir: modo human-in-the-loop."
+      ],
+      "deliverable_evidence": [
+        "Threat model.",
+        "Matriz OWASP LLM Top 10 vs controles.",
+        "Política de uso seguro de IA para equipo SRE."
+      ],
+      "evaluation": "Revisión práctica del proyecto \"Secure Runbook AI Assistant\" contra entregables, README, tests y trazabilidad operativa."
+    },
+    {
+      "position": 10,
+      "title": "Proyecto final y posicionamiento profesional",
+      "duration": "4 semanas",
+      "objective": "Publicar portfolio demostrable que conecte IA, SRE, DevOps, Kubernetes, observabilidad y seguridad.",
+      "contents": [
+        "Nivel: capstone."
+      ],
+      "importance": "El mercado valora más una demo productiva con README, arquitectura y operación que una lista de cursos.",
+      "official_resources": [
+        {
+          "label": "Google Cloud Skills badges de GenAI / Vertex AI - Credenciales digitales visibles para LinkedIn sin necesidad inicial de certificación oficial.",
+          "url": "https://cloud.google.com/learn/training/credentials"
+        },
+        {
+          "label": "Microsoft Azure AI Fundamentals AI-900 - Base oficial de IA en Azure y buen complemento a un perfil con AZ-104/AZ-900.",
+          "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/"
+        },
+        {
+          "label": "AWS Skill Builder - Generative AI / Prompt Engineering - Refuerza IA generativa en cloud y se alinea con AWS Bedrock y AI Practitioner.",
+          "url": "https://skillbuilder.aws/generative-ai"
+        }
+      ],
+      "support_videos": [],
+      "practical_activity": [
+        "Proyecto portfolio: AI Incident Copilot.",
+        "Copiloto SRE que analiza alertas, logs y eventos de Kubernetes/OpenShift, consulta runbooks por RAG y propone diagnóstico, mitigación y comunicación.",
+        "Debe incluir: FastAPI.",
+        "Debe incluir: RAG.",
+        "Debe incluir: tool calling simulado.",
+        "Debe incluir: Docker.",
+        "Debe incluir: Kubernetes/OpenShift manifests.",
+        "Debe incluir: Prometheus/Grafana.",
+        "Debe incluir: Langfuse o MLflow.",
+        "Debe incluir: controles OWASP LLM.",
+        "Proyecto portfolio: Runbook RAG Assistant.",
+        "Asistente RAG sobre documentación técnica con referencias, feedback, evaluación y trazabilidad.",
+        "Debe incluir: ingesta de documentos.",
+        "Debe incluir: vector store.",
+        "Debe incluir: respuestas con fuentes.",
+        "Debe incluir: evaluación.",
+        "Debe incluir: dashboard.",
+        "Proyecto portfolio: LLMOps Starter Kit.",
+        "Plantilla reutilizable para desplegar apps LLM con CI/CD, observabilidad, prompt management, seguridad y documentación.",
+        "Debe incluir: estructura limpia.",
+        "Debe incluir: CI/CD.",
+        "Debe incluir: Dockerfile.",
+        "Debe incluir: Helm/Kustomize.",
+        "Debe incluir: tests.",
+        "Debe incluir: README profesional.",
+        "Debe incluir: ADR."
+      ],
+      "deliverable_evidence": [
+        "3 repositorios públicos o internos documentados.",
+        "1 artículo LinkedIn por proyecto.",
+        "CV actualizado con bloque AI Platform / LLMOps.",
+        "Diagrama C4 o arquitectura por proyecto.",
+        "Demo grabada de 3-5 minutos."
+      ],
+      "evaluation": "Revisión del portfolio final, demos, documentación de arquitectura y posicionamiento profesional."
+    }
+  ]
+}
