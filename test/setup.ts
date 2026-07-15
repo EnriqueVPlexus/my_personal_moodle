@@ -7,6 +7,7 @@ const nextRouterMock = vi.hoisted(() => ({
   asPath: '/',
   pathname: '/',
   push: vi.fn(),
+  replace: vi.fn(),
   query: {} as Record<string, unknown>
 }))
 
@@ -27,4 +28,5 @@ afterEach(() => {
   nextRouterMock.pathname = '/'
   nextRouterMock.query = {}
   nextRouterMock.push.mockReset()
+  nextRouterMock.replace.mockReset()
 })

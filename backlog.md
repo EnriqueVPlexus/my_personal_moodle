@@ -260,7 +260,7 @@ Hecho cuando:
 
 ### [ ] Buscador y filtros
 
-Estado: en curso. Fase 1 completada; fases 2 a 5 pendientes.
+Estado: en curso. Fases 1 y 2 completadas; fases 3 a 5 pendientes.
 
 Valor: prepara la aplicacion para crecer sin perder usabilidad.
 
@@ -303,9 +303,10 @@ Hecho cuando:
 - Consultas vacias, con acentos o caracteres especiales son predecibles y seguras.
 - Hay tests de API para coincidencias, ausencia de resultados y compatibilidad.
 
-#### [ ] Fase 2. Experiencia de busqueda en el catalogo
+#### [x] Fase 2. Experiencia de busqueda en el catalogo
 
-Estado: pendiente.
+Estado: hecho. El catalogo sincroniza la busqueda con la URL, aplica debounce,
+cancela peticiones obsoletas y diferencia los estados de carga, error y vacio.
 
 Tareas:
 
