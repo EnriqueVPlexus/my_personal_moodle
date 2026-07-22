@@ -48,6 +48,8 @@ type RoadmapDetail = {
   evaluation_weights?: unknown
   modules?: RoadmapModule[]
   progress?: RoadmapProgress | null
+  category?: { key: string; label: string } | null
+  topics?: Array<{ key: string; label: string }>
 }
 
 function formatWeekCount(value: number) {
@@ -118,6 +120,14 @@ function moduleStatusClass(status: ModuleProgressStatus) {
   return 'bg-slate-100 text-slate-600'
 }
 
+function moduleLevelLabel(level: LearningModule['level']) {
+  if (level === 'beginner') return 'Inicial'
+  if (level === 'intermediate') return 'Intermedio'
+  if (level === 'advanced') return 'Avanzado'
+  if (level === 'capstone') return 'Proyecto final'
+  return 'Sin clasificar'
+}
+
 export default function RoadmapDetailPage() {
   const router = useRouter()
   const { id } = router.query
@@ -178,6 +188,14 @@ export default function RoadmapDetailPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Roadmap</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{roadmap.title}</h1>
               {roadmap.description && <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{roadmap.description}</p>}
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-md bg-sky-100 px-2.5 py-1 font-semibold text-sky-800">
+                  {roadmap.category?.label || 'Sin clasificar'}
+                </span>
+                {roadmap.topics?.map(topic => (
+                  <span key={topic.key} className="rounded-md bg-white px-2.5 py-1 text-slate-600 shadow-sm">{topic.label}</span>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -342,6 +360,9 @@ export default function RoadmapDetailPage() {
                         {module.duration && (
                           <span className="rounded-md bg-emerald-50 px-3 py-1 font-medium text-emerald-700">{module.duration}</span>
                         )}
+                        <span className="rounded-md bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                          {moduleLevelLabel(module.level)}
+                        </span>
                         <span className="font-medium text-sky-700">{isOpen ? 'Ocultar detalle' : 'Ver detalle'}</span>
                       </div>
                     </div>

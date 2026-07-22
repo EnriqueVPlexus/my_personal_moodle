@@ -94,6 +94,9 @@ scripts/                    Utilidades de mantenimiento.
 - `user_lesson_progress`
 - `user_roadmap_progress`
 - `user_quiz_attempts`
+- `roadmap_categories`
+- `topics`
+- `roadmap_topics`
 
 También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
 
@@ -101,6 +104,9 @@ Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
 
 ## Calidad Y Tests
+
+La semantica, los rangos y la decision de rendimiento del catalogo se documentan
+en `SEARCH_FILTERS.md`.
 
 Comando principal:
 
@@ -129,7 +135,9 @@ npm run build
 Consulta y contenido:
 
 - `GET /api/roadmaps`
+- `GET /api/roadmaps?q=&category=&topic=&level=&duration=&sort=`
 - `GET /api/roadmaps/:id`
+- `GET /api/roadmaps/metadata`
 - `POST /api/roadmaps`
 - `PUT /api/roadmaps/:id`
 - `DELETE /api/roadmaps/:id`

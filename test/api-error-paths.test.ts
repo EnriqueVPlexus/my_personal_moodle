@@ -179,11 +179,19 @@ describe('content API edge cases', () => {
     const roadmapNoDescription = createResponse()
     await roadmaps(createRequest({ method: 'POST', body: { title: 'No desc' } }), roadmapNoDescription)
     expect(roadmapNoDescription.statusCode).toBe(201)
-    expect(db.run).toHaveBeenCalledWith('INSERT INTO roadmaps (title, description) VALUES (?, ?)', ['No desc', null])
+    expect(db.run).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO roadmaps'),
+      ['No desc', null, null, null, null]
+    )
 
     const roadmap405 = createResponse()
     await roadmaps(createRequest({ method: 'DELETE' }), roadmap405)
     expect(roadmap405.statusCode).toBe(405)
+
+    const longSearch = createResponse()
+    await roadmaps(createRequest({ method: 'GET', query: { q: 'a'.repeat(101) } }), longSearch)
+    expect(longSearch.statusCode).toBe(400)
+    expect(longSearch.body.error).toContain('100 characters or fewer')
 
     const modulesWithoutRoadmap = createResponse()
     await modules(createRequest({ method: 'GET' }), modulesWithoutRoadmap)

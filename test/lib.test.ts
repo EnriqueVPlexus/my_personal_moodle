@@ -20,6 +20,30 @@ import {
   validatePassword,
   verifyPassword
 } from '../lib/password'
+import {
+  normalizeDurationRange,
+  normalizeMetadataKey,
+  normalizeModuleLevel,
+  normalizeTopics,
+  parseDurationWeeks
+} from '../lib/roadmapMetadata'
+
+describe('roadmap metadata helpers', () => {
+  it('normalizes categories, topics and stable module levels', () => {
+    expect(normalizeMetadataKey(' Inteligencia Artificial ')).toBe('inteligencia-artificial')
+    expect(normalizeTopics('AWS, DevOps, aws, CI/CD')).toEqual(['AWS', 'DevOps', 'CI/CD'])
+    expect(normalizeModuleLevel('beginner-intermediate')).toBe('intermediate')
+    expect(normalizeModuleLevel('expert')).toBeNull()
+  })
+
+  it('turns displayed durations into comparable week ranges and validates manual ranges', () => {
+    expect(parseDurationWeeks('1 o 2 semanas')).toEqual({ min: 1, max: 2 })
+    expect(parseDurationWeeks('6 meses (5-8 h/semana)')).toEqual({ min: 24, max: 24 })
+    expect(parseDurationWeeks('por definir')).toEqual({ min: null, max: null })
+    expect(normalizeDurationRange('2', '4')).toEqual({ min: 2, max: 4 })
+    expect(normalizeDurationRange('5', '2')).toBeNull()
+  })
+})
 
 describe('password helpers', () => {
   it('normalizes email and validates password policy', () => {
@@ -368,5 +392,71 @@ describe('auth helper', () => {
     expect(validateSetupToken(undefined)).toBe(false)
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV
     else process.env.NODE_ENV = previousNodeEnv
+  })
+
+  it('builds public, admin and unrestricted user roadmap scopes', async () => {
+    const { getRoadmapReadScope } = await import('../lib/auth')
+
+    await expect(getRoadmapReadScope(createRequest(), createResponse(), {
+      get: vi.fn(),
+      run: vi.fn()
+    })).resolves.toEqual({ user: null, allRoadmaps: true, roadmapIds: [] })
+
+    const admin = { id: 1, email: 'admin@example.com', role: 'admin' }
+    await expect(getRoadmapReadScope(
+      createRequest({ headers: { cookie: 'moodle_session=admin' } }),
+      createResponse(),
+      { get: vi.fn().mockResolvedValue(admin), run: vi.fn() }
+    )).resolves.toEqual({ user: admin, allRoadmaps: true, roadmapIds: [] })
+
+    const user = { id: 2, email: 'user@example.com', role: 'user' }
+    await expect(getRoadmapReadScope(
+      createRequest({ headers: { cookie: 'moodle_session=user' } }),
+      createResponse(),
+      {
+        get: vi.fn().mockResolvedValueOnce(user).mockResolvedValueOnce({ can_view_all_roadmaps: 1 }),
+        run: vi.fn()
+      }
+    )).resolves.toEqual({ user, allRoadmaps: true, roadmapIds: [] })
+  })
+
+  it('enforces restricted roadmap scopes and rejects missing user settings', async () => {
+    const { getRoadmapReadScope, scopeAllowsRoadmap } = await import('../lib/auth')
+    const user = { id: 2, email: 'user@example.com', role: 'user' }
+    const restricted = await getRoadmapReadScope(
+      createRequest({ headers: { cookie: 'moodle_session=user' } }),
+      createResponse(),
+      {
+        get: vi.fn().mockResolvedValueOnce(user).mockResolvedValueOnce({ can_view_all_roadmaps: 0 }),
+        all: vi.fn().mockResolvedValue([{ roadmap_id: 7 }, { roadmap_id: '8' }, { roadmap_id: 'invalid' }]),
+        run: vi.fn()
+      }
+    )
+
+    expect(restricted).toEqual({ user, allRoadmaps: false, roadmapIds: [7, 8] })
+    expect(scopeAllowsRoadmap(restricted!, '7')).toBe(true)
+    expect(scopeAllowsRoadmap(restricted!, ['8'])).toBe(true)
+    expect(scopeAllowsRoadmap(restricted!, '9')).toBe(false)
+    expect(scopeAllowsRoadmap(restricted!, 'invalid')).toBe(false)
+    expect(scopeAllowsRoadmap({ user, allRoadmaps: true, roadmapIds: [] }, 'anything')).toBe(true)
+
+    const missingSettingsRes = createResponse()
+    await expect(getRoadmapReadScope(
+      createRequest({ headers: { cookie: 'moodle_session=user' } }),
+      missingSettingsRes,
+      {
+        get: vi.fn().mockResolvedValueOnce(user).mockResolvedValueOnce(null),
+        run: vi.fn()
+      }
+    )).resolves.toBeNull()
+    expect(missingSettingsRes.statusCode).toBe(401)
+
+    process.env.REQUIRE_AUTH_FOR_READS = 'true'
+    const privateRes = createResponse()
+    await expect(getRoadmapReadScope(createRequest(), privateRes, {
+      get: vi.fn(),
+      run: vi.fn()
+    })).resolves.toBeNull()
+    expect(privateRes.statusCode).toBe(401)
   })
 })

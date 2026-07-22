@@ -4,6 +4,7 @@ import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../
 import { openDb } from '../../../lib/db'
 import { touchRoadmapProgress } from '../../../lib/progress'
 import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
+import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
 
 function buildModuleProgress(lessons: any[], opened: boolean) {
   const totalLessons = lessons.length
@@ -84,8 +85,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PUT') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title } = req.body
-    const result = await db.run('UPDATE modules SET title = ? WHERE id = ?', [title, id])
+    const { title, level, duration, duration_weeks_min, duration_weeks_max } = req.body
+    if (!title) return res.status(400).json({ error: 'title required' })
+    const hasLevel = Object.prototype.hasOwnProperty.call(req.body, 'level')
+    const hasDuration = Object.prototype.hasOwnProperty.call(req.body, 'duration')
+    const hasDurationRange = Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_min') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_max')
+    const normalizedLevel = normalizeModuleLevel(level)
+    if (level && !normalizedLevel) return res.status(400).json({ error: 'invalid module level' })
+    const durationRange = hasDurationRange
+      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
+      : hasDuration
+        ? parseDurationWeeks(duration)
+        : { min: null, max: null }
+    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
+    const result = await db.run(
+      `UPDATE modules SET title = ?,
+       level = CASE WHEN ? = 1 THEN ? ELSE level END,
+       duration = CASE WHEN ? = 1 THEN ? ELSE duration END,
+       duration_weeks_min = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_min END,
+       duration_weeks_max = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_max END
+       WHERE id = ?`,
+      [
+        title,
+        hasLevel ? 1 : 0,
+        normalizedLevel,
+        hasDuration ? 1 : 0,
+        duration || null,
+        hasDuration || hasDurationRange ? 1 : 0,
+        durationRange.min,
+        hasDuration || hasDurationRange ? 1 : 0,
+        durationRange.max,
+        id
+      ]
+    )
     if (!result.changes) return res.status(404).json({ error: 'module not found' })
     
     const updated = await db.get('SELECT * FROM modules WHERE id = ?', [id])
@@ -96,7 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'module.update',
       entityType: 'module',
       entityId: String(id),
-      details: { title }
+      details: { title, level: normalizedLevel }
     })
     return res.status(200).json(updated)
   }
