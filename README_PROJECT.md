@@ -102,6 +102,9 @@ También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
 
 ## Calidad Y Tests
 
+La semantica, los rangos y la decision de rendimiento del catalogo se documentan
+en `SEARCH_FILTERS.md`.
+
 Comando principal:
 
 ```bash

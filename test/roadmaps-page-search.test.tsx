@@ -202,4 +202,36 @@ describe('roadmap catalog search experience', () => {
       { shallow: true }
     )
   })
+
+  it('canonicalizes invalid filter URLs and keeps long dynamic options accessible', async () => {
+    const longTopic = 'Observabilidad distribuida para plataformas empresariales con nombres extensos'
+    vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      if (String(url) === '/api/roadmaps/metadata') {
+        return jsonResponse({
+          categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 1 }],
+          topics: [{ key: 'observabilidad', label: longTopic, roadmap_count: 1 }],
+          levels: [{ key: 'beginner', roadmap_count: 1 }],
+          duration_ranges: [{ key: '5-to-12', label: '5-12 semanas', roadmap_count: 1 }]
+        })
+      }
+      return jsonResponse([{ id: 1, title: 'Plataforma', module_count: 8 }])
+    })
+
+    await renderCatalog({
+      routeQuery: {
+        category: 'cloud-y-devops',
+        topic: 'desconocido',
+        level: 'expert',
+        duration: 'forever',
+        sort: 'random'
+      }
+    })
+
+    expect(await screen.findByRole('checkbox', { name: new RegExp(longTopic) })).toBeInTheDocument()
+    await waitFor(() => expect(nextRouterMock.replace).toHaveBeenCalledWith(
+      { pathname: '/roadmaps', query: { category: ['cloud-y-devops'] } },
+      undefined,
+      { shallow: true }
+    ))
+  })
 })

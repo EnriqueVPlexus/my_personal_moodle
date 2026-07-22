@@ -177,4 +177,48 @@ describe('roadmap search helpers', () => {
 
     await db.close()
   })
+
+  it('keeps the aggregate query indexed at the expected catalog volume', async () => {
+    const db = await open({ filename: ':memory:', driver: sqlite3.Database })
+    await db.exec(`
+      CREATE TABLE roadmaps (
+        id INTEGER PRIMARY KEY, title TEXT NOT NULL, description TEXT, objectives TEXT,
+        methodology TEXT, category_id INTEGER, duration_weeks_min REAL, duration_weeks_max REAL
+      );
+      CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
+      CREATE TABLE modules (
+        id INTEGER PRIMARY KEY, roadmap_id INTEGER NOT NULL, title TEXT, objective TEXT,
+        contents TEXT, level TEXT
+      );
+      CREATE TABLE topics (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
+      CREATE TABLE roadmap_topics (roadmap_id INTEGER, topic_id INTEGER, PRIMARY KEY (roadmap_id, topic_id));
+      CREATE INDEX idx_modules_roadmap_id ON modules(roadmap_id);
+      CREATE INDEX idx_roadmap_topics_topic_id ON roadmap_topics(topic_id);
+
+      INSERT INTO roadmap_categories VALUES (1, 'cloud', 'Cloud');
+      INSERT INTO topics VALUES (1, 'aws', 'AWS'), (2, 'devops', 'DevOps'), (3, 'iac', 'IaC');
+      WITH RECURSIVE sequence(value) AS (SELECT 1 UNION ALL SELECT value + 1 FROM sequence WHERE value < 300)
+      INSERT INTO roadmaps
+      SELECT value, 'Roadmap ' || value, 'Descripción', '[]', '[]', 1, 8, 12 FROM sequence;
+      WITH RECURSIVE sequence(value) AS (SELECT 1 UNION ALL SELECT value + 1 FROM sequence WHERE value < 2400)
+      INSERT INTO modules
+      SELECT value, CAST((value - 1) / 8 AS INTEGER) + 1, 'Módulo ' || value,
+             'Objetivo', '["Contenido técnico"]', CASE WHEN value % 2 = 0 THEN 'beginner' ELSE 'intermediate' END
+      FROM sequence;
+      INSERT INTO roadmap_topics
+      SELECT roadmaps.id, topics.id FROM roadmaps CROSS JOIN topics;
+    `)
+
+    const plan = await db.all(`EXPLAIN QUERY PLAN ${ROADMAP_CATALOG_SEARCH_SQL}`)
+    const startedAt = performance.now()
+    const catalogRows = await db.all(ROADMAP_CATALOG_SEARCH_SQL)
+    const elapsedMs = performance.now() - startedAt
+
+    expect(catalogRows).toHaveLength(300)
+    expect(catalogRows.every(row => row.module_count === 8)).toBe(true)
+    expect(plan.map(row => row.detail).join(' ')).toContain('idx_modules_roadmap_id')
+    expect(elapsedMs).toBeLessThan(1500)
+
+    await db.close()
+  })
 })

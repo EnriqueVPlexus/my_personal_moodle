@@ -133,7 +133,13 @@ describe('content API handlers', () => {
         .mockResolvedValueOnce([{ key: 'aws', label: 'AWS', roadmap_count: 1 }])
         .mockResolvedValueOnce([{ key: 'beginner', roadmap_count: 2 }]),
       get: vi.fn()
-        .mockResolvedValueOnce({ min_weeks: 4, max_weeks: 24 })
+        .mockResolvedValueOnce({
+          min_weeks: 4,
+          max_weeks: 24,
+          up_to_4_count: 1,
+          from_5_to_12_count: 2,
+          over_12_count: 3
+        })
         .mockResolvedValueOnce({ count: 1 })
     }
     await mockApi(db)
@@ -147,6 +153,11 @@ describe('content API handlers', () => {
       categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 2 }],
       topics: [{ key: 'aws', label: 'AWS', roadmap_count: 1 }],
       duration: { min_weeks: 4, max_weeks: 24 },
+      duration_ranges: [
+        { key: 'up-to-4', label: 'Hasta 4 semanas', roadmap_count: 1 },
+        { key: '5-to-12', label: '5-12 semanas', roadmap_count: 2 },
+        { key: 'over-12', label: 'Más de 12 semanas', roadmap_count: 3 }
+      ],
       unclassified_roadmaps: 1
     })
     expect(res.body.levels).toEqual(expect.arrayContaining([

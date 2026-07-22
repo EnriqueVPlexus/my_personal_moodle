@@ -186,6 +186,7 @@ describe('SQLite database bootstrap', () => {
     const lessonProgressIndexes = await secondDb.all("PRAGMA index_list('user_lesson_progress')")
     const roadmapProgressIndexes = await secondDb.all("PRAGMA index_list('user_roadmap_progress')")
     const quizAttemptIndexes = await secondDb.all("PRAGMA index_list('user_quiz_attempts')")
+    const moduleIndexes = await secondDb.all("PRAGMA index_list('modules')")
     const roadmapTopicCount = await secondDb.get('SELECT COUNT(*) AS count FROM roadmap_topics')
     const duplicateTopics = await secondDb.all(
       'SELECT key, COUNT(*) AS count FROM topics GROUP BY key HAVING COUNT(*) > 1'
@@ -213,6 +214,7 @@ describe('SQLite database bootstrap', () => {
       'idx_user_quiz_attempts_module_id',
       'idx_user_quiz_attempts_submitted_at'
     ]))
+    expect(moduleIndexes.map((index: any) => index.name)).toContain('idx_modules_roadmap_id')
     expect(roadmapTopicCount.count).toBe(18)
     expect(duplicateTopics).toEqual([])
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))

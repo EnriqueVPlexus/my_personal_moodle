@@ -318,6 +318,7 @@ async function migrate(db: any) {
     CREATE INDEX IF NOT EXISTS idx_roadmaps_category_id ON roadmaps(category_id);
     CREATE INDEX IF NOT EXISTS idx_roadmaps_duration_weeks ON roadmaps(duration_weeks_min, duration_weeks_max);
     CREATE INDEX IF NOT EXISTS idx_modules_level ON modules(level);
+    CREATE INDEX IF NOT EXISTS idx_modules_roadmap_id ON modules(roadmap_id);
     CREATE INDEX IF NOT EXISTS idx_modules_duration_weeks ON modules(duration_weeks_min, duration_weeks_max);
     CREATE INDEX IF NOT EXISTS idx_roadmap_topics_topic_id ON roadmap_topics(topic_id);
   `)

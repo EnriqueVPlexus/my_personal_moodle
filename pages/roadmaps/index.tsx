@@ -27,6 +27,7 @@ type CatalogMetadata = {
   categories: FilterOption[]
   topics: FilterOption[]
   levels: FilterOption[]
+  duration_ranges?: FilterOption[]
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -358,20 +359,20 @@ export default function RoadmapsPage() {
               />
               <FilterGroup
                 title="Duración"
-                options={ROADMAP_DURATION_FILTERS.map(item => ({ key: item.key, label: item.label, roadmap_count: 0 }))}
+                options={metadata?.duration_ranges ?? ROADMAP_DURATION_FILTERS.map(item => ({ key: item.key, label: item.label, roadmap_count: 0 }))}
                 selected={filters.durations}
                 onToggle={value => toggleFilter('durations', value)}
-                hideCounts
+                hideCounts={!metadata?.duration_ranges}
               />
             </div>
 
             {(activeFilterCount > 0 || appliedQuery || filters.sort !== 'relevance') && (
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+              <div aria-live="polite" className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                 {filters.categories.map(value => <FilterChip key={`category-${value}`} label={metadata?.categories.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('categories', value)} />)}
                 {filters.topics.map(value => <FilterChip key={`topic-${value}`} label={metadata?.topics.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('topics', value)} />)}
                 {filters.levels.map(value => <FilterChip key={`level-${value}`} label={levelLabel(value)} onRemove={() => toggleFilter('levels', value)} />)}
                 {filters.durations.map(value => <FilterChip key={`duration-${value}`} label={ROADMAP_DURATION_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('durations', value)} />)}
-                <button type="button" onClick={clearAll} className="ml-auto text-sm font-semibold text-sky-700 hover:text-sky-900">
+                <button type="button" onClick={clearAll} className="ml-auto rounded-sm text-sm font-semibold text-sky-700 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
                   Limpiar todo
                 </button>
               </div>
@@ -458,7 +459,7 @@ function FilterGroup({
   return (
     <fieldset>
       <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</legend>
-      <div className="mt-2 grid gap-2">
+      <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1">
         {options.length ? options.map(option => (
           <label key={option.key} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
             <input
@@ -467,7 +468,7 @@ function FilterGroup({
               onChange={() => onToggle(option.key)}
               className="h-4 w-4 rounded border-slate-300 text-sky-700 focus:ring-sky-500"
             />
-            <span>{option.label ?? option.key}</span>
+            <span className="min-w-0 break-words">{option.label ?? option.key}</span>
             {!hideCounts && <span className="text-xs text-slate-400">({option.roadmap_count})</span>}
           </label>
         )) : <span className="text-sm text-slate-400">Sin opciones</span>}
@@ -482,7 +483,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
       type="button"
       onClick={onRemove}
       aria-label={`Quitar filtro ${label}`}
-      className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+      className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
     >
       {label} <span aria-hidden="true">×</span>
     </button>

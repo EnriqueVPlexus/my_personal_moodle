@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireReadAccess } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { MODULE_LEVELS } from '../../../lib/roadmapMetadata'
+import { ROADMAP_DURATION_FILTERS } from '../../../lib/roadmapFilters'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -28,7 +29,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
        ORDER BY topics.label COLLATE NOCASE, topics.key`
     ),
     db.get(
-      `SELECT MIN(duration_weeks_min) AS min_weeks, MAX(duration_weeks_max) AS max_weeks
+      `SELECT MIN(duration_weeks_min) AS min_weeks,
+              MAX(duration_weeks_max) AS max_weeks,
+              SUM(CASE WHEN duration_weeks_min <= 4 AND duration_weeks_max >= 0 THEN 1 ELSE 0 END) AS up_to_4_count,
+              SUM(CASE WHEN duration_weeks_min <= 12 AND duration_weeks_max >= 5 THEN 1 ELSE 0 END) AS from_5_to_12_count,
+              SUM(CASE WHEN duration_weeks_max >= 13 THEN 1 ELSE 0 END) AS over_12_count
        FROM roadmaps`
     )
   ])
@@ -47,6 +52,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       min_weeks: duration?.min_weeks ?? null,
       max_weeks: duration?.max_weeks ?? null
     },
+    duration_ranges: ROADMAP_DURATION_FILTERS.map((range, index) => ({
+      key: range.key,
+      label: range.label,
+      roadmap_count: Number([
+        duration?.up_to_4_count,
+        duration?.from_5_to_12_count,
+        duration?.over_12_count
+      ][index] ?? 0)
+    })),
     unclassified_roadmaps: (await db.get(
       'SELECT COUNT(*) AS count FROM roadmaps WHERE category_id IS NULL'
     )).count

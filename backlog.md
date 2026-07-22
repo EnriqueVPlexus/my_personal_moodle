@@ -258,9 +258,9 @@ Hecho cuando:
 - Repeticiones y peticiones concurrentes no pierden tiempo ni duplican filas.
 - Los limites de confianza se aplican en servidor y estan cubiertos por tests.
 
-### [ ] Buscador y filtros
+### [x] Buscador y filtros
 
-Estado: en curso. Fases 1 a 4 completadas; fase 5 pendiente.
+Estado: hecho. Fases 1 a 5 completadas.
 
 Valor: prepara la aplicacion para crecer sin perder usabilidad.
 
@@ -373,9 +373,12 @@ Hecho cuando:
 - Quitar un chip solo elimina ese criterio y `Limpiar todo` restaura el catalogo.
 - URLs invalidas se normalizan sin romper la pagina ni la API.
 
-#### [ ] Fase 5. Calidad, rendimiento y cierre
+#### [x] Fase 5. Calidad, rendimiento y cierre
 
-Estado: pendiente.
+Estado: hecho. La consulta agregada evita el producto cartesiano entre modulos
+y topics, usa indices por roadmap y queda medida con 300 roadmaps, 2.400 modulos
+y 900 relaciones de topics. Se reforzaron URL canonica, facetas de duracion,
+layout con opciones largas, foco visible, regiones vivas y cobertura API/UI.
 
 Tareas:
 

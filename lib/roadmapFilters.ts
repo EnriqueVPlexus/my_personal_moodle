@@ -1,4 +1,4 @@
-import { normalizeMetadataKey } from './roadmapMetadata'
+import { MODULE_LEVELS, normalizeMetadataKey } from './roadmapMetadata'
 
 export const ROADMAP_SORT_OPTIONS = ['relevance', 'title', 'duration'] as const
 export type RoadmapSort = typeof ROADMAP_SORT_OPTIONS[number]
@@ -23,7 +23,7 @@ function queryValues(value: string | string[] | undefined) {
   const values = Array.isArray(value) ? value : value === undefined ? [] : [value]
   return [...new Set(values.flatMap(item => String(item).split(','))
     .map(normalizeMetadataKey)
-    .filter(Boolean))]
+    .filter(value => Boolean(value) && value.length <= 64))]
     .slice(0, 20)
 }
 
@@ -34,7 +34,7 @@ export function parseRoadmapCatalogFilters(query: Record<string, string | string
   return {
     categories: queryValues(query.category),
     topics: queryValues(query.topic),
-    levels: queryValues(query.level),
+    levels: queryValues(query.level).filter(value => MODULE_LEVELS.some(level => level === value)),
     durations: queryValues(query.duration)
       .filter((value): value is RoadmapDurationFilter => durationKeys.has(value as RoadmapDurationFilter)),
     sort: ROADMAP_SORT_OPTIONS.includes(sortValue as RoadmapSort) ? sortValue as RoadmapSort : 'relevance'

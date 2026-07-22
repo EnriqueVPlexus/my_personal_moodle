@@ -3,25 +3,40 @@ import { RoadmapCatalogFilters, roadmapDurationMatches } from './roadmapFilters'
 export const MAX_ROADMAP_SEARCH_QUERY_LENGTH = 100
 
 export const ROADMAP_CATALOG_SEARCH_SQL = `
+  WITH module_catalog AS (
+    SELECT
+      roadmap_id,
+      COUNT(*) AS module_count,
+      GROUP_CONCAT(DISTINCT level) AS module_levels,
+      GROUP_CONCAT(
+        COALESCE(title, '') || ' ' ||
+        COALESCE(objective, '') || ' ' ||
+        COALESCE(contents, ''),
+        ' '
+      ) AS module_search_text
+    FROM modules
+    GROUP BY roadmap_id
+  ),
+  topic_catalog AS (
+    SELECT
+      roadmap_topics.roadmap_id,
+      GROUP_CONCAT(DISTINCT topics.key || char(31) || topics.label) AS topics_metadata
+    FROM roadmap_topics
+    INNER JOIN topics ON topics.id = roadmap_topics.topic_id
+    GROUP BY roadmap_topics.roadmap_id
+  )
   SELECT
     roadmaps.*,
     roadmap_categories.key AS category_key,
     roadmap_categories.label AS category_label,
-    COUNT(DISTINCT modules.id) AS module_count,
-    GROUP_CONCAT(DISTINCT modules.level) AS module_levels,
-    GROUP_CONCAT(DISTINCT topics.key || char(31) || topics.label) AS topics_metadata,
-    COALESCE(GROUP_CONCAT(
-      COALESCE(modules.title, '') || ' ' ||
-      COALESCE(modules.objective, '') || ' ' ||
-      COALESCE(modules.contents, ''),
-      ' '
-    ), '') AS module_search_text
+    COALESCE(module_catalog.module_count, 0) AS module_count,
+    module_catalog.module_levels,
+    topic_catalog.topics_metadata,
+    COALESCE(module_catalog.module_search_text, '') AS module_search_text
   FROM roadmaps
   LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
-  LEFT JOIN modules ON modules.roadmap_id = roadmaps.id
-  LEFT JOIN roadmap_topics ON roadmap_topics.roadmap_id = roadmaps.id
-  LEFT JOIN topics ON topics.id = roadmap_topics.topic_id
-  GROUP BY roadmaps.id
+  LEFT JOIN module_catalog ON module_catalog.roadmap_id = roadmaps.id
+  LEFT JOIN topic_catalog ON topic_catalog.roadmap_id = roadmaps.id
   ORDER BY roadmaps.id DESC
 `
 
