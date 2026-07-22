@@ -55,6 +55,7 @@ export default function Header() {
           {isAdmin && (
             <>
               <NavLink href="/admin/users">Usuarios</NavLink>
+              <NavLink href="/admin/import-roadmap">Importar JSON</NavLink>
               <NavLink href="/admin/audit">Auditoría</NavLink>
             </>
           )}

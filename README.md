@@ -16,6 +16,7 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 - Control admin para permitir que un usuario vea todos los roadmaps o solo una selección.
 - Activación, desactivación y reseteo de contraseña de usuarios.
 - Auditoría de acciones sensibles.
+- Importación manual de roadmaps JSON con validación y vista previa.
 - Setup guiado para crear el primer admin.
 
 ## Stack
@@ -90,6 +91,7 @@ Notas:
 - `/admin/users`: gestión de usuarios.
 - `/admin/users`: gestión de usuarios y acceso por roadmap.
 - `/admin/audit`: auditoría admin.
+- `/admin/import-roadmap`: importación y actualización controlada de roadmaps JSON.
 
 ## API
 
@@ -108,6 +110,7 @@ Lecturas públicas por defecto:
 Operaciones admin:
 
 - `POST /api/roadmaps`
+- `POST /api/roadmaps/import` (`preview` o `publish`, solo admin)
 - `PUT /api/roadmaps/:id`
 - `DELETE /api/roadmaps/:id`
 - `POST /api/modules`
@@ -132,6 +135,11 @@ Autenticación:
 - `POST /api/auth/logout`
 
 Las guías rápidas con `curl` para módulos y lecciones están en `test/modules_api.md` y `test/lessons_api.md`.
+
+El importador acepta un objeto con `title`, `modules` y, opcionalmente, `description`, `duration`,
+`category`, `topics`, `objectives`, `methodology` y `evaluation_weights`. Cada módulo requiere `title`
+y puede incluir `position`, `level`, duración, contenidos, recursos, actividad, evidencia y evaluación.
+Al actualizar se conservan los módulos no incluidos y el progreso ya registrado.
 
 ## Seguridad
 

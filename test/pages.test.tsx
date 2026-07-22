@@ -709,4 +709,67 @@ describe('Next pages', () => {
     render(<UnauthorizedAuditPage />)
     expect(screen.getByText('Necesitas una cuenta admin para consultar auditoría.')).toBeInTheDocument()
   })
+
+  it('previews and publishes a roadmap from pasted JSON', async () => {
+    setRouter('/admin/import-roadmap')
+    mockAuth({ user: adminUser, isAdmin: true })
+    const normalized = {
+      title: 'Roadmap de ejemplo',
+      description: 'Ruta importada manualmente desde JSON.',
+      duration: '2 semanas',
+      category: 'Desarrollo',
+      topics: ['TypeScript', 'Testing'],
+      modules: [{ position: 0, title: 'Fundamentos', duration: '2 semanas' }]
+    }
+    const fetchMock = vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ roadmap: normalized, existing: null }))
+      .mockResolvedValueOnce(jsonResponse({ roadmap_id: 42, created_modules: 1, updated_modules: 0 }, 201))
+    const ImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<ImportPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar ejemplo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
+
+    expect(await screen.findByText('Vista previa válida')).toBeInTheDocument()
+    expect(screen.getByText('El título es nuevo. Se creará un roadmap.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar roadmap' }))
+    expect(await screen.findByText('Roadmap importado correctamente')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir roadmap' })).toHaveAttribute('href', '/roadmaps/42')
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/roadmaps/import', expect.objectContaining({
+      method: 'POST', body: expect.stringContaining('"strategy":"create"')
+    }))
+  })
+
+  it('shows import guards and readable JSON and server errors', async () => {
+    setRouter('/admin/import-roadmap')
+    mockAuth({ loading: true })
+    const LoadingImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<LoadingImportPage />)
+    expect(screen.getByText('Comprobando permisos...')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    mockAuth()
+    const UnauthorizedImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<UnauthorizedImportPage />)
+    expect(screen.getByText('Necesitas una cuenta admin para importar roadmaps.')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    mockAuth({ user: adminUser, isAdmin: true })
+    const ImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<ImportPage />)
+    fireEvent.change(screen.getByLabelText('Contenido JSON'), { target: { value: '{bad' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('No se puede leer el JSON')
+
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      error: 'El roadmap contiene errores.',
+      issues: [{ path: 'modules', message: 'Debe incluir al menos un módulo.' }]
+    }, 400))
+    fireEvent.change(screen.getByLabelText('Contenido JSON'), { target: { value: '{"title":"Ruta"}' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
+    expect(await screen.findByText('Errores que debes corregir')).toBeInTheDocument()
+    expect(screen.getByText(/Debe incluir al menos un módulo/)).toBeInTheDocument()
+  })
 })

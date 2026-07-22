@@ -123,6 +123,7 @@ describe('auth provider and header', () => {
     expect(await screen.findByText(/admin@example.com/)).toBeInTheDocument()
     expect(screen.getByText('Mi progreso')).toBeInTheDocument()
     expect(screen.getByText('Usuarios')).toBeInTheDocument()
+    expect(screen.getByText('Importar JSON')).toBeInTheDocument()
     expect(screen.getByText('Auditoría')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Salir' }))

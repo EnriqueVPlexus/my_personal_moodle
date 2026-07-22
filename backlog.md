@@ -400,9 +400,9 @@ Hecho cuando:
 - Hay cobertura para estados vacios, errores, combinaciones, URL y borrado.
 - El rendimiento esta medido y es suficiente para el volumen objetivo.
 
-### [ ] Importador JSON de roadmaps
+### [x] Importador JSON de roadmaps
 
-Estado: pendiente.
+Estado: completado.
 
 Valor: evita meter nuevos roadmaps a mano en codigo cada vez.
 
@@ -419,6 +419,13 @@ Hecho cuando:
 - Los errores de formato son legibles y accionables.
 - El roadmap importado respeta el formato visual actual.
 - Hay tests de validacion y del flujo feliz.
+
+Notas de implementacion:
+
+- La importacion requiere rol admin, admite archivo o contenido pegado y limita el JSON a 1 MB.
+- La vista previa muestra errores asociados a su ruta dentro del JSON antes de guardar.
+- La actualizacion busca el roadmap por titulo y los modulos por posicion o titulo.
+- Actualizar no elimina modulos omitidos ni su progreso asociado.
 
 ### [ ] Evidencias y portfolio por modulo
 
