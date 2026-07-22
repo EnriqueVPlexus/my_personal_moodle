@@ -11,7 +11,13 @@ async function mockApi(db: any, options: { admin?: any; read?: boolean; user?: a
     requireAdmin: vi.fn().mockResolvedValue(options.admin === undefined ? admin : options.admin),
     requireReadAccess: vi.fn().mockResolvedValue(options.read !== false),
     getUserFromRequest: vi.fn().mockResolvedValue(options.user ?? null),
-    requireUser: vi.fn().mockResolvedValue(options.user ?? null)
+    requireUser: vi.fn().mockResolvedValue(options.user ?? null),
+    getRoadmapReadScope: vi.fn().mockResolvedValue(options.read === false ? null : {
+      user: options.user ?? null,
+      allRoadmaps: true,
+      roadmapIds: []
+    }),
+    scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
   }))
   vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }

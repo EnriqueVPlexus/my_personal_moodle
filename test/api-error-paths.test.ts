@@ -29,6 +29,18 @@ async function mockContentApi(
       return true
     }),
     getUserFromRequest: vi.fn().mockResolvedValue(options.user === undefined ? null : options.user),
+    getRoadmapReadScope: vi.fn((_req: any, res: any) => {
+      if (options.read === false) {
+        res.status(401).json({ error: 'authentication required' })
+        return null
+      }
+      return {
+        user: options.user === undefined ? null : options.user,
+        allRoadmaps: true,
+        roadmapIds: []
+      }
+    }),
+    scopeAllowsRoadmap: vi.fn().mockReturnValue(true),
     requireUser: vi.fn((_req: any, res: any) => {
       const actor = options.user === undefined ? null : options.user
       if (!actor) {

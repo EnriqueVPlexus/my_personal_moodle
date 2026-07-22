@@ -25,6 +25,7 @@ describe('SQLite database bootstrap', () => {
     const awsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS gratuito para cantera junior DevOps'])
     const aiRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap IA para SRE/DevOps - Versión 2.0'])
     const iaRoadmap = await db.get('SELECT title, duration FROM roadmaps WHERE title = ?', ['IA para DevOps'])
+    const devopsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap desde 0 a DevOps Junior'])
     const moduleCounts = await db.all(`
       SELECT roadmaps.title, COUNT(modules.id) AS count
       FROM roadmaps
@@ -37,13 +38,19 @@ describe('SQLite database bootstrap', () => {
     const lessonProgressColumns = await db.all('PRAGMA table_info(user_lesson_progress)')
     const roadmapProgressColumns = await db.all('PRAGMA table_info(user_roadmap_progress)')
     const quizAttemptColumns = await db.all('PRAGMA table_info(user_quiz_attempts)')
+    const userColumns = await db.all('PRAGMA table_info(users)')
+    const roadmapAccessTable = await db.get(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_roadmap_access'"
+    )
 
     expect(awsRoadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
     expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
     expect(iaRoadmap.duration).toBe('6 meses (5-8 h/semana)')
+    expect(devopsRoadmap.title).toBe('Roadmap desde 0 a DevOps Junior')
     expect(modulesByRoadmap['Roadmap AWS gratuito para cantera junior DevOps']).toBe(11)
     expect(modulesByRoadmap['Roadmap IA para SRE/DevOps - Versión 2.0']).toBe(11)
     expect(modulesByRoadmap['IA para DevOps']).toBe(11)
+    expect(modulesByRoadmap['Roadmap desde 0 a DevOps Junior']).toBe(12)
     expect(admin.role).toBe('admin')
     expect(admin.is_active).toBe(1)
     expect(admin.password_hash).toMatch(/^scrypt:/)
@@ -74,6 +81,8 @@ describe('SQLite database bootstrap', () => {
       'answers',
       'submitted_at'
     ]))
+    expect(userColumns.map((column: any) => column.name)).toContain('can_view_all_roadmaps')
+    expect(roadmapAccessTable.name).toBe('user_roadmap_access')
 
     await db.close()
   })
@@ -118,7 +127,7 @@ describe('SQLite database bootstrap', () => {
     expect(roadmapCount.count).toBe(1)
     expect(aiRoadmapCount.count).toBe(1)
     expect(iaRoadmapCount.count).toBe(1)
-    expect(moduleCount.count).toBe(33)
+    expect(moduleCount.count).toBe(45)
     expect(adminCount.count).toBe(1)
     expect(roadmapProgressTable.name).toBe('user_roadmap_progress')
     expect(lessonProgressIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
