@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const nextRouterMock = (globalThis as any).__NEXT_ROUTER_MOCK__ as {
   asPath: string
   pathname: string
+  isReady: boolean
   push: ReturnType<typeof vi.fn>
   replace: ReturnType<typeof vi.fn>
   query: Record<string, unknown>
@@ -18,10 +19,14 @@ function jsonResponse(body: unknown, status = 200) {
   } as any
 }
 
-async function renderCatalog(options: { query?: string; isAdmin?: boolean } = {}) {
+async function renderCatalog(options: {
+  query?: string
+  routeQuery?: Record<string, string | string[]>
+  isAdmin?: boolean
+} = {}) {
   nextRouterMock.pathname = '/roadmaps'
   nextRouterMock.asPath = options.query ? `/roadmaps?q=${encodeURIComponent(options.query)}` : '/roadmaps'
-  nextRouterMock.query = options.query ? { q: options.query } : {}
+  nextRouterMock.query = options.routeQuery ?? (options.query ? { q: options.query } : {})
   nextRouterMock.replace.mockResolvedValue(true)
   nextRouterMock.push.mockResolvedValue(true)
 
@@ -119,9 +124,15 @@ describe('roadmap catalog search experience', () => {
   })
 
   it('restores searches after navigation and offers retry without hiding the admin form', async () => {
-    const fetchMock = vi.spyOn(global, 'fetch')
-      .mockResolvedValueOnce(jsonResponse([{ id: 1, title: 'Todos', module_count: 1 }]))
-      .mockResolvedValueOnce(jsonResponse([{ id: 2, title: 'AWS desde URL', module_count: 2 }]))
+    const catalogResponses = [
+      jsonResponse([{ id: 1, title: 'Todos', module_count: 1 }]),
+      jsonResponse([{ id: 2, title: 'AWS desde URL', module_count: 2 }])
+    ]
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async url => (
+      String(url) === '/api/roadmaps/metadata'
+        ? jsonResponse({ categories: [], topics: [], levels: [] })
+        : catalogResponses.shift() ?? jsonResponse([])
+    ))
 
     const { RoadmapsPage, rerender } = await renderCatalog({ isAdmin: true })
     expect(await screen.findByText('Todos')).toBeInTheDocument()
@@ -154,5 +165,41 @@ describe('roadmap catalog search experience', () => {
 
     expect(await screen.findByText('Todavía no hay roadmaps publicados.')).toBeInTheDocument()
     expect(screen.queryByText(/No hay roadmaps que coincidan/)).not.toBeInTheDocument()
+  })
+
+  it('restores combinable filters from the URL and removes one chip without clearing the rest', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      if (String(url) === '/api/roadmaps/metadata') {
+        return jsonResponse({
+          categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 1 }],
+          topics: [{ key: 'aws', label: 'AWS', roadmap_count: 1 }],
+          levels: [{ key: 'beginner', roadmap_count: 1 }]
+        })
+      }
+      return jsonResponse([{ id: 1, title: 'AWS práctico', module_count: 4 }])
+    })
+
+    await renderCatalog({
+      routeQuery: { q: 'cloud', category: 'cloud-y-devops', topic: 'aws', sort: 'title' }
+    })
+
+    expect(await screen.findByText('AWS práctico')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Cloud y DevOps/ })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /AWS/ })).toBeChecked()
+    expect(screen.getByRole('combobox', { name: 'Orden' })).toHaveValue('title')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar filtro Cloud y DevOps' }))
+    expect(nextRouterMock.replace).toHaveBeenLastCalledWith(
+      { pathname: '/roadmaps', query: { q: 'cloud', topic: ['aws'], sort: 'title' } },
+      undefined,
+      { shallow: true }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar todo' }))
+    expect(nextRouterMock.replace).toHaveBeenLastCalledWith(
+      { pathname: '/roadmaps', query: {} },
+      undefined,
+      { shallow: true }
+    )
   })
 })

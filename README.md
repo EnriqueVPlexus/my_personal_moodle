@@ -93,6 +93,7 @@ Notas:
 Lecturas públicas por defecto:
 
 - `GET /api/roadmaps`
+- `GET /api/roadmaps?q=&category=&topic=&level=&duration=&sort=` (busqueda, filtros combinables y ordenacion)
 - `GET /api/roadmaps/:id`
 - `GET /api/roadmaps/metadata` (categorias, temas, niveles y rango de duracion disponibles)
 - `GET /api/modules`

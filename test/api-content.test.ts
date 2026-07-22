@@ -81,6 +81,51 @@ describe('content API handlers', () => {
     expect(db.all).toHaveBeenCalledWith(expect.stringContaining('GROUP_CONCAT'))
   })
 
+  it('combines catalog filters and ordering in the roadmaps API', async () => {
+    const db = {
+      all: vi.fn().mockResolvedValue([
+        {
+          id: 1,
+          title: 'AWS',
+          category_key: 'cloud-y-devops',
+          category_label: 'Cloud y DevOps',
+          topics_metadata: 'aws\u001fAWS,devops\u001fDevOps',
+          module_levels: 'beginner,intermediate',
+          duration_weeks_min: 8,
+          duration_weeks_max: 10,
+          module_search_text: ''
+        },
+        {
+          id: 2,
+          title: 'IA',
+          category_key: 'inteligencia-artificial',
+          topics_metadata: 'devops\u001fDevOps',
+          module_levels: 'advanced',
+          duration_weeks_min: 20,
+          duration_weeks_max: 24,
+          module_search_text: ''
+        }
+      ])
+    }
+    await mockApi(db)
+    const handler = (await import('../pages/api/roadmaps/index')).default
+
+    const res = createResponse()
+    await handler(createRequest({
+      method: 'GET',
+      query: {
+        category: 'cloud-y-devops',
+        topic: ['aws', 'devops'],
+        level: 'beginner',
+        duration: '5-to-12',
+        sort: 'duration'
+      }
+    }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual([expect.objectContaining({ id: 1, title: 'AWS' })])
+  })
+
   it('returns filter metadata derived from persisted catalog data', async () => {
     const db = {
       all: vi.fn()

@@ -1,3 +1,5 @@
+import { RoadmapCatalogFilters, roadmapDurationMatches } from './roadmapFilters'
+
 export const MAX_ROADMAP_SEARCH_QUERY_LENGTH = 100
 
 export const ROADMAP_CATALOG_SEARCH_SQL = `
@@ -6,6 +8,7 @@ export const ROADMAP_CATALOG_SEARCH_SQL = `
     roadmap_categories.key AS category_key,
     roadmap_categories.label AS category_label,
     COUNT(DISTINCT modules.id) AS module_count,
+    GROUP_CONCAT(DISTINCT modules.level) AS module_levels,
     GROUP_CONCAT(DISTINCT topics.key || char(31) || topics.label) AS topics_metadata,
     COALESCE(GROUP_CONCAT(
       COALESCE(modules.title, '') || ' ' ||
@@ -39,6 +42,9 @@ type RoadmapSearchRow = {
   category_key?: string | null
   category_label?: string | null
   topics_metadata?: string | null
+  module_levels?: string | null
+  duration_weeks_min?: number | null
+  duration_weeks_max?: number | null
   [key: string]: unknown
 }
 
@@ -118,17 +124,47 @@ function toPublicRoadmap(row: RoadmapSearchRow) {
   delete roadmap.category_key
   delete roadmap.category_label
   delete roadmap.topics_metadata
+  delete roadmap.module_levels
   return roadmap
 }
 
-export function filterAndRankRoadmaps(rows: RoadmapSearchRow[], search: RoadmapSearchQuery) {
-  if (!search.normalizedQuery) return rows.map(toPublicRoadmap)
+function metadataValues(value: unknown) {
+  return String(value ?? '').split(',').filter(Boolean)
+}
 
-  return rows
+function matchesFilters(row: RoadmapSearchRow, filters?: RoadmapCatalogFilters) {
+  if (!filters) return true
+  const topicKeys = metadataValues(row.topics_metadata).map(value => value.split('\u001f')[0])
+  const levels = metadataValues(row.module_levels)
+
+  return (!filters.categories.length || Boolean(row.category_key && filters.categories.includes(row.category_key))) &&
+    (!filters.topics.length || filters.topics.some(topic => topicKeys.includes(topic))) &&
+    (!filters.levels.length || filters.levels.some(level => levels.includes(level))) &&
+    roadmapDurationMatches(row.duration_weeks_min, row.duration_weeks_max, filters.durations)
+}
+
+export function filterAndRankRoadmaps(
+  rows: RoadmapSearchRow[],
+  search: RoadmapSearchQuery,
+  filters?: RoadmapCatalogFilters
+) {
+  const matchingRows = rows.filter(row => matchesFilters(row, filters))
+
+  if (!search.normalizedQuery && (!filters || filters.sort === 'relevance')) {
+    return matchingRows.map(toPublicRoadmap)
+  }
+
+  return matchingRows
     .map(row => ({ row, score: searchScore(row, search) }))
     .filter((item): item is { row: RoadmapSearchRow; score: number } => item.score !== null)
     .sort((first, second) => (
-      second.score - first.score ||
+      filters?.sort === 'title'
+        ? first.row.title.localeCompare(second.row.title, 'es', { sensitivity: 'base' }) || Number(first.row.id) - Number(second.row.id)
+        : filters?.sort === 'duration'
+          ? (first.row.duration_weeks_min ?? Number.POSITIVE_INFINITY) -
+              (second.row.duration_weeks_min ?? Number.POSITIVE_INFINITY) ||
+            first.row.title.localeCompare(second.row.title, 'es', { sensitivity: 'base' })
+          : second.score - first.score ||
       first.row.title.localeCompare(second.row.title, 'es', { sensitivity: 'base' }) ||
       Number(second.row.id) - Number(first.row.id)
     ))

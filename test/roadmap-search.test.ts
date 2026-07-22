@@ -7,6 +7,10 @@ import {
   parseRoadmapSearchQuery,
   ROADMAP_CATALOG_SEARCH_SQL
 } from '../lib/roadmapSearch'
+import {
+  parseRoadmapCatalogFilters,
+  roadmapDurationMatches
+} from '../lib/roadmapFilters'
 
 const rows = [
   {
@@ -16,7 +20,12 @@ const rows = [
     objectives: '["Administrar infraestructura"]',
     methodology: null,
     module_count: 2,
-    module_search_text: 'EC2 Crear una instancia Métricas y alarmas'
+    module_search_text: 'EC2 Crear una instancia Métricas y alarmas',
+    category_key: 'cloud-y-devops',
+    topics_metadata: 'aws\u001fAWS,devops\u001fDevOps',
+    module_levels: 'beginner,intermediate',
+    duration_weeks_min: 10,
+    duration_weeks_max: 12
   },
   {
     id: 2,
@@ -25,7 +34,12 @@ const rows = [
     objectives: '["Evaluar modelos"]',
     methodology: '["Practica guiada"]',
     module_count: 3,
-    module_search_text: 'Evaluación de prompts Observabilidad de agentes'
+    module_search_text: 'Evaluación de prompts Observabilidad de agentes',
+    category_key: 'inteligencia-artificial',
+    topics_metadata: 'ia\u001fIA,devops\u001fDevOps',
+    module_levels: 'intermediate,advanced',
+    duration_weeks_min: 24,
+    duration_weeks_max: 24
   },
   {
     id: 1,
@@ -37,6 +51,50 @@ const rows = [
 ]
 
 describe('roadmap search helpers', () => {
+  it('parses canonical filter families and duration ranges', () => {
+    expect(parseRoadmapCatalogFilters({
+      category: ['cloud-y-devops', 'inteligencia-artificial'],
+      topic: 'AWS,DevOps',
+      level: 'advanced',
+      duration: ['5-to-12', 'invalid'],
+      sort: 'duration'
+    })).toEqual({
+      categories: ['cloud-y-devops', 'inteligencia-artificial'],
+      topics: ['aws', 'devops'],
+      levels: ['advanced'],
+      durations: ['5-to-12'],
+      sort: 'duration'
+    })
+    expect(roadmapDurationMatches(3, 6, ['up-to-4', 'over-12'])).toBe(true)
+    expect(roadmapDurationMatches(null, null, ['5-to-12'])).toBe(false)
+  })
+
+  it('combines filter families with AND and values within a family with OR', () => {
+    const filters = parseRoadmapCatalogFilters({
+      category: 'cloud-y-devops',
+      topic: ['aws', 'ia'],
+      level: 'beginner',
+      duration: '5-to-12',
+      sort: 'title'
+    })
+    const result = filterAndRankRoadmaps(rows, parseRoadmapSearchQuery(''), filters)
+    const withinFamily = filterAndRankRoadmaps(
+      rows,
+      parseRoadmapSearchQuery(''),
+      parseRoadmapCatalogFilters({ topic: ['aws', 'ia'], sort: 'title' })
+    )
+
+    expect(result.map(row => row.id)).toEqual([3])
+    expect(withinFamily.map(row => row.id)).toEqual([3, 2])
+  })
+
+  it('orders filtered catalog results by comparable duration', () => {
+    const filters = parseRoadmapCatalogFilters({ sort: 'duration' })
+    const result = filterAndRankRoadmaps(rows, parseRoadmapSearchQuery(''), filters)
+
+    expect(result.map(row => row.id)).toEqual([3, 2, 1])
+  })
+
   it('normalizes casing, accents and repeated whitespace', () => {
     expect(normalizeSearchText('  EVALUACIÓN   técnica  ')).toBe('evaluacion tecnica')
     expect(parseRoadmapSearchQuery(['  IA   DevOps  ', 'ignored'])).toMatchObject({
@@ -82,7 +140,9 @@ describe('roadmap search helpers', () => {
         description TEXT,
         objectives TEXT,
         methodology TEXT,
-        category_id INTEGER
+        category_id INTEGER,
+        duration_weeks_min REAL,
+        duration_weeks_max REAL
       );
       CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
       CREATE TABLE topics (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
@@ -92,14 +152,15 @@ describe('roadmap search helpers', () => {
         roadmap_id INTEGER NOT NULL,
         title TEXT,
         objective TEXT,
-        contents TEXT
+        contents TEXT,
+        level TEXT
       );
       INSERT INTO roadmap_categories VALUES (1, 'artificial-intelligence', 'Inteligencia artificial');
       INSERT INTO topics VALUES (1, 'observabilidad', 'Observabilidad');
-      INSERT INTO roadmaps VALUES (1, 'IA', 'Automatizacion', '[]', '[]', 1);
+      INSERT INTO roadmaps VALUES (1, 'IA', 'Automatizacion', '[]', '[]', 1, 8, 10);
       INSERT INTO roadmap_topics VALUES (1, 1);
-      INSERT INTO modules VALUES (10, 1, 'Prompts', 'Evaluar respuestas', '["Observabilidad"]');
-      INSERT INTO modules VALUES (11, 1, 'Agentes', 'Crear agente', '["Memoria"]');
+      INSERT INTO modules VALUES (10, 1, 'Prompts', 'Evaluar respuestas', '["Observabilidad"]', 'intermediate');
+      INSERT INTO modules VALUES (11, 1, 'Agentes', 'Crear agente', '["Memoria"]', 'advanced');
     `)
 
     const catalogRows = await db.all(ROADMAP_CATALOG_SEARCH_SQL)

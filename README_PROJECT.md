@@ -129,6 +129,7 @@ npm run build
 Consulta y contenido:
 
 - `GET /api/roadmaps`
+- `GET /api/roadmaps?q=&category=&topic=&level=&duration=&sort=`
 - `GET /api/roadmaps/:id`
 - `GET /api/roadmaps/metadata`
 - `POST /api/roadmaps`

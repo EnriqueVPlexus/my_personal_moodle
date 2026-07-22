@@ -260,7 +260,7 @@ Hecho cuando:
 
 ### [ ] Buscador y filtros
 
-Estado: en curso. Fases 1 a 3 completadas; fases 4 y 5 pendientes.
+Estado: en curso. Fases 1 a 4 completadas; fase 5 pendiente.
 
 Valor: prepara la aplicacion para crecer sin perder usabilidad.
 
@@ -351,9 +351,11 @@ Hecho cuando:
 - Nivel y duracion se pueden consultar sin parsear textos en el navegador.
 - Las migraciones sobreviven bases existentes y ejecuciones repetidas.
 
-#### [ ] Fase 4. Filtros combinables y ordenacion
+#### [x] Fase 4. Filtros combinables y ordenacion
 
-Estado: pendiente.
+Estado: hecho. El catalogo combina categoria, topics, nivel y rangos de
+duracion con busqueda textual, muestra chips eliminables y permite ordenar por
+relevancia, titulo o duracion. Todo el estado se conserva en una URL canonica.
 
 Tareas:
 

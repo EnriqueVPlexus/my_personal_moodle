@@ -6,6 +6,7 @@ import { cleanup } from '@testing-library/react'
 const nextRouterMock = vi.hoisted(() => ({
   asPath: '/',
   pathname: '/',
+  isReady: true,
   push: vi.fn(),
   replace: vi.fn(),
   query: {} as Record<string, unknown>
@@ -26,6 +27,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   nextRouterMock.asPath = '/'
   nextRouterMock.pathname = '/'
+  nextRouterMock.isReady = true
   nextRouterMock.query = {}
   nextRouterMock.push.mockReset()
   nextRouterMock.replace.mockReset()

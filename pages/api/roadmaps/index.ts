@@ -7,6 +7,7 @@ import {
   parseRoadmapSearchQuery,
   ROADMAP_CATALOG_SEARCH_SQL
 } from '../../../lib/roadmapSearch'
+import { parseRoadmapCatalogFilters } from '../../../lib/roadmapFilters'
 import {
   normalizeDurationRange,
   normalizeTopics,
@@ -24,7 +25,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'search query must be 100 characters or fewer' })
     }
     const rows = await db.all(ROADMAP_CATALOG_SEARCH_SQL)
-    return res.status(200).json(filterAndRankRoadmaps(rows, search))
+    const filters = parseRoadmapCatalogFilters(req.query)
+    return res.status(200).json(filterAndRankRoadmaps(rows, search, filters))
   }
 
   if (req.method === 'POST') {
