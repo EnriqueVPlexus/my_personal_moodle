@@ -1,0 +1,744 @@
+{
+  "title": "Roadmap desde 0 a DevOps Junior",
+  "description": "Itinerario práctico para pasar desde fundamentos de sistemas, Git y cloud hasta contenedores, IaC, Kubernetes, observabilidad, CI/CD y seguridad básica con enfoque DevOps junior.",
+  "objectives": [
+    "Comprender los principios de DevOps, cloud e Infraestructura como Código",
+    "Automatizar tareas básicas con Linux, Bash y herramientas de terminal",
+    "Trabajar con Git, ramas, merges, rebases y flujos de colaboración",
+    "Desplegar recursos cloud básicos en AWS, GCP o Azure",
+    "Construir y ejecutar aplicaciones en contenedores",
+    "Crear infraestructura reproducible con Terraform",
+    "Automatizar configuración con Ansible",
+    "Desplegar y operar aplicaciones básicas en Kubernetes",
+    "Introducir Helm, GitOps, observabilidad, CI/CD y seguridad de entregas"
+  ],
+  "methodology": [
+    "concepto breve y contexto real",
+    "lectura de documentación oficial o gratuita",
+    "práctica guiada",
+    "entrega verificable en repositorio",
+    "evidencia operativa con capturas o logs",
+    "mini evaluación por módulo"
+  ],
+  "evaluation_weights": {
+    "Prácticas técnicas": "45%",
+    "Evidencias documentadas": "25%",
+    "Repositorio y calidad de entrega": "20%",
+    "Cuestionarios": "10%"
+  },
+  "modules": [
+    {
+      "position": 0,
+      "title": "Fase 1 - Fundamentos de DevOps, IaC y Cloud",
+      "duration": "1 semana",
+      "objective": "Entender qué es DevOps, por qué se relaciona con automatización, colaboración, entrega continua, cloud e Infraestructura como Código.",
+      "contents": [
+        "Principios de DevOps",
+        "Diferencia entre despliegue manual y automatizado",
+        "Concepto de Infraestructura como Código",
+        "Conceptos básicos de cloud computing",
+        "Responsabilidad compartida y seguridad inicial",
+        "Mapa de herramientas del roadmap"
+      ],
+      "importance": "Este módulo evita empezar por herramientas sueltas sin entender el objetivo: entregar cambios de forma más frecuente, segura, repetible y observable.",
+      "official_resources": [
+        {
+          "label": "AWS - Qué es DevOps",
+          "url": "https://aws.amazon.com/es/devops/what-is-devops/"
+        },
+        {
+          "label": "Red Hat - Qué es Infrastructure as Code",
+          "url": "https://www.redhat.com/en/topics/automation/what-is-infrastructure-as-code-iac"
+        },
+        {
+          "label": "Google Cloud - Qué es cloud computing",
+          "url": "https://cloud.google.com/learn/what-is-cloud-computing"
+        },
+        {
+          "label": "AWS - Security Essentials",
+          "url": "https://aws.amazon.com/getting-started/aws-security-essentials/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Buscar en YouTube: DevOps desde cero en español",
+          "url": "https://www.youtube.com/results?search_query=devops+desde+cero+espa%C3%B1ol"
+        },
+        {
+          "label": "Buscar en YouTube: Infrastructure as Code Terraform español",
+          "url": "https://www.youtube.com/results?search_query=infraestructura+como+c%C3%B3digo+terraform+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un mapa conceptual con DevOps, CI/CD, IaC, contenedores, Kubernetes, observabilidad y seguridad.",
+        "Escribir una explicación breve de qué problema resuelve cada bloque.",
+        "Elegir proveedor cloud principal para las prácticas: AWS, GCP o Azure."
+      ],
+      "deliverable_evidence": [
+        "Documento de 1-2 páginas o README en GitHub.",
+        "Diagrama simple del flujo: código, pipeline, infraestructura, despliegue y monitorización."
+      ],
+      "evaluation": "Quiz de fundamentos: DevOps, IaC, cloud, responsabilidad compartida y ciclo básico de entrega."
+    },
+    {
+      "position": 1,
+      "title": "Fase 1 - Linux y Bash Scripting",
+      "duration": "1 semana",
+      "objective": "Manejar terminal Linux, permisos, procesos, archivos y scripts básicos de automatización.",
+      "contents": [
+        "Sistema de archivos Linux",
+        "Permisos, usuarios y grupos",
+        "Procesos y servicios básicos",
+        "Variables, condicionales y bucles en Bash",
+        "Uso de grep, awk, sed, curl, sort y pipelines",
+        "Automatización de tareas repetitivas"
+      ],
+      "importance": "Linux y Bash son la base operativa de muchas tareas DevOps: depuración, automatización, CI/CD, contenedores y operación de servidores.",
+      "official_resources": [
+        {
+          "label": "GNU Bash Reference Manual",
+          "url": "https://www.gnu.org/software/bash/manual/bash.html"
+        },
+        {
+          "label": "GNU Grep Manual",
+          "url": "https://www.gnu.org/software/grep/manual/grep.html"
+        },
+        {
+          "label": "GNU sed Manual",
+          "url": "https://www.gnu.org/software/sed/manual/sed.html"
+        },
+        {
+          "label": "GNU Awk Manual",
+          "url": "https://www.gnu.org/software/gawk/manual/gawk.html"
+        },
+        {
+          "label": "Everything curl",
+          "url": "https://everything.curl.dev/"
+        },
+        {
+          "label": "Linux Journey",
+          "url": "https://linuxjourney.com/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Buscar en YouTube: Bash scripting Linux español",
+          "url": "https://www.youtube.com/results?search_query=bash+scripting+linux+espa%C3%B1ol"
+        },
+        {
+          "label": "Buscar en YouTube: grep awk sed tutorial español",
+          "url": "https://www.youtube.com/results?search_query=grep+awk+sed+tutorial+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un script que lea logs de ejemplo y extraiga errores con grep.",
+        "Generar un resumen por código de estado usando awk o sed.",
+        "Comprobar una URL con curl y guardar el resultado.",
+        "Ejecutar el script con permisos correctos y parámetros."
+      ],
+      "deliverable_evidence": [
+        "Repositorio con scripts Bash.",
+        "README con uso, ejemplos de salida y explicación de permisos.",
+        "Captura o log de ejecución correcta."
+      ],
+      "evaluation": "Revisión del script: claridad, uso de argumentos, tratamiento de errores y comandos utilizados."
+    },
+    {
+      "position": 2,
+      "title": "Fase 1 - Git y control de versiones",
+      "duration": "1 semana",
+      "objective": "Trabajar con Git de forma segura: clone, commit, push, branch, merge, rebase, resolución de conflictos y automatización inicial con CI.",
+      "contents": [
+        "Flujo básico de Git",
+        "Ramas y estrategia de trabajo",
+        "Merge, rebase y resolución de conflictos",
+        "Pull requests o merge requests",
+        "Introducción a GitHub Actions o GitLab CI/CD",
+        "Buenas prácticas de commits y README"
+      ],
+      "importance": "Git es el punto de entrada a colaboración, auditoría de cambios, pipelines y despliegues automatizados.",
+      "official_resources": [
+        {
+          "label": "Pro Git Book",
+          "url": "https://git-scm.com/book/en/v2"
+        },
+        {
+          "label": "GitHub Docs - Git rebase",
+          "url": "https://docs.github.com/en/get-started/using-git/about-git-rebase"
+        },
+        {
+          "label": "GitHub Actions Docs",
+          "url": "https://docs.github.com/en/actions"
+        },
+        {
+          "label": "GitHub Skills",
+          "url": "https://skills.github.com/"
+        },
+        {
+          "label": "GitLab CI/CD Quick Start",
+          "url": "https://docs.gitlab.com/ci/quick_start/"
+        },
+        {
+          "label": "Learn Git Branching",
+          "url": "https://learngitbranching.js.org/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de GitHub",
+          "url": "https://www.youtube.com/@GitHub"
+        },
+        {
+          "label": "Canal oficial de GitLab",
+          "url": "https://www.youtube.com/@GitLab"
+        },
+        {
+          "label": "Buscar en YouTube: Git merge rebase conflictos español",
+          "url": "https://www.youtube.com/results?search_query=git+merge+rebase+conflictos+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un repositorio con dos ramas de trabajo.",
+        "Generar un conflicto de merge y resolverlo.",
+        "Practicar rebase sobre una rama actualizada.",
+        "Crear un workflow mínimo de GitHub Actions o GitLab CI que valide un archivo."
+      ],
+      "deliverable_evidence": [
+        "Repositorio con historial de commits.",
+        "Pull request o merge request de prueba.",
+        "Captura de conflicto resuelto.",
+        "Captura de pipeline ejecutado correctamente."
+      ],
+      "evaluation": "Revisión del historial Git, calidad de mensajes, uso de ramas y pipeline mínimo."
+    },
+    {
+      "position": 3,
+      "title": "Fase 1 - Cloud básico: AWS, GCP o Azure",
+      "duration": "1 semana",
+      "objective": "Lanzar una máquina virtual, configurar acceso SSH y usar almacenamiento de objetos en un proveedor cloud.",
+      "contents": [
+        "Máquinas virtuales: EC2, Compute Engine o Azure VM",
+        "Claves SSH y acceso seguro",
+        "Reglas de firewall o security groups",
+        "Almacenamiento de objetos: S3, Cloud Storage o Blob Storage",
+        "Costes, limpieza de recursos y free tier",
+        "Documentación de decisiones cloud"
+      ],
+      "importance": "Un perfil DevOps junior debe comprender cómo se despliegan recursos básicos, cómo se accede de forma segura y cómo se evitan costes innecesarios.",
+      "official_resources": [
+        {
+          "label": "AWS - Launch a Linux virtual machine",
+          "url": "https://docs.aws.amazon.com/hands-on/latest/launch-a-virtual-machine/launch-a-virtual-machine.html"
+        },
+        {
+          "label": "Amazon S3 Getting Started",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/GetStartedWithS3.html"
+        },
+        {
+          "label": "Google Cloud - Create and start a VM instance",
+          "url": "https://cloud.google.com/compute/docs/instances/create-start-instance"
+        },
+        {
+          "label": "Azure - Quickstart Linux VM",
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-machines/linux/quick-create-portal"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de AWS",
+          "url": "https://www.youtube.com/@amazonwebservices"
+        },
+        {
+          "label": "Canal oficial de Google Cloud",
+          "url": "https://www.youtube.com/@googlecloud"
+        },
+        {
+          "label": "Canal oficial de Microsoft Azure",
+          "url": "https://www.youtube.com/@MicrosoftAzure"
+        }
+      ],
+      "practical_activity": [
+        "Lanzar una VM o instancia EC2.",
+        "Configurar acceso SSH.",
+        "Abrir solo los puertos necesarios.",
+        "Subir un archivo a S3, Cloud Storage o Blob Storage.",
+        "Eliminar los recursos al terminar."
+      ],
+      "deliverable_evidence": [
+        "Captura de la VM creada.",
+        "Captura de acceso SSH.",
+        "Captura del bucket o contenedor de almacenamiento.",
+        "Checklist de limpieza de recursos."
+      ],
+      "evaluation": "Preguntas sobre acceso SSH, firewall/security groups, almacenamiento de objetos y limpieza de costes."
+    },
+    {
+      "position": 4,
+      "title": "Fase 2 - Docker y contenedores",
+      "duration": "1 semana",
+      "objective": "Construir una imagen propia, ejecutar un contenedor, exponer puertos, montar volúmenes y definir variables de entorno.",
+      "contents": [
+        "Imagen vs contenedor",
+        "Dockerfile",
+        "Build y run",
+        "Puertos y redes básicas",
+        "Volúmenes",
+        "Variables de entorno",
+        "Buenas prácticas mínimas para imágenes"
+      ],
+      "importance": "Docker permite empaquetar aplicaciones de forma reproducible y es una base directa para CI/CD y Kubernetes.",
+      "official_resources": [
+        {
+          "label": "Docker Get Started",
+          "url": "https://docs.docker.com/get-started/"
+        },
+        {
+          "label": "Dockerfile reference",
+          "url": "https://docs.docker.com/reference/dockerfile/"
+        },
+        {
+          "label": "Docker volumes",
+          "url": "https://docs.docker.com/engine/storage/volumes/"
+        },
+        {
+          "label": "Docker 101 Tutorial",
+          "url": "https://www.docker.com/101-tutorial/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de Docker",
+          "url": "https://www.youtube.com/@DockerInc"
+        },
+        {
+          "label": "Buscar en YouTube: Docker desde cero español",
+          "url": "https://www.youtube.com/results?search_query=docker+desde+cero+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear una app simple con Nginx o Node.js.",
+        "Crear un Dockerfile.",
+        "Construir una imagen personalizada.",
+        "Ejecutar el contenedor exponiendo un puerto.",
+        "Montar un volumen y pasar variables de entorno."
+      ],
+      "deliverable_evidence": [
+        "Repositorio con Dockerfile.",
+        "Comandos de build y run en README.",
+        "Captura de la app funcionando desde navegador.",
+        "Captura de docker ps y logs."
+      ],
+      "evaluation": "Revisión de Dockerfile, comandos utilizados, exposición de puerto y uso de variables/volúmenes."
+    },
+    {
+      "position": 5,
+      "title": "Fase 2 - Terraform e Infraestructura como Código",
+      "duration": "1 semana",
+      "objective": "Crear infraestructura cloud básica con Terraform y entender init, plan, apply, destroy, variables y estado.",
+      "contents": [
+        "Providers",
+        "Resources",
+        "Variables",
+        "State",
+        "terraform init, fmt, validate, plan, apply y destroy",
+        "Provisionamiento de una VM o instancia",
+        "Redes y almacenamiento básico"
+      ],
+      "importance": "Terraform transforma infraestructura manual en código versionable, revisable y reproducible.",
+      "official_resources": [
+        {
+          "label": "HashiCorp Terraform - AWS tutorials",
+          "url": "https://developer.hashicorp.com/terraform/tutorials/aws-get-started"
+        },
+        {
+          "label": "Terraform language documentation",
+          "url": "https://developer.hashicorp.com/terraform/language"
+        },
+        {
+          "label": "Terraform variables",
+          "url": "https://developer.hashicorp.com/terraform/language/values/variables"
+        },
+        {
+          "label": "Terraform state",
+          "url": "https://developer.hashicorp.com/terraform/language/state"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de HashiCorp",
+          "url": "https://www.youtube.com/@HashiCorp"
+        },
+        {
+          "label": "Buscar en YouTube: Terraform desde cero español",
+          "url": "https://www.youtube.com/results?search_query=terraform+desde+cero+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un proyecto Terraform con provider cloud.",
+        "Provisionar una VM o instancia EC2.",
+        "Configurar una red o storage básico.",
+        "Usar variables para región, nombre y tamaño.",
+        "Ejecutar terraform destroy al terminar."
+      ],
+      "deliverable_evidence": [
+        "Repositorio con archivos .tf.",
+        "Captura de terraform plan.",
+        "Captura del recurso creado.",
+        "README con instrucciones y limpieza."
+      ],
+      "evaluation": "Revisión de estructura Terraform, variables, plan/apply/destroy y manejo responsable de credenciales."
+    },
+    {
+      "position": 6,
+      "title": "Fase 2 - Ansible y configuration management",
+      "duration": "1 semana",
+      "objective": "Automatizar configuración de servidores con inventario, playbooks, módulos, usuarios, firewall y permisos.",
+      "contents": [
+        "Inventario",
+        "Playbooks",
+        "Tasks y módulos",
+        "Variables",
+        "Instalación de paquetes",
+        "Gestión de usuarios y permisos",
+        "Configuración básica de firewall"
+      ],
+      "importance": "Ansible permite convertir cambios manuales en configuración repetible y auditable, algo muy frecuente en operaciones DevOps.",
+      "official_resources": [
+        {
+          "label": "Ansible Getting Started",
+          "url": "https://docs.ansible.com/projects/ansible/latest/getting_started/index.html"
+        },
+        {
+          "label": "Ansible inventory guide",
+          "url": "https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html"
+        },
+        {
+          "label": "Ansible playbook guide",
+          "url": "https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_intro.html"
+        },
+        {
+          "label": "Ansible builtin modules",
+          "url": "https://docs.ansible.com/ansible/latest/collections/ansible/builtin/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de Ansible",
+          "url": "https://www.youtube.com/@AnsibleAutomation"
+        },
+        {
+          "label": "Buscar en YouTube: Ansible playbook nginx español",
+          "url": "https://www.youtube.com/results?search_query=ansible+playbook+nginx+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un inventario con una o dos VMs.",
+        "Escribir un playbook para instalar Nginx.",
+        "Configurar un usuario de despliegue.",
+        "Ajustar permisos y firewall básico.",
+        "Ejecutar el playbook de forma idempotente."
+      ],
+      "deliverable_evidence": [
+        "Repositorio con inventory y playbook.",
+        "Captura de ejecución Ansible.",
+        "Captura de Nginx funcionando.",
+        "README explicando idempotencia."
+      ],
+      "evaluation": "Revisión de playbook, inventario, variables y resultado repetible."
+    },
+    {
+      "position": 7,
+      "title": "Fase 3 - Kubernetes básico",
+      "duration": "1 semana",
+      "objective": "Desplegar una aplicación simple con Pod, Deployment y Service, e inspeccionar y escalar réplicas con kubectl.",
+      "contents": [
+        "Pods",
+        "Deployments",
+        "ReplicaSets",
+        "Services",
+        "kubectl get, describe, logs y exec",
+        "Escalado de réplicas",
+        "Troubleshooting básico"
+      ],
+      "importance": "Kubernetes es una pieza central en muchos entornos DevOps modernos; entender sus objetos básicos permite operar despliegues reales con criterio.",
+      "official_resources": [
+        {
+          "label": "Kubernetes Basics",
+          "url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/"
+        },
+        {
+          "label": "Kubernetes Pods",
+          "url": "https://kubernetes.io/docs/concepts/workloads/pods/"
+        },
+        {
+          "label": "Kubernetes Deployments",
+          "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+        },
+        {
+          "label": "Kubernetes Services",
+          "url": "https://kubernetes.io/docs/concepts/services-networking/service/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal Kubernetes Community",
+          "url": "https://www.youtube.com/@KubernetesCommunity"
+        },
+        {
+          "label": "Buscar en YouTube: Kubernetes desde cero español",
+          "url": "https://www.youtube.com/results?search_query=kubernetes+desde+cero+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un Deployment con una app simple.",
+        "Exponer la app con un Service.",
+        "Inspeccionar pods y logs con kubectl.",
+        "Escalar réplicas.",
+        "Provocar un fallo controlado y documentar cómo se detecta."
+      ],
+      "deliverable_evidence": [
+        "Manifiestos YAML.",
+        "Captura de kubectl get pods/deployments/services.",
+        "Captura de logs.",
+        "README con comandos y explicación."
+      ],
+      "evaluation": "Preguntas sobre Pod, Deployment, Service, réplicas y comandos kubectl."
+    },
+    {
+      "position": 8,
+      "title": "Fase 3 - Helm y GitOps",
+      "duration": "1 semana",
+      "objective": "Empaquetar una aplicación con Helm y entender GitOps usando Argo CD o Flux.",
+      "contents": [
+        "Charts de Helm",
+        "values.yaml",
+        "Templates básicos",
+        "Instalación y actualización con Helm",
+        "Concepto de GitOps",
+        "Argo CD o Flux",
+        "Sincronización entre Git y clúster"
+      ],
+      "importance": "Helm y GitOps acercan el despliegue Kubernetes a una práctica repetible, versionada y revisable por pull request.",
+      "official_resources": [
+        {
+          "label": "Helm Chart Template Guide",
+          "url": "https://helm.sh/docs/chart_template_guide/getting_started/"
+        },
+        {
+          "label": "Helm Quickstart",
+          "url": "https://helm.sh/docs/intro/quickstart/"
+        },
+        {
+          "label": "Argo CD Getting Started",
+          "url": "https://argo-cd.readthedocs.io/en/stable/getting_started/"
+        },
+        {
+          "label": "Flux Get Started",
+          "url": "https://fluxcd.io/flux/get-started/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal CNCF",
+          "url": "https://www.youtube.com/@cncfoundation"
+        },
+        {
+          "label": "Buscar en YouTube: Helm ArgoCD GitOps español",
+          "url": "https://www.youtube.com/results?search_query=helm+argocd+gitops+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un Helm chart básico para la app del módulo anterior.",
+        "Parametrizar imagen, puerto y réplicas en values.yaml.",
+        "Instalar el chart en el clúster local.",
+        "Configurar Argo CD o Flux para sincronizar desde Git."
+      ],
+      "deliverable_evidence": [
+        "Repositorio con chart Helm.",
+        "Captura de helm install o helm upgrade.",
+        "Captura de Argo CD o Flux sincronizado.",
+        "README explicando el flujo GitOps."
+      ],
+      "evaluation": "Revisión del chart, parametrización y explicación del flujo GitOps."
+    },
+    {
+      "position": 9,
+      "title": "Fase 3 - Monitoring y logging",
+      "duration": "1 semana",
+      "objective": "Instalar una base de observabilidad con Prometheus, Grafana y logging centralizado con Loki o Fluentd.",
+      "contents": [
+        "Métricas",
+        "Logs",
+        "Dashboards",
+        "Prometheus",
+        "Grafana",
+        "Loki",
+        "Fluentd o Fluent Bit",
+        "Alertas básicas"
+      ],
+      "importance": "Un despliegue sin observabilidad es difícil de operar. Este módulo enseña a ver estado, logs y señales básicas de salud.",
+      "official_resources": [
+        {
+          "label": "Prometheus Getting Started",
+          "url": "https://prometheus.io/docs/prometheus/latest/getting_started/"
+        },
+        {
+          "label": "Grafana Open Source Getting Started",
+          "url": "https://grafana.com/docs/grafana/latest/fundamentals/getting-started/"
+        },
+        {
+          "label": "Grafana Loki Getting Started",
+          "url": "https://grafana.com/docs/loki/latest/get-started/"
+        },
+        {
+          "label": "Fluentd Quickstart",
+          "url": "https://docs.fluentd.org/quickstart"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de Grafana",
+          "url": "https://www.youtube.com/@grafana"
+        },
+        {
+          "label": "Buscar en YouTube: Prometheus Grafana Kubernetes español",
+          "url": "https://www.youtube.com/results?search_query=prometheus+grafana+kubernetes+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Instalar Prometheus y Grafana en un clúster local.",
+        "Crear o importar un dashboard básico.",
+        "Instalar Loki o configurar Fluentd para centralizar logs.",
+        "Consultar logs de una app desplegada.",
+        "Definir una alerta simple o explicar cómo se haría."
+      ],
+      "deliverable_evidence": [
+        "Captura de Prometheus targets.",
+        "Captura de dashboard Grafana.",
+        "Consulta de logs en Loki o salida de Fluentd.",
+        "Documento breve de señales observadas."
+      ],
+      "evaluation": "Revisión de métricas, logs, dashboard y explicación de una incidencia simulada."
+    },
+    {
+      "position": 10,
+      "title": "Fase 4 - Pipeline de CI/CD",
+      "duration": "1 semana",
+      "objective": "Configurar un pipeline que construya, valide y prepare el despliegue de una app, idealmente hacia Kubernetes con GitOps.",
+      "contents": [
+        "CI vs CD",
+        "Triggers",
+        "Jobs y steps",
+        "Secrets",
+        "Build de imagen Docker",
+        "Validaciones automáticas",
+        "Deploy con Argo CD o GitOps"
+      ],
+      "importance": "CI/CD conecta todo lo anterior: repositorio, validación, contenedores, seguridad y despliegue repetible.",
+      "official_resources": [
+        {
+          "label": "GitHub Actions Docs",
+          "url": "https://docs.github.com/en/actions"
+        },
+        {
+          "label": "GitHub Actions Quickstart",
+          "url": "https://docs.github.com/en/actions/writing-workflows/quickstart"
+        },
+        {
+          "label": "GitLab CI/CD Quick Start",
+          "url": "https://docs.gitlab.com/ci/quick_start/"
+        },
+        {
+          "label": "Argo CD Getting Started",
+          "url": "https://argo-cd.readthedocs.io/en/stable/getting_started/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal oficial de GitHub",
+          "url": "https://www.youtube.com/@GitHub"
+        },
+        {
+          "label": "Buscar en YouTube: GitHub Actions Docker Kubernetes español",
+          "url": "https://www.youtube.com/results?search_query=github+actions+docker+kubernetes+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Crear un pipeline en GitHub Actions o GitLab CI/CD.",
+        "Ejecutar lint/test o validación simple.",
+        "Construir una imagen Docker.",
+        "Publicar artefacto o preparar despliegue.",
+        "Opcional: actualizar manifiesto o values.yaml para Argo CD."
+      ],
+      "deliverable_evidence": [
+        "Archivo YAML del pipeline.",
+        "Captura de ejecución correcta.",
+        "README explicando secretos y pasos.",
+        "Captura de despliegue o sincronización GitOps si aplica."
+      ],
+      "evaluation": "Revisión de pipeline, manejo de secretos, separación de pasos y reproducibilidad."
+    },
+    {
+      "position": 11,
+      "title": "Fase 4 - Seguridad y hardening",
+      "duration": "1 semana",
+      "objective": "Aplicar controles básicos de seguridad sobre imágenes, Dockerfiles, Terraform y manifiestos antes de desplegar.",
+      "contents": [
+        "Escaneo de imágenes con Trivy",
+        "Escaneo IaC con Trivy o Checkov",
+        "Principio de mínimo privilegio",
+        "No ejecutar contenedores como root cuando sea posible",
+        "Gestión de secretos",
+        "Validaciones de seguridad en pipeline",
+        "Criterios de aceptación y riesgo"
+      ],
+      "importance": "La seguridad en DevOps no debe añadirse al final: se integra en el pipeline para detectar vulnerabilidades y malas configuraciones cuanto antes.",
+      "official_resources": [
+        {
+          "label": "Trivy installation",
+          "url": "https://www.trivy.dev/docs/v0.69/getting-started/installation/"
+        },
+        {
+          "label": "Trivy container image scanning",
+          "url": "https://www.trivy.dev/docs/v0.69/guide/target/container_image/"
+        },
+        {
+          "label": "Trivy Terraform scanning",
+          "url": "https://www.trivy.dev/docs/v0.50/guide/coverage/iac/terraform/"
+        },
+        {
+          "label": "Checkov Quick Start",
+          "url": "https://www.checkov.io/1.Welcome/Quick%20Start.html"
+        },
+        {
+          "label": "Kubernetes Security Checklist",
+          "url": "https://kubernetes.io/docs/concepts/security/security-checklist/"
+        }
+      ],
+      "support_videos": [
+        {
+          "label": "Canal Aqua Security",
+          "url": "https://www.youtube.com/@AquaSecurity"
+        },
+        {
+          "label": "Buscar en YouTube: Trivy Checkov DevSecOps español",
+          "url": "https://www.youtube.com/results?search_query=trivy+checkov+devsecops+espa%C3%B1ol"
+        }
+      ],
+      "practical_activity": [
+        "Escanear una imagen Docker con Trivy.",
+        "Escanear archivos Terraform con Trivy o Checkov.",
+        "Corregir al menos una advertencia sencilla.",
+        "Añadir el escaneo al pipeline.",
+        "Documentar riesgos aceptados y riesgos corregidos."
+      ],
+      "deliverable_evidence": [
+        "Salida del escaneo antes y después.",
+        "Pull request con corrección.",
+        "Pipeline con job de seguridad.",
+        "Documento corto de hallazgos."
+      ],
+      "evaluation": "Revisión de findings, correcciones aplicadas, falsos positivos y criterios de bloqueo del pipeline."
+    }
+  ]
+}

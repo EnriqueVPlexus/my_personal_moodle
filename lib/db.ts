@@ -5,6 +5,7 @@ import fs from 'fs'
 import aiRoadmapSeed from './roadmapSeeds/aiRoadmapSeed.json'
 import awsRoadmapSeed from './roadmapSeeds/awsRoadmapSeed.json'
 import iaDevopsRoadmapSeed from './iaDevopsRoadmapSeed.json'
+import devopsRoadmapSeed from './devopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
 
 type LearningResource = {
@@ -82,7 +83,7 @@ type RoadmapSeed = {
   }>
 }
 
-const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, iaDevopsRoadmapSeed]
+const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, iaDevopsRoadmapSeed, devopsRoadmapSeed]
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
@@ -135,6 +136,7 @@ async function migrate(db: any) {
       name TEXT,
       role TEXT NOT NULL DEFAULT 'user',
       password_hash TEXT NOT NULL,
+      can_view_all_roadmaps INTEGER NOT NULL DEFAULT 1,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -152,6 +154,17 @@ async function migrate(db: any) {
 
     CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions(token_hash);
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+
+    CREATE TABLE IF NOT EXISTS user_roadmap_access (
+      user_id INTEGER NOT NULL,
+      roadmap_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, roadmap_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (roadmap_id) REFERENCES roadmaps(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_roadmap_access_roadmap_id ON user_roadmap_access(roadmap_id);
 
     CREATE TABLE IF NOT EXISTS audit_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,6 +266,7 @@ async function migrate(db: any) {
   await ensureColumn(db, 'modules', 'evaluation', 'TEXT')
 
   await ensureColumn(db, 'users', 'is_active', 'INTEGER NOT NULL DEFAULT 1')
+  await ensureColumn(db, 'users', 'can_view_all_roadmaps', 'INTEGER NOT NULL DEFAULT 1')
 }
 
 async function ensureColumn(db: any, table: string, column: string, definition: string) {

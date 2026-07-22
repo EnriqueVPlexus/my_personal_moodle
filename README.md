@@ -2,7 +2,7 @@
 
 CanteraHub es una aplicación web para gestionar una cantera interna de aprendizaje técnico. Permite publicar roadmaps formativos, organizar módulos, enlazar recursos oficiales, definir prácticas con evidencia entregable y gobernar el acceso mediante roles.
 
-La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y una base SQLite local que se migra y se alimenta automáticamente al arrancar.
+La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**, además de una base SQLite local que se migra y se alimenta automáticamente al arrancar.
 
 ## Funcionalidad
 
@@ -13,6 +13,7 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 - Página individual de módulo con lecciones y estado de completado.
 - Modo lectura para usuarios normales.
 - Panel admin para crear roadmaps, módulos, lecciones y usuarios.
+- Control admin para permitir que un usuario vea todos los roadmaps o solo una selección.
 - Activación, desactivación y reseteo de contraseña de usuarios.
 - Auditoría de acciones sensibles.
 - Setup guiado para crear el primer admin.
@@ -42,7 +43,7 @@ npm run dev
 
 La aplicación se abre normalmente en `http://localhost:3000`. Si el puerto está ocupado, Next.js usará otro disponible.
 
-La base de datos local se crea en `data/dev.db`. Al abrir la app por primera vez se ejecutan migraciones, se siembra el roadmap AWS y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial.
+La base de datos local se crea en `data/dev.db`. Al abrir la app por primera vez se ejecutan migraciones, se siembran los roadmaps incluidos y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial.
 
 ## Setup Inicial
 
@@ -75,6 +76,7 @@ Notas:
 - `AUTH_SETUP_TOKEN` es especialmente importante en producción.
 - `AUTH_PASSWORD_PEPPER` endurece los hashes, pero si se cambia después de crear usuarios las contraseñas existentes dejarán de validar.
 - `REQUIRE_AUTH_FOR_READS=true` exige login también para consultas de roadmaps, módulos y lecciones.
+- Los permisos por roadmap se aplican a usuarios autenticados. Para que visitantes sin sesión no vean todo el catálogo, usa `REQUIRE_AUTH_FOR_READS=true`.
 - `NEXT_PUBLIC_COMPANY_LOGO` debe apuntar a un asset público, por ejemplo `/brand/company-logo.png`.
 
 ## Rutas Web
@@ -86,6 +88,7 @@ Notas:
 - `/login`: login.
 - `/setup`: creación del primer admin.
 - `/admin/users`: gestión de usuarios.
+- `/admin/users`: gestión de usuarios y acceso por roadmap.
 - `/admin/audit`: auditoría admin.
 
 ## API
@@ -116,6 +119,8 @@ Operaciones admin:
 - `PATCH /api/users/:id`
 - `GET /api/audit-logs`
 
+`PATCH /api/users/:id` acepta `action: "set_roadmap_access"` para cambiar entre acceso a todos los roadmaps y una lista concreta de `roadmap_ids`.
+
 Autenticación:
 
 - `GET /api/auth/setup-status`
@@ -133,6 +138,7 @@ Las guías rápidas con `curl` para módulos y lecciones están en `test/modules
 - Cookie de sesión `HttpOnly`, `SameSite=Lax` y `Secure` en producción.
 - Protección de origen para métodos mutantes.
 - Invalidación de sesiones al desactivar usuarios o resetear contraseñas.
+- Restricción por usuario para listar roadmaps, abrir detalles, consultar módulos y consultar lecciones.
 - Las APIs validan permisos en servidor; la UI solo oculta controles como mejora de experiencia.
 - Auditoría para creación, actualización y borrado de contenido, usuarios y setup inicial.
 
@@ -145,7 +151,7 @@ npm run start         # arranca el build
 npm run lint          # ESLint
 npm run test:unit     # Vitest
 npm run test:coverage # Vitest con cobertura
-npm test              # lint + seed AWS + cobertura
+npm test              # lint + validación de seeds + cobertura
 ```
 
 La cobertura exige un mínimo global del 80% en statements, branches, functions y lines. Actualmente se incluyen `components`, `lib` y `pages`, incluidas las API routes.

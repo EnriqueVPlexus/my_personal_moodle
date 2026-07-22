@@ -97,6 +97,9 @@ scripts/                    Utilidades de mantenimiento.
 
 También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
 
+Los administradores pueden limitar cada cuenta de usuario a una selección de
+roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
+
 ## Calidad Y Tests
 
 Comando principal:

@@ -586,13 +586,36 @@ describe('Next pages', () => {
     mockAuth({ user: adminUser, isAdmin: true })
 
     const users = [
-      { id: 1, email: 'admin@example.com', name: 'Admin', role: 'admin', is_active: 1, created_at: '2026-05-30' },
-      { id: 2, email: 'user@example.com', name: null, role: 'user', is_active: 0, created_at: '2026-05-30' }
+      {
+        id: 1,
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin',
+        is_active: 1,
+        can_view_all_roadmaps: 1,
+        roadmap_access_ids: [],
+        created_at: '2026-05-30'
+      },
+      {
+        id: 2,
+        email: 'user@example.com',
+        name: null,
+        role: 'user',
+        is_active: 0,
+        can_view_all_roadmaps: 0,
+        roadmap_access_ids: [1],
+        created_at: '2026-05-30'
+      }
+    ]
+    const roadmaps = [
+      { id: 1, title: 'AWS Roadmap' },
+      { id: 2, title: 'DevOps Roadmap' }
     ]
 
-    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (_url, init) => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
       if (init?.method === 'POST') return jsonResponse({ id: 3, email: 'new@example.com' }, 201)
       if (init?.method === 'PATCH') return jsonResponse({ ok: true })
+      if (url === '/api/roadmaps') return jsonResponse(roadmaps)
       return jsonResponse(users)
     })
 
@@ -612,6 +635,15 @@ describe('Next pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/users/2', expect.objectContaining({ method: 'PATCH' }))
+    })
+
+    expect(await screen.findByText('AWS Roadmap')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('DevOps Roadmap'))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/users/2', expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"set_roadmap_access"')
+      }))
     })
 
     fireEvent.change(screen.getAllByPlaceholderText('Nueva contraseña')[1], { target: { value: 'reset-password-123' } })

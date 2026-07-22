@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { getUserFromRequest, requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { touchRoadmapProgress } from '../../../lib/progress'
 import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
@@ -37,10 +37,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query
 
   if (req.method === 'GET') {
-    if (!(await requireReadAccess(req, res, db))) return
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
     const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [id])
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
-    const user = await getUserFromRequest(req, db)
+    if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(404).json({ error: 'not found' })
+    const user = scope.user
 
     if (user) {
       await touchRoadmapProgress(db, {

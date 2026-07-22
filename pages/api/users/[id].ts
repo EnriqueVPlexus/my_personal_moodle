@@ -4,6 +4,32 @@ import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { hashPassword, validatePassword } from '../../../lib/password'
 
+function normalizeRoadmapIds(value: unknown) {
+  if (!Array.isArray(value)) return []
+  const ids = value.map(item => Number(item))
+  if (!ids.every(id => Number.isInteger(id) && id > 0)) return null
+  return Array.from(new Set(ids))
+}
+
+async function userWithRoadmapAccess(db: any, userId: number) {
+  const user = await db.get(
+    'SELECT id, email, name, role, is_active, can_view_all_roadmaps, created_at, updated_at FROM users WHERE id = ?',
+    [userId]
+  )
+  if (!user) return null
+
+  const accessRows = await db.all(
+    'SELECT roadmap_id FROM user_roadmap_access WHERE user_id = ? ORDER BY roadmap_id',
+    [userId]
+  )
+
+  return {
+    ...user,
+    can_view_all_roadmaps: user.role === 'admin' ? 1 : Number(user.can_view_all_roadmaps) === 0 ? 0 : 1,
+    roadmap_access_ids: accessRows.map((row: any) => Number(row.roadmap_id))
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { id } = req.query
@@ -103,6 +129,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       entityType: 'user',
       entityId: userId,
       details: { email: target.email }
+    })
+
+    return res.status(200).json(updated)
+  }
+
+  if (action === 'set_roadmap_access') {
+    if (target.role === 'admin') {
+      return res.status(400).json({ error: 'admin users always have access to every roadmap' })
+    }
+
+    const canViewAllRoadmaps = Boolean(req.body.can_view_all_roadmaps)
+    const roadmapIds = canViewAllRoadmaps ? [] : normalizeRoadmapIds(req.body.roadmap_ids)
+    if (!roadmapIds) return res.status(400).json({ error: 'invalid roadmap ids' })
+
+    if (roadmapIds.length > 0) {
+      const existingRows = await db.all(
+        `SELECT id FROM roadmaps WHERE id IN (${roadmapIds.map(() => '?').join(', ')})`,
+        roadmapIds
+      )
+      if (existingRows.length !== roadmapIds.length) {
+        return res.status(400).json({ error: 'invalid roadmap ids' })
+      }
+    }
+
+    const now = new Date().toISOString()
+    await db.run(
+      'UPDATE users SET can_view_all_roadmaps = ?, updated_at = ? WHERE id = ?',
+      [canViewAllRoadmaps ? 1 : 0, now, userId]
+    )
+    await db.run('DELETE FROM user_roadmap_access WHERE user_id = ?', [userId])
+
+    for (const roadmapId of roadmapIds) {
+      await db.run(
+        'INSERT OR IGNORE INTO user_roadmap_access (user_id, roadmap_id, created_at) VALUES (?, ?, ?)',
+        [userId, roadmapId, now]
+      )
+    }
+
+    const updated = await userWithRoadmapAccess(db, userId)
+    await writeAuditLog({
+      db,
+      req,
+      user: admin,
+      action: 'user.update_roadmap_access',
+      entityType: 'user',
+      entityId: userId,
+      details: {
+        email: target.email,
+        can_view_all_roadmaps: canViewAllRoadmaps,
+        roadmap_ids: roadmapIds
+      }
     })
 
     return res.status(200).json(updated)

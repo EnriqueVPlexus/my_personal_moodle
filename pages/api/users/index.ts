@@ -4,15 +4,31 @@ import { isValidRole, requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { hashPassword, normalizeEmail, validatePassword } from '../../../lib/password'
 
+async function usersWithRoadmapAccess(db: any) {
+  const users = await db.all(
+    'SELECT id, email, name, role, is_active, can_view_all_roadmaps, created_at, updated_at FROM users ORDER BY created_at DESC'
+  )
+  const accessRows = await db.all('SELECT user_id, roadmap_id FROM user_roadmap_access ORDER BY roadmap_id')
+  const accessByUser = accessRows.reduce((acc: Record<number, number[]>, row: any) => {
+    const userId = Number(row.user_id)
+    if (!acc[userId]) acc[userId] = []
+    acc[userId].push(Number(row.roadmap_id))
+    return acc
+  }, {})
+
+  return users.map((user: any) => ({
+    ...user,
+    can_view_all_roadmaps: user.role === 'admin' ? 1 : Number(user.can_view_all_roadmaps) === 0 ? 0 : 1,
+    roadmap_access_ids: accessByUser[Number(user.id)] || []
+  }))
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
     if (!(await requireAdmin(req, res, db))) return
-    const users = await db.all(
-      'SELECT id, email, name, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC'
-    )
-    return res.status(200).json(users)
+    return res.status(200).json(await usersWithRoadmapAccess(db))
   }
 
   if (req.method === 'POST') {

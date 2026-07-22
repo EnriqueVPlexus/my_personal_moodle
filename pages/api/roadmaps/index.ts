@@ -1,20 +1,26 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
-    if (!(await requireReadAccess(req, res, db))) return
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
+
+    if (!scope.allRoadmaps && scope.roadmapIds.length === 0) return res.status(200).json([])
+
+    const where = scope.allRoadmaps ? '' : `WHERE roadmaps.id IN (${scope.roadmapIds.map(() => '?').join(', ')})`
     const rows = await db.all(`
       SELECT roadmaps.*, COUNT(modules.id) AS module_count
       FROM roadmaps
       LEFT JOIN modules ON modules.roadmap_id = roadmaps.id
+      ${where}
       GROUP BY roadmaps.id
       ORDER BY roadmaps.id DESC
-    `)
+    `, scope.allRoadmaps ? [] : scope.roadmapIds)
     return res.status(200).json(rows)
   }
 

@@ -1,15 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin, requireReadAccess } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
-    if (!(await requireReadAccess(req, res, db))) return
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
     const { module_id } = req.query
     if (!module_id) return res.status(400).json({ error: 'module_id required' })
+    const moduleRow = await db.get('SELECT roadmap_id FROM modules WHERE id = ?', [module_id])
+    if (!moduleRow || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(200).json([])
     const rows = await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [module_id])
     return res.status(200).json(rows)
   }

@@ -6,6 +6,7 @@ npm run lint
 
 echo "Checking roadmap seeds..."
 node test/aws-roadmap-seed.test.mjs
+node test/roadmap-seeds.test.mjs
 
 echo "Running unit tests with coverage..."
 npm run test:coverage
