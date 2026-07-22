@@ -94,6 +94,9 @@ scripts/                    Utilidades de mantenimiento.
 - `user_lesson_progress`
 - `user_roadmap_progress`
 - `user_quiz_attempts`
+- `roadmap_categories`
+- `topics`
+- `roadmap_topics`
 
 También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
 
@@ -127,6 +130,7 @@ Consulta y contenido:
 
 - `GET /api/roadmaps`
 - `GET /api/roadmaps/:id`
+- `GET /api/roadmaps/metadata`
 - `POST /api/roadmaps`
 - `PUT /api/roadmaps/:id`
 - `DELETE /api/roadmaps/:id`

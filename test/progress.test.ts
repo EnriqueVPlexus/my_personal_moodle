@@ -133,11 +133,12 @@ describe('progress helpers', () => {
   })
 
   it('builds detailed roadmap progress grouped by module', async () => {
+    const recentActivity = new Date().toISOString()
     const db = {
       get: vi.fn().mockResolvedValue({
         roadmap_id: 7,
         started_at: '2026-07-01T09:00:00.000Z',
-        last_activity_at: '2026-07-06T08:30:00.000Z',
+        last_activity_at: recentActivity,
         completed_at: null,
         current_module_id: 15,
         current_module_title: 'Observabilidad',
@@ -152,7 +153,7 @@ describe('progress helpers', () => {
             position: 1,
             total_lessons: 2,
             completed_lessons_count: 1,
-            last_activity_at: '2026-07-06T08:30:00.000Z'
+            last_activity_at: recentActivity
           },
           {
             module_id: 16,
@@ -248,12 +249,12 @@ describe('progress helpers', () => {
       INSERT INTO user_lesson_progress (
         user_id, lesson_id, started_at, last_activity_at, completed_at,
         time_spent_seconds, created_at, updated_at
-      ) VALUES (2, 100, '2026-07-01', '2026-07-01', '2026-07-01', 120, '2026-07-01', '2026-07-01');
+      ) VALUES (2, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 120, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
       INSERT INTO user_roadmap_progress (
         user_id, roadmap_id, current_module_id, current_lesson_id, started_at,
         last_activity_at, completed_at, completed_lessons_count, time_spent_seconds,
         created_at, updated_at
-      ) VALUES (2, 1, 10, 100, '2026-07-01', '2026-07-01', '2026-07-01', 99, 9999, '2026-07-01', '2026-07-01');
+      ) VALUES (2, 1, 10, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 99, 9999, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     `)
 
     const [summary] = await listUserRoadmapProgress(db as any, 2)

@@ -81,8 +81,12 @@ describe('roadmap search helpers', () => {
         title TEXT NOT NULL,
         description TEXT,
         objectives TEXT,
-        methodology TEXT
+        methodology TEXT,
+        category_id INTEGER
       );
+      CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
+      CREATE TABLE topics (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
+      CREATE TABLE roadmap_topics (roadmap_id INTEGER, topic_id INTEGER);
       CREATE TABLE modules (
         id INTEGER PRIMARY KEY,
         roadmap_id INTEGER NOT NULL,
@@ -90,7 +94,10 @@ describe('roadmap search helpers', () => {
         objective TEXT,
         contents TEXT
       );
-      INSERT INTO roadmaps VALUES (1, 'IA', 'Automatizacion', '[]', '[]');
+      INSERT INTO roadmap_categories VALUES (1, 'artificial-intelligence', 'Inteligencia artificial');
+      INSERT INTO topics VALUES (1, 'observabilidad', 'Observabilidad');
+      INSERT INTO roadmaps VALUES (1, 'IA', 'Automatizacion', '[]', '[]', 1);
+      INSERT INTO roadmap_topics VALUES (1, 1);
       INSERT INTO modules VALUES (10, 1, 'Prompts', 'Evaluar respuestas', '["Observabilidad"]');
       INSERT INTO modules VALUES (11, 1, 'Agentes', 'Crear agente', '["Memoria"]');
     `)
@@ -102,6 +109,10 @@ describe('roadmap search helpers', () => {
     expect(catalogRows[0].module_search_text).toContain('Observabilidad')
     expect(result).toEqual([expect.objectContaining({ id: 1, title: 'IA', module_count: 2 })])
     expect(result[0]).not.toHaveProperty('module_search_text')
+    expect(result[0]).toMatchObject({
+      category: { key: 'artificial-intelligence', label: 'Inteligencia artificial' },
+      topics: [{ key: 'observabilidad', label: 'Observabilidad' }]
+    })
 
     await db.close()
   })

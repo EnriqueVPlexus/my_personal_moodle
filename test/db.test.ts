@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import sqlite3 from 'sqlite3'
+import { open } from 'sqlite'
 
 const originalCwd = process.cwd()
 
@@ -13,6 +15,44 @@ afterEach(() => {
 })
 
 describe('SQLite database bootstrap', () => {
+  it('upgrades a legacy catalog without losing existing roadmaps', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-legacy-'))
+    const dataDir = path.join(tmp, 'data')
+    fs.mkdirSync(dataDir)
+    const legacyDb = await open({ filename: path.join(dataDir, 'dev.db'), driver: sqlite3.Database })
+    await legacyDb.exec(`
+      CREATE TABLE roadmaps (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, duration TEXT);
+      CREATE TABLE modules (id INTEGER PRIMARY KEY AUTOINCREMENT, roadmap_id INTEGER NOT NULL, title TEXT NOT NULL, duration TEXT);
+      INSERT INTO roadmaps (id, title, description, duration) VALUES (50, 'Ruta interna', 'Contenido propio', '3 semanas');
+      INSERT INTO modules (id, roadmap_id, title, duration) VALUES (60, 50, 'Módulo propio', '2 semanas');
+    `)
+    await legacyDb.close()
+    process.chdir(tmp)
+
+    const { openDb } = await import('../lib/db')
+    const db = await openDb()
+    const roadmap = await db.get(
+      'SELECT title, category_id, duration_weeks_min, duration_weeks_max FROM roadmaps WHERE id = 50'
+    )
+    const moduleRow = await db.get(
+      'SELECT title, level, duration_weeks_min, duration_weeks_max FROM modules WHERE id = 60'
+    )
+
+    expect(roadmap).toMatchObject({
+      title: 'Ruta interna',
+      category_id: null,
+      duration_weeks_min: 3,
+      duration_weeks_max: 3
+    })
+    expect(moduleRow).toMatchObject({
+      title: 'Módulo propio',
+      level: null,
+      duration_weeks_min: 2,
+      duration_weeks_max: 2
+    })
+    await db.close()
+  })
+
   it('migrates schema, seeds the roadmap catalog and creates an env admin', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-'))
     process.chdir(tmp)
@@ -37,6 +77,25 @@ describe('SQLite database bootstrap', () => {
     const lessonProgressColumns = await db.all('PRAGMA table_info(user_lesson_progress)')
     const roadmapProgressColumns = await db.all('PRAGMA table_info(user_roadmap_progress)')
     const quizAttemptColumns = await db.all('PRAGMA table_info(user_quiz_attempts)')
+    const roadmapColumns = await db.all('PRAGMA table_info(roadmaps)')
+    const moduleColumns = await db.all('PRAGMA table_info(modules)')
+    const awsMetadata = await db.get(
+      `SELECT roadmap_categories.key AS category_key,
+              roadmaps.duration_weeks_min, roadmaps.duration_weeks_max,
+              COUNT(DISTINCT roadmap_topics.topic_id) AS topic_count
+       FROM roadmaps
+       LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
+       LEFT JOIN roadmap_topics ON roadmap_topics.roadmap_id = roadmaps.id
+       WHERE roadmaps.title = ? GROUP BY roadmaps.id`,
+      ['Roadmap AWS gratuito para cantera junior DevOps']
+    )
+    const classifiedAwsModules = await db.get(
+      `SELECT COUNT(*) AS count FROM modules
+       INNER JOIN roadmaps ON roadmaps.id = modules.roadmap_id
+       WHERE roadmaps.title = ? AND modules.level IS NOT NULL
+         AND modules.duration_weeks_min IS NOT NULL AND modules.duration_weeks_max IS NOT NULL`,
+      ['Roadmap AWS gratuito para cantera junior DevOps']
+    )
 
     expect(awsRoadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
     expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
@@ -74,6 +133,19 @@ describe('SQLite database bootstrap', () => {
       'answers',
       'submitted_at'
     ]))
+    expect(roadmapColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
+      'category_id', 'duration_weeks_min', 'duration_weeks_max'
+    ]))
+    expect(moduleColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
+      'level', 'duration_weeks_min', 'duration_weeks_max'
+    ]))
+    expect(awsMetadata).toMatchObject({
+      category_key: 'cloud-y-devops',
+      duration_weeks_min: 11,
+      duration_weeks_max: 12,
+      topic_count: 6
+    })
+    expect(classifiedAwsModules.count).toBe(11)
 
     await db.close()
   })
@@ -114,6 +186,10 @@ describe('SQLite database bootstrap', () => {
     const lessonProgressIndexes = await secondDb.all("PRAGMA index_list('user_lesson_progress')")
     const roadmapProgressIndexes = await secondDb.all("PRAGMA index_list('user_roadmap_progress')")
     const quizAttemptIndexes = await secondDb.all("PRAGMA index_list('user_quiz_attempts')")
+    const roadmapTopicCount = await secondDb.get('SELECT COUNT(*) AS count FROM roadmap_topics')
+    const duplicateTopics = await secondDb.all(
+      'SELECT key, COUNT(*) AS count FROM topics GROUP BY key HAVING COUNT(*) > 1'
+    )
 
     expect(roadmapCount.count).toBe(1)
     expect(aiRoadmapCount.count).toBe(1)
@@ -137,6 +213,8 @@ describe('SQLite database bootstrap', () => {
       'idx_user_quiz_attempts_module_id',
       'idx_user_quiz_attempts_submitted_at'
     ]))
+    expect(roadmapTopicCount.count).toBe(18)
+    expect(duplicateTopics).toEqual([])
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))
 
     await secondDb.close()

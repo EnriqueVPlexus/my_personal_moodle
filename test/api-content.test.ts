@@ -33,12 +33,15 @@ describe('content API handlers', () => {
 
     const getRes = createResponse()
     await handler(createRequest({ method: 'GET' }), getRes)
-    expect(getRes.body).toEqual([{ id: 1, title: 'AWS' }])
+    expect(getRes.body).toEqual([{ id: 1, title: 'AWS', category: null, topics: [] }])
 
     const postRes = createResponse()
     await handler(createRequest({ method: 'POST', body: { title: 'New', description: 'Desc' } }), postRes)
     expect(postRes.statusCode).toBe(201)
-    expect(db.run).toHaveBeenCalledWith('INSERT INTO roadmaps (title, description) VALUES (?, ?)', ['New', 'Desc'])
+    expect(db.run).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO roadmaps'),
+      ['New', 'Desc', null, null, null]
+    )
   })
 
   it('searches roadmaps by normalized module content and keeps private search text out of responses', async () => {
@@ -71,9 +74,120 @@ describe('content API handlers', () => {
       id: 1,
       title: 'IA para DevOps',
       description: 'Automatizacion',
-      module_count: 3
+      module_count: 3,
+      category: null,
+      topics: []
     }])
     expect(db.all).toHaveBeenCalledWith(expect.stringContaining('GROUP_CONCAT'))
+  })
+
+  it('returns filter metadata derived from persisted catalog data', async () => {
+    const db = {
+      all: vi.fn()
+        .mockResolvedValueOnce([{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 2 }])
+        .mockResolvedValueOnce([{ key: 'aws', label: 'AWS', roadmap_count: 1 }])
+        .mockResolvedValueOnce([{ key: 'beginner', roadmap_count: 2 }]),
+      get: vi.fn()
+        .mockResolvedValueOnce({ min_weeks: 4, max_weeks: 24 })
+        .mockResolvedValueOnce({ count: 1 })
+    }
+    await mockApi(db)
+    const handler = (await import('../pages/api/roadmaps/metadata')).default
+
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET' }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toMatchObject({
+      categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 2 }],
+      topics: [{ key: 'aws', label: 'AWS', roadmap_count: 1 }],
+      duration: { min_weeks: 4, max_weeks: 24 },
+      unclassified_roadmaps: 1
+    })
+    expect(res.body.levels).toEqual(expect.arrayContaining([
+      { key: 'beginner', roadmap_count: 2 },
+      { key: 'advanced', roadmap_count: 0 }
+    ]))
+  })
+
+  it('validates and persists normalized roadmap metadata on create', async () => {
+    const db = {
+      all: vi.fn(),
+      run: vi.fn()
+        .mockResolvedValueOnce({ lastID: 12 })
+        .mockResolvedValue({ changes: 1 }),
+      get: vi.fn()
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce({ id: 2 })
+        .mockResolvedValueOnce({ id: 3 })
+        .mockResolvedValueOnce({ id: 12, title: 'Platform Engineering' })
+    }
+    await mockApi(db)
+    const handler = (await import('../pages/api/roadmaps/index')).default
+
+    const invalid = createResponse()
+    await handler(createRequest({
+      method: 'POST',
+      body: { title: 'Invalid', duration_weeks_min: 8, duration_weeks_max: 2 }
+    }), invalid)
+    expect(invalid.statusCode).toBe(400)
+
+    const res = createResponse()
+    await handler(createRequest({
+      method: 'POST',
+      body: {
+        title: 'Platform Engineering',
+        category: 'Cloud y DevOps',
+        topics: ['Kubernetes', 'GitOps'],
+        duration: '8-10 semanas',
+        duration_weeks_min: 8,
+        duration_weeks_max: 10
+      }
+    }), res)
+
+    expect(res.statusCode).toBe(201)
+    expect(db.run).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO roadmap_categories'),
+      ['cloud-y-devops', 'Cloud y DevOps']
+    )
+    expect(db.run).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR IGNORE INTO roadmap_topics'),
+      [12, 2]
+    )
+  })
+
+  it('updates roadmap metadata without relying on display text parsing in the client', async () => {
+    const db = {
+      run: vi.fn()
+        .mockResolvedValueOnce({ changes: 1 })
+        .mockResolvedValue({ changes: 1 }),
+      get: vi.fn()
+        .mockResolvedValueOnce({ id: 4 })
+        .mockResolvedValueOnce({ id: 8 })
+        .mockResolvedValueOnce({ id: 7, title: 'IA actualizada' })
+    }
+    await mockApi(db)
+    const handler = (await import('../pages/api/roadmaps/[id]')).default
+
+    const res = createResponse()
+    await handler(createRequest({
+      method: 'PUT',
+      query: { id: '7' },
+      body: {
+        title: 'IA actualizada',
+        category: 'Inteligencia artificial',
+        topics: ['RAG'],
+        duration: '12 semanas',
+        duration_weeks_min: 10,
+        duration_weeks_max: 12
+      }
+    }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(db.run).toHaveBeenCalledWith(
+      expect.stringContaining('duration_weeks_min = CASE'),
+      expect.arrayContaining([10, 12, '7'])
+    )
   })
 
   it('reads, updates and deletes a roadmap', async () => {
@@ -117,7 +231,7 @@ describe('content API handlers', () => {
         .mockResolvedValueOnce({
           roadmap_id: 7,
           started_at: '2026-07-01T09:00:00.000Z',
-          last_activity_at: '2026-07-06T08:30:00.000Z',
+          last_activity_at: '2026-07-16T08:30:00.000Z',
           completed_at: null,
           current_module_id: 15,
           current_module_title: 'Observabilidad',
@@ -190,6 +304,46 @@ describe('content API handlers', () => {
     const postRes = createResponse()
     await handler(createRequest({ method: 'POST', body: { title: 'IAM', roadmap_id: 1 } }), postRes)
     expect(postRes.statusCode).toBe(201)
+  })
+
+  it('validates module levels and comparable durations', async () => {
+    const db = {
+      run: vi.fn().mockResolvedValue({ lastID: 5 }),
+      get: vi.fn().mockResolvedValue({ id: 5, title: 'GitOps', level: 'advanced' })
+    }
+    await mockApi(db)
+    const handler = (await import('../pages/api/modules/index')).default
+
+    const invalidLevel = createResponse()
+    await handler(createRequest({
+      method: 'POST',
+      body: { title: 'GitOps', roadmap_id: 1, level: 'expert' }
+    }), invalidLevel)
+    expect(invalidLevel.statusCode).toBe(400)
+
+    const invalidDuration = createResponse()
+    await handler(createRequest({
+      method: 'POST',
+      body: {
+        title: 'GitOps', roadmap_id: 1, level: 'advanced',
+        duration_weeks_min: 4, duration_weeks_max: 2
+      }
+    }), invalidDuration)
+    expect(invalidDuration.statusCode).toBe(400)
+
+    const res = createResponse()
+    await handler(createRequest({
+      method: 'POST',
+      body: {
+        title: 'GitOps', roadmap_id: 1, level: 'advanced', duration: '2 semanas',
+        duration_weeks_min: 2, duration_weeks_max: 2
+      }
+    }), res)
+    expect(res.statusCode).toBe(201)
+    expect(db.run).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO modules'),
+      [1, 'GitOps', 'advanced', '2 semanas', 2, 2]
+    )
   })
 
   it('reads, updates and deletes modules', async () => {
@@ -382,7 +536,7 @@ describe('content API handlers', () => {
           description: 'Ruta aplicada',
           duration: '8 semanas',
           started_at: '2026-07-01T09:00:00.000Z',
-          last_activity_at: '2026-07-06T08:30:00.000Z',
+          last_activity_at: '2026-07-16T08:30:00.000Z',
           completed_at: null,
           completed_lessons_count: 3,
           time_spent_seconds: 4500,

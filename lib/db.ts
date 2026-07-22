@@ -6,6 +6,11 @@ import aiRoadmapSeed from './roadmapSeeds/aiRoadmapSeed.json'
 import awsRoadmapSeed from './roadmapSeeds/awsRoadmapSeed.json'
 import iaDevopsRoadmapSeed from './iaDevopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
+import {
+  normalizeModuleLevel,
+  parseDurationWeeks,
+  saveRoadmapMetadata
+} from './roadmapMetadata'
 
 type LearningResource = {
   label?: string
@@ -30,6 +35,8 @@ type ProjectSeed =
 
 type RoadmapSeed = {
   title: string
+  category?: string
+  topics?: string[]
   duration?: string
   description?: string
   positioning_goal?: string
@@ -83,6 +90,35 @@ type RoadmapSeed = {
 }
 
 const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, iaDevopsRoadmapSeed]
+
+const seedMetadata: Record<string, { category: string; topics: string[] }> = {
+  'Roadmap AWS gratuito para cantera junior DevOps': {
+    category: 'Cloud y DevOps',
+    topics: ['AWS', 'Cloud', 'DevOps', 'Terraform', 'Docker', 'CI/CD']
+  },
+  'Roadmap IA para SRE/DevOps - Versión 2.0': {
+    category: 'Inteligencia artificial',
+    topics: ['IA generativa', 'SRE', 'DevOps', 'MLOps', 'LLMOps', 'Cloud']
+  },
+  'IA para DevOps': {
+    category: 'Inteligencia artificial',
+    topics: ['IA generativa', 'DevOps', 'RAG', 'Agentes', 'MLOps', 'Cloud']
+  }
+}
+
+const iaModuleLevels = [
+  'beginner', 'intermediate', 'intermediate', 'intermediate', 'intermediate',
+  'intermediate', 'advanced', 'advanced', 'advanced', 'advanced', 'capstone'
+]
+
+const seedModuleLevels: Record<string, string[]> = {
+  'Roadmap AWS gratuito para cantera junior DevOps': [
+    'beginner', 'beginner', 'beginner', 'beginner', 'beginner', 'beginner',
+    'beginner', 'intermediate', 'intermediate', 'intermediate', 'capstone'
+  ],
+  'Roadmap IA para SRE/DevOps - Versión 2.0': iaModuleLevels,
+  'IA para DevOps': iaModuleLevels
+}
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
@@ -170,6 +206,18 @@ async function migrate(db: any) {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
 
+    CREATE TABLE IF NOT EXISTS roadmap_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS topics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS user_lesson_progress (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -240,6 +288,9 @@ async function migrate(db: any) {
   await ensureColumn(db, 'roadmaps', 'duration', 'TEXT')
   await ensureColumn(db, 'roadmaps', 'methodology', 'TEXT')
   await ensureColumn(db, 'roadmaps', 'evaluation_weights', 'TEXT')
+  await ensureColumn(db, 'roadmaps', 'category_id', 'INTEGER REFERENCES roadmap_categories(id) ON DELETE SET NULL')
+  await ensureColumn(db, 'roadmaps', 'duration_weeks_min', 'REAL')
+  await ensureColumn(db, 'roadmaps', 'duration_weeks_max', 'REAL')
 
   await ensureColumn(db, 'modules', 'position', 'INTEGER')
   await ensureColumn(db, 'modules', 'duration', 'TEXT')
@@ -251,8 +302,62 @@ async function migrate(db: any) {
   await ensureColumn(db, 'modules', 'practical_activity', 'TEXT')
   await ensureColumn(db, 'modules', 'deliverable_evidence', 'TEXT')
   await ensureColumn(db, 'modules', 'evaluation', 'TEXT')
+  await ensureColumn(db, 'modules', 'level', 'TEXT')
+  await ensureColumn(db, 'modules', 'duration_weeks_min', 'REAL')
+  await ensureColumn(db, 'modules', 'duration_weeks_max', 'REAL')
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS roadmap_topics (
+      roadmap_id INTEGER NOT NULL,
+      topic_id INTEGER NOT NULL,
+      PRIMARY KEY (roadmap_id, topic_id),
+      FOREIGN KEY (roadmap_id) REFERENCES roadmaps(id) ON DELETE CASCADE,
+      FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_roadmaps_category_id ON roadmaps(category_id);
+    CREATE INDEX IF NOT EXISTS idx_roadmaps_duration_weeks ON roadmaps(duration_weeks_min, duration_weeks_max);
+    CREATE INDEX IF NOT EXISTS idx_modules_level ON modules(level);
+    CREATE INDEX IF NOT EXISTS idx_modules_duration_weeks ON modules(duration_weeks_min, duration_weeks_max);
+    CREATE INDEX IF NOT EXISTS idx_roadmap_topics_topic_id ON roadmap_topics(topic_id);
+  `)
 
   await ensureColumn(db, 'users', 'is_active', 'INTEGER NOT NULL DEFAULT 1')
+
+  const modulesWithoutComparableDuration = await db.all(
+    `SELECT id, duration FROM modules
+     WHERE duration IS NOT NULL AND duration_weeks_min IS NULL AND duration_weeks_max IS NULL`
+  )
+  for (const moduleRow of modulesWithoutComparableDuration) {
+    const duration = parseDurationWeeks(moduleRow.duration)
+    if (duration.min !== null) {
+      await db.run(
+        'UPDATE modules SET duration_weeks_min = ?, duration_weeks_max = ? WHERE id = ?',
+        [duration.min, duration.max, moduleRow.id]
+      )
+    }
+  }
+
+  const roadmapsWithoutComparableDuration = await db.all(
+    `SELECT id, duration FROM roadmaps
+     WHERE duration_weeks_min IS NULL AND duration_weeks_max IS NULL`
+  )
+  for (const roadmapRow of roadmapsWithoutComparableDuration) {
+    const displayed = parseDurationWeeks(roadmapRow.duration)
+    const moduleTotals = await db.get(
+      `SELECT SUM(duration_weeks_min) AS min, SUM(duration_weeks_max) AS max
+       FROM modules WHERE roadmap_id = ?`,
+      [roadmapRow.id]
+    )
+    const min = displayed.min ?? moduleTotals?.min ?? null
+    const max = displayed.max ?? moduleTotals?.max ?? null
+    if (min !== null) {
+      await db.run(
+        'UPDATE roadmaps SET duration_weeks_min = ?, duration_weeks_max = ? WHERE id = ?',
+        [min, max, roadmapRow.id]
+      )
+    }
+  }
 }
 
 async function ensureColumn(db: any, table: string, column: string, definition: string) {
@@ -278,13 +383,29 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
     'Portfolio y documentación': '20%',
     'Credenciales y posicionamiento': '10%'
   }
+  const normalizedModules = seed.modules.map((moduleSeed, index) => normalizeModuleSeed(
+    moduleSeed,
+    index,
+    seedModuleLevels[seed.title]?.[index]
+  ))
+  const displayedDuration = seed.duration ?? (
+    seed.estimated_duration?.total_months ? `${seed.estimated_duration.total_months} meses` : null
+  )
+  const parsedRoadmapDuration = parseDurationWeeks(displayedDuration)
+  const moduleDuration = normalizedModules.reduce((total, module) => ({
+    min: total.min + (module.duration_weeks_min ?? 0),
+    max: total.max + (module.duration_weeks_max ?? 0)
+  }), { min: 0, max: 0 })
+  const durationWeeksMin = parsedRoadmapDuration.min ?? (moduleDuration.min || null)
+  const durationWeeksMax = parsedRoadmapDuration.max ?? (moduleDuration.max || null)
   const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [seed.title])
   let roadmapId = existing?.id
 
   if (roadmapId) {
     await db.run(
       `UPDATE roadmaps
-       SET description = ?, duration = ?, objectives = ?, methodology = ?, evaluation_weights = ?
+       SET description = ?, duration = ?, objectives = ?, methodology = ?, evaluation_weights = ?,
+           duration_weeks_min = ?, duration_weeks_max = ?
        WHERE id = ?`,
       [
         description,
@@ -292,27 +413,41 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
         JSON.stringify(objectives),
         JSON.stringify(methodology),
         JSON.stringify(evaluationWeights),
+        durationWeeksMin,
+        durationWeeksMax,
         roadmapId
       ]
     )
   } else {
     const result = await db.run(
-      `INSERT INTO roadmaps (title, description, duration, objectives, methodology, evaluation_weights)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO roadmaps (
+         title, description, duration, objectives, methodology, evaluation_weights,
+         duration_weeks_min, duration_weeks_max
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         seed.title,
         description,
         seed.duration ?? null,
         JSON.stringify(objectives),
         JSON.stringify(methodology),
-        JSON.stringify(evaluationWeights)
+        JSON.stringify(evaluationWeights),
+        durationWeeksMin,
+        durationWeeksMax
       ]
     )
     roadmapId = result.lastID
   }
 
+  const metadata = seedMetadata[seed.title]
+  await saveRoadmapMetadata(
+    db,
+    roadmapId,
+    seed.category ?? metadata?.category,
+    seed.topics ?? metadata?.topics ?? []
+  )
+
   for (const [index, moduleSeed] of seed.modules.entries()) {
-    const normalizedModule = normalizeModuleSeed(moduleSeed, index)
+    const normalizedModule = normalizedModules[index]
     const deliverableEvidence = moduleSeed.deliverable_evidence ?? moduleSeed.deliverable ?? null
     const moduleRow = await db.get(
       'SELECT id FROM modules WHERE roadmap_id = ? AND (position = ? OR title = ?)',
@@ -324,6 +459,9 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
       normalizedModule.position,
       normalizedModule.title,
       normalizedModule.duration,
+      normalizedModule.duration_weeks_min,
+      normalizedModule.duration_weeks_max,
+      normalizedModule.level,
       normalizedModule.objective,
       JSON.stringify(normalizedModule.contents),
       normalizedModule.importance,
@@ -337,7 +475,8 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
     if (moduleRow?.id) {
       await db.run(
         `UPDATE modules
-         SET roadmap_id = ?, position = ?, title = ?, duration = ?, objective = ?, contents = ?,
+         SET roadmap_id = ?, position = ?, title = ?, duration = ?,
+             duration_weeks_min = ?, duration_weeks_max = ?, level = ?, objective = ?, contents = ?,
              importance = ?, official_resources = ?, support_videos = ?, practical_activity = ?,
              deliverable_evidence = ?, evaluation = ?
          WHERE id = ?`,
@@ -346,9 +485,10 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
     } else {
       await db.run(
         `INSERT INTO modules (
-          roadmap_id, position, title, duration, objective, contents, importance,
+          roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max, level,
+          objective, contents, importance,
           official_resources, support_videos, practical_activity, deliverable_evidence, evaluation
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         values
       )
     }
@@ -387,7 +527,11 @@ function normalizeRoadmapMethodology(seed: RoadmapSeed) {
   ].filter((item): item is string => Boolean(item))
 }
 
-function normalizeModuleSeed(moduleSeed: RoadmapSeed['modules'][number], index: number) {
+function normalizeModuleSeed(
+  moduleSeed: RoadmapSeed['modules'][number],
+  index: number,
+  defaultLevel?: string
+) {
   const project = moduleSeed.project ?? moduleSeed.portfolio_projects
   const resources = moduleSeed.resources ?? []
   const officialResources = moduleSeed.official_resources ?? resources
@@ -397,12 +541,20 @@ function normalizeModuleSeed(moduleSeed: RoadmapSeed['modules'][number], index: 
     .filter(resource => resource.type === 'linkedin_learning' || resource.type === 'udemy_business_search')
     .map(toLearningLink)
 
+  const duration = moduleSeed.duration ?? (
+    moduleSeed.duration_weeks ? `${moduleSeed.duration_weeks} ${moduleSeed.duration_weeks === 1 ? 'semana' : 'semanas'}` : null
+  )
+  const durationWeeks = moduleSeed.duration_weeks
+    ? { min: moduleSeed.duration_weeks, max: moduleSeed.duration_weeks }
+    : parseDurationWeeks(duration)
+
   return {
     position: moduleSeed.position ?? index,
     title: moduleSeed.title,
-    duration: moduleSeed.duration ?? (
-      moduleSeed.duration_weeks ? `${moduleSeed.duration_weeks} ${moduleSeed.duration_weeks === 1 ? 'semana' : 'semanas'}` : null
-    ),
+    duration,
+    duration_weeks_min: durationWeeks.min,
+    duration_weeks_max: durationWeeks.max,
+    level: normalizeModuleLevel(moduleSeed.level) ?? normalizeModuleLevel(defaultLevel),
     objective: moduleSeed.objective ?? moduleSeed.goal ?? null,
     contents: moduleSeed.contents ?? moduleSeed.topics ?? normalizeProjectTopics(project),
     importance: moduleSeed.importance ?? moduleSeed.importance_for_sre_devops ?? normalizeProjectDescription(project),

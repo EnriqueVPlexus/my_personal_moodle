@@ -20,6 +20,30 @@ import {
   validatePassword,
   verifyPassword
 } from '../lib/password'
+import {
+  normalizeDurationRange,
+  normalizeMetadataKey,
+  normalizeModuleLevel,
+  normalizeTopics,
+  parseDurationWeeks
+} from '../lib/roadmapMetadata'
+
+describe('roadmap metadata helpers', () => {
+  it('normalizes categories, topics and stable module levels', () => {
+    expect(normalizeMetadataKey(' Inteligencia Artificial ')).toBe('inteligencia-artificial')
+    expect(normalizeTopics('AWS, DevOps, aws, CI/CD')).toEqual(['AWS', 'DevOps', 'CI/CD'])
+    expect(normalizeModuleLevel('beginner-intermediate')).toBe('intermediate')
+    expect(normalizeModuleLevel('expert')).toBeNull()
+  })
+
+  it('turns displayed durations into comparable week ranges and validates manual ranges', () => {
+    expect(parseDurationWeeks('1 o 2 semanas')).toEqual({ min: 1, max: 2 })
+    expect(parseDurationWeeks('6 meses (5-8 h/semana)')).toEqual({ min: 24, max: 24 })
+    expect(parseDurationWeeks('por definir')).toEqual({ min: null, max: null })
+    expect(normalizeDurationRange('2', '4')).toEqual({ min: 2, max: 4 })
+    expect(normalizeDurationRange('5', '2')).toBeNull()
+  })
+})
 
 describe('password helpers', () => {
   it('normalizes email and validates password policy', () => {

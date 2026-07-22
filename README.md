@@ -94,6 +94,7 @@ Lecturas públicas por defecto:
 
 - `GET /api/roadmaps`
 - `GET /api/roadmaps/:id`
+- `GET /api/roadmaps/metadata` (categorias, temas, niveles y rango de duracion disponibles)
 - `GET /api/modules`
 - `GET /api/modules?roadmap_id=1`
 - `GET /api/modules/:id`

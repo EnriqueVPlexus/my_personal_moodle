@@ -13,6 +13,9 @@ export type LearningModule = {
   position?: number | null
   title: string
   duration?: string | null
+  duration_weeks_min?: number | null
+  duration_weeks_max?: number | null
+  level?: 'beginner' | 'intermediate' | 'advanced' | 'capstone' | null
   objective?: string | null
   contents?: unknown
   importance?: string | null

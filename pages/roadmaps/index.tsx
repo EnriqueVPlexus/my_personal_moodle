@@ -13,6 +13,8 @@ type Roadmap = {
   title: string
   description?: string
   module_count?: number
+  category?: { key: string; label: string } | null
+  topics?: Array<{ key: string; label: string }>
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -209,7 +211,13 @@ export default function RoadmapsPage() {
               {roadmaps.length > 0 ? (
                 roadmaps.map(r => (
                   <Link key={r.id} href={`/roadmaps/${r.id}`} className="block">
-                    <RoadmapCard title={r.title} description={r.description} moduleCount={r.module_count} />
+                    <RoadmapCard
+                      title={r.title}
+                      description={r.description}
+                      moduleCount={r.module_count}
+                      category={r.category?.label}
+                      topics={r.topics?.map(topic => topic.label)}
+                    />
                   </Link>
                 ))
               ) : (

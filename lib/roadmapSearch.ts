@@ -3,7 +3,10 @@ export const MAX_ROADMAP_SEARCH_QUERY_LENGTH = 100
 export const ROADMAP_CATALOG_SEARCH_SQL = `
   SELECT
     roadmaps.*,
+    roadmap_categories.key AS category_key,
+    roadmap_categories.label AS category_label,
     COUNT(DISTINCT modules.id) AS module_count,
+    GROUP_CONCAT(DISTINCT topics.key || char(31) || topics.label) AS topics_metadata,
     COALESCE(GROUP_CONCAT(
       COALESCE(modules.title, '') || ' ' ||
       COALESCE(modules.objective, '') || ' ' ||
@@ -11,7 +14,10 @@ export const ROADMAP_CATALOG_SEARCH_SQL = `
       ' '
     ), '') AS module_search_text
   FROM roadmaps
+  LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
   LEFT JOIN modules ON modules.roadmap_id = roadmaps.id
+  LEFT JOIN roadmap_topics ON roadmap_topics.roadmap_id = roadmaps.id
+  LEFT JOIN topics ON topics.id = roadmap_topics.topic_id
   GROUP BY roadmaps.id
   ORDER BY roadmaps.id DESC
 `
@@ -30,6 +36,9 @@ type RoadmapSearchRow = {
   objectives?: string | null
   methodology?: string | null
   module_search_text?: string | null
+  category_key?: string | null
+  category_label?: string | null
+  topics_metadata?: string | null
   [key: string]: unknown
 }
 
@@ -91,8 +100,24 @@ function searchScore(row: RoadmapSearchRow, search: RoadmapSearchQuery) {
 }
 
 function toPublicRoadmap(row: RoadmapSearchRow) {
-  const roadmap = { ...row }
+  const roadmap: Record<string, unknown> = {
+    ...row,
+    category: row.category_key && row.category_label
+      ? { key: row.category_key, label: row.category_label }
+      : null,
+    topics: String(row.topics_metadata ?? '')
+      .split(',')
+      .filter(Boolean)
+      .map(value => {
+        const [key, label] = value.split('\u001f')
+        return { key, label }
+      })
+      .sort((first, second) => first.label.localeCompare(second.label, 'es', { sensitivity: 'base' }))
+  }
   delete roadmap.module_search_text
+  delete roadmap.category_key
+  delete roadmap.category_label
+  delete roadmap.topics_metadata
   return roadmap
 }
 

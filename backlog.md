@@ -260,7 +260,7 @@ Hecho cuando:
 
 ### [ ] Buscador y filtros
 
-Estado: en curso. Fases 1 y 2 completadas; fases 3 a 5 pendientes.
+Estado: en curso. Fases 1 a 3 completadas; fases 4 y 5 pendientes.
 
 Valor: prepara la aplicacion para crecer sin perder usabilidad.
 
@@ -325,9 +325,11 @@ Hecho cuando:
 - La UI no parpadea ni muestra resultados antiguos durante escritura rapida.
 - Teclado y lectores de pantalla pueden identificar busqueda, estado y resultados.
 
-#### [ ] Fase 3. Metadatos fiables para filtros
+#### [x] Fase 3. Metadatos fiables para filtros
 
-Estado: pendiente.
+Estado: hecho. Los roadmaps tienen categoria y topics normalizados, los modulos
+usan niveles estables y tanto modulos como roadmaps guardan limites de duracion
+en semanas. La API publica las facetas disponibles desde los datos persistidos.
 
 Tareas:
 

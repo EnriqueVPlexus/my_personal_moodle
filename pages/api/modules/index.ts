@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { requireAdmin, requireReadAccess } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -23,9 +24,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, roadmap_id } = req.body
+    const { title, roadmap_id, level, duration, duration_weeks_min, duration_weeks_max } = req.body
     if (!title || !roadmap_id) return res.status(400).json({ error: 'title and roadmap_id required' })
-    const result = await db.run('INSERT INTO modules (roadmap_id, title) VALUES (?, ?)', [roadmap_id, title])
+    const normalizedLevel = normalizeModuleLevel(level)
+    if (level && !normalizedLevel) return res.status(400).json({ error: 'invalid module level' })
+    const hasManualDuration = duration_weeks_min !== undefined || duration_weeks_max !== undefined
+    const durationRange = hasManualDuration
+      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
+      : parseDurationWeeks(duration)
+    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
+    const result = await db.run(
+      `INSERT INTO modules (
+         roadmap_id, title, level, duration, duration_weeks_min, duration_weeks_max
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [roadmap_id, title, normalizedLevel, duration || null, durationRange.min, durationRange.max]
+    )
     const row = await db.get('SELECT * FROM modules WHERE id = ?', [result.lastID])
     await writeAuditLog({
       db,
@@ -34,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'module.create',
       entityType: 'module',
       entityId: result.lastID,
-      details: { title, roadmap_id }
+      details: { title, roadmap_id, level: normalizedLevel }
     })
     return res.status(201).json(row)
   }
