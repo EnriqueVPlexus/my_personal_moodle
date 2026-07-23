@@ -13,6 +13,7 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 - Página individual de módulo con lecciones y estado de completado.
 - Modo lectura para usuarios normales.
 - Panel admin para crear roadmaps, módulos, lecciones y usuarios.
+- Dashboard admin con actividad, adopción, finalización y usuarios sin actividad reciente.
 - Evidencias de portfolio por usuario y módulo, con consulta para administración.
 - Control admin para permitir que un usuario vea todos los roadmaps o solo una selección.
 - Activación, desactivación y reseteo de contraseña de usuarios.
@@ -89,7 +90,7 @@ Notas:
 - `/modules/[id]`: detalle de módulo y lecciones.
 - `/login`: login.
 - `/setup`: creación del primer admin.
-- `/admin/users`: gestión de usuarios.
+- `/admin`: dashboard de actividad formativa.
 - `/admin/users`: gestión de usuarios y acceso por roadmap.
 - `/admin/evidences`: consulta de evidencias entregadas por los usuarios.
 - `/admin/audit`: auditoría admin.
@@ -127,6 +128,7 @@ Operaciones admin:
 - `POST /api/users`
 - `PATCH /api/users/:id`
 - `GET /api/audit-logs`
+- `GET /api/admin/dashboard`
 
 `PATCH /api/users/:id` acepta `action: "set_roadmap_access"` para cambiar entre acceso a todos los roadmaps y una lista concreta de `roadmap_ids`.
 

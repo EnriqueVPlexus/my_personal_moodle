@@ -454,24 +454,6 @@ Notas de implementacion:
 - El panel admin permite consultar la evidencia con su usuario, roadmap,
   modulo y fecha de actualizacion.
 
-### [ ] Preparacion para despliegue
-
-Estado: pendiente.
-
-Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
-
-Alcance inicial:
-
-- Sustituir SQLite local por una base de datos apta para hosting gestionado.
-- Endurecer credenciales y configuracion de produccion.
-- Documentar deploy automatizado con GitHub.
-
-Hecho cuando:
-
-- La app se puede desplegar fuera de local sin perder datos.
-- Existe una guia de despliegue reproducible.
-- La contraseña admin por defecto deja de ser un riesgo.
-
 ## Prioridad media
 
 ### [ ] Quizzes reales por modulo
@@ -509,9 +491,9 @@ Hecho cuando:
 - Un roadmap puede actualizarse sin borrar contexto anterior.
 - El usuario distingue claramente la version activa.
 
-### [ ] Dashboard admin
+### [x] Dashboard admin
 
-Estado: pendiente.
+Estado: completado.
 
 Valor: da visibilidad del uso real y ayuda a priorizar mejoras.
 
@@ -526,6 +508,16 @@ Hecho cuando:
 
 - El panel muestra datos utiles de un vistazo.
 - No depende de consultas fragiles o lentas.
+
+Notas de implementacion:
+
+- El resumen muestra usuarios activos en 30 dias, roadmaps iniciados y
+  completados, evidencias y usuarios sin actividad.
+- La finalizacion se recalcula contra las lecciones actuales para evitar
+  estadisticas obsoletas cuando cambia el contenido.
+- Los rankings muestran roadmaps mas usados y modulos mas completados.
+- El seguimiento identifica roadmaps incompletos sin actividad durante
+  14 dias o mas.
 
 ### [ ] Guia de Google Skills badges
 
@@ -564,6 +556,26 @@ Estado: idea.
 
 Valor: puede ayudar a la continuidad, aunque no es prioritario
 mientras falte progreso por usuario.
+
+## Ultimo paso: preparacion para despliegue
+
+### [ ] Preparacion para despliegue
+
+Estado: pendiente. Se abordara cuando el resto de funcionalidades este cerrado.
+
+Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
+
+Alcance inicial:
+
+- Sustituir SQLite local por una base de datos apta para hosting gestionado.
+- Endurecer credenciales y configuracion de produccion.
+- Documentar deploy automatizado con GitHub.
+
+Hecho cuando:
+
+- La app se puede desplegar fuera de local sin perder datos.
+- Existe una guia de despliegue reproducible.
+- La contraseña admin por defecto deja de ser un riesgo.
 
 ## Notas de producto
 

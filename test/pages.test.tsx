@@ -813,4 +813,115 @@ describe('Next pages', () => {
     render(<UnauthorizedEvidencesPage />)
     expect(screen.getByText('Necesitas una cuenta admin para consultar evidencias.')).toBeInTheDocument()
   })
+
+  it('renders the admin dashboard with activity and stalled learners', async () => {
+    setRouter('/admin')
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      generated_at: '2026-07-23T12:00:00.000Z',
+      active_window_days: 30,
+      paused_after_days: 14,
+      overview: {
+        total_users: 8,
+        active_users: 5,
+        started_roadmaps: 12,
+        completed_roadmaps: 3,
+        submitted_evidences: 6,
+        stalled_users: 1
+      },
+      popular_roadmaps: [
+        {
+          roadmap_id: 10,
+          title: 'DevOps Junior',
+          learners_count: 6,
+          active_learners_count: 4,
+          completed_learners_count: 2
+        }
+      ],
+      completed_modules: [
+        {
+          module_id: 100,
+          title: 'CI/CD',
+          roadmap_id: 10,
+          roadmap_title: 'DevOps Junior',
+          total_lessons: 3,
+          learners_count: 5,
+          completed_learners_count: 4
+        }
+      ],
+      stalled_learners: [
+        {
+          user_id: 2,
+          email: 'user@example.com',
+          name: 'Ada',
+          roadmap_id: 10,
+          roadmap_title: 'DevOps Junior',
+          current_module_title: 'Docker',
+          completed_lessons_count: 2,
+          total_lessons: 8,
+          progress_percentage: 25,
+          last_activity_at: '2026-06-20T10:00:00.000Z',
+          inactivity_days: 33
+        }
+      ]
+    }))
+
+    const DashboardPage = (await import('../pages/admin/index')).default
+    render(<DashboardPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByText('Roadmaps más usados')).toBeInTheDocument()
+    expect(screen.getByText('Módulos más completados')).toBeInTheDocument()
+    expect(screen.getByText('Usuarios sin actividad reciente')).toBeInTheDocument()
+    expect(screen.getAllByText(/DevOps Junior/).length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByText('Ada')).toBeInTheDocument()
+    expect(screen.getByText('33 días')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'CI/CD' })).toHaveAttribute('href', '/modules/100')
+
+    cleanup()
+    vi.resetModules()
+    mockAuth()
+    const UnauthorizedDashboardPage = (await import('../pages/admin/index')).default
+    render(<UnauthorizedDashboardPage />)
+    expect(screen.getByText('Necesitas una cuenta admin para consultar el dashboard.')).toBeInTheDocument()
+  })
+
+  it('handles dashboard loading, API errors and empty metrics', async () => {
+    setRouter('/admin')
+    mockAuth({ loading: true })
+    const LoadingDashboardPage = (await import('../pages/admin/index')).default
+    render(<LoadingDashboardPage />)
+    expect(screen.getByText('Comprobando permisos...')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'dashboard unavailable' }, 500))
+      .mockResolvedValueOnce(jsonResponse({
+        generated_at: '2026-07-23T12:00:00.000Z',
+        active_window_days: 30,
+        paused_after_days: 14,
+        overview: {
+          total_users: 0,
+          active_users: 0,
+          started_roadmaps: 0,
+          completed_roadmaps: 0,
+          submitted_evidences: 0,
+          stalled_users: 0
+        },
+        popular_roadmaps: [],
+        completed_modules: [],
+        stalled_learners: []
+      }))
+
+    const DashboardPage = (await import('../pages/admin/index')).default
+    render(<DashboardPage />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('dashboard unavailable')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByText('Todavía no hay roadmaps iniciados.')).toBeInTheDocument()
+    expect(screen.getByText('Todavía no hay módulos completados.')).toBeInTheDocument()
+    expect(screen.getByText('No hay usuarios con roadmaps pausados.')).toBeInTheDocument()
+  })
 })

@@ -201,6 +201,7 @@ describe('auth provider and header', () => {
 
     expect(await screen.findByText(/admin@example.com/)).toBeInTheDocument()
     expect(screen.getByText('Mi progreso')).toBeInTheDocument()
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Usuarios')).toBeInTheDocument()
     expect(screen.getByText('Evidencias')).toBeInTheDocument()
     expect(screen.getByText('Importar JSON')).toBeInTheDocument()
