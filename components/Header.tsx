@@ -5,9 +5,9 @@ import { useRouter } from 'next/router'
 import { useAuth } from './AuthProvider'
 import { branding } from '../lib/branding'
 
-function NavLink({ href, children }: { href: string; children: ReactNode }) {
+function NavLink({ href, children, exact = false }: { href: string; children: ReactNode; exact?: boolean }) {
   const router = useRouter()
-  const active = router.pathname === href || router.pathname.startsWith(`${href}/`)
+  const active = router.pathname === href || (!exact && router.pathname.startsWith(`${href}/`))
 
   return (
     <Link
@@ -54,7 +54,10 @@ export default function Header() {
           {user && <NavLink href="/my-roadmaps">Mi progreso</NavLink>}
           {isAdmin && (
             <>
+              <NavLink href="/admin" exact>Dashboard</NavLink>
               <NavLink href="/admin/users">Usuarios</NavLink>
+              <NavLink href="/admin/evidences">Evidencias</NavLink>
+              <NavLink href="/admin/import-roadmap">Importar JSON</NavLink>
               <NavLink href="/admin/audit">Auditoría</NavLink>
             </>
           )}

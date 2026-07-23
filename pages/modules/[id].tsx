@@ -3,6 +3,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import LessonForm from '../../components/LessonForm'
+import ModuleEvidencePanel, { ModuleEvidence } from '../../components/ModuleEvidencePanel'
 import ModuleLearningContent from '../../components/ModuleLearningContent'
 import { useAuth } from '../../components/AuthProvider'
 import { LearningModule } from '../../lib/roadmapPresentation'
@@ -122,6 +123,7 @@ export default function ModulePage() {
   const { isAdmin, user } = useAuth()
   const [module, setModule] = useState<ModuleDetail | null>(null)
   const [lessons, setLessons] = useState<LessonWithProgress[]>([])
+  const [evidence, setEvidence] = useState<ModuleEvidence | null>(null)
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
   const [quizError, setQuizError] = useState('')
@@ -147,6 +149,15 @@ export default function ModulePage() {
       const data = await res.json()
       setModule(data)
       setLessons(data.lessons || [])
+      if (user) {
+        const evidenceRes = await fetch(`/api/evidences/modules/${id}`)
+        if (evidenceRes.ok) {
+          const evidenceData = await evidenceRes.json()
+          setEvidence(evidenceData.evidence || null)
+        }
+      } else {
+        setEvidence(null)
+      }
       setQuizAnswers({})
       setQuizResult(null)
       setQuizError('')
@@ -155,7 +166,7 @@ export default function ModulePage() {
     } catch {
       setLoadError('No se pudo conectar con el servidor.')
     }
-  }, [id, router])
+  }, [id, router, user])
 
   useEffect(() => { load() }, [load])
 
@@ -353,6 +364,21 @@ export default function ModulePage() {
             <p className="mt-4 text-sm text-slate-500">Inicia sesión para guardar tu progreso en las lecciones.</p>
           )}
         </section>
+
+        {user ? (
+          <ModuleEvidencePanel
+            moduleId={Number(module.id)}
+            evidence={evidence}
+            onChange={setEvidence}
+          />
+        ) : (
+          <section className="panel mt-6 p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Evidencia y portfolio</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Inicia sesión para registrar el entregable de este módulo.
+            </p>
+          </section>
+        )}
 
         {quiz && quiz.questions.length > 0 && (
           <section className="panel mt-6 p-5">

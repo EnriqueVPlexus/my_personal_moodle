@@ -36,6 +36,7 @@ type RoadmapProgress = {
 
 type RoadmapModule = LearningModule & {
   progress?: ModuleProgress | null
+  has_evidence?: number | boolean
 }
 
 type RoadmapDetail = {
@@ -131,7 +132,7 @@ function moduleLevelLabel(level: LearningModule['level']) {
 export default function RoadmapDetailPage() {
   const router = useRouter()
   const { id } = router.query
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null)
   const [openModuleKeys, setOpenModuleKeys] = useState<Set<string>>(new Set())
 
@@ -336,6 +337,15 @@ export default function RoadmapDetailPage() {
                           {module.progress && (
                             <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${moduleStatusClass(module.progress.status)}`}>
                               {moduleStatusLabel(module.progress.status)}
+                            </span>
+                          )}
+                          {user && (
+                            <span className={`ml-2 inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${
+                              module.has_evidence
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              {module.has_evidence ? 'Con evidencia' : 'Solo lectura'}
                             </span>
                           )}
                           <h3 className="text-lg font-semibold text-slate-950">{module.title}</h3>

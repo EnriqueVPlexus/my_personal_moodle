@@ -144,6 +144,7 @@ describe('Next pages', () => {
           title: 'EC2',
           duration: '1 o 2 semanas',
           objective: 'Deploy compute',
+          has_evidence: 1,
           contents: '["AMI","Security groups"]',
           importance: 'Base operativa',
           official_resources: '[{"label":"Amazon EC2","url":"https://aws.amazon.com/ec2/"}]',
@@ -189,6 +190,8 @@ describe('Next pages', () => {
     expect(screen.getByText('Launch AWS')).toBeInTheDocument()
     expect(screen.getByText('Tu progreso en este roadmap')).toBeInTheDocument()
     expect(screen.getByText('Continuar con Instance review')).toBeInTheDocument()
+    expect(screen.getByText('Con evidencia')).toBeInTheDocument()
+    expect(screen.getByText('Solo lectura')).toBeInTheDocument()
     expect(screen.getByText((_content, element) => (
       element?.tagName.toLowerCase() === 'p' &&
       Boolean(element.textContent?.includes('1/3 lecciones completadas'))
@@ -708,5 +711,217 @@ describe('Next pages', () => {
     const UnauthorizedAuditPage = (await import('../pages/admin/audit')).default
     render(<UnauthorizedAuditPage />)
     expect(screen.getByText('Necesitas una cuenta admin para consultar auditoría.')).toBeInTheDocument()
+  })
+
+  it('previews and publishes a roadmap from pasted JSON', async () => {
+    setRouter('/admin/import-roadmap')
+    mockAuth({ user: adminUser, isAdmin: true })
+    const normalized = {
+      title: 'Roadmap de ejemplo',
+      description: 'Ruta importada manualmente desde JSON.',
+      duration: '2 semanas',
+      category: 'Desarrollo',
+      topics: ['TypeScript', 'Testing'],
+      modules: [{ position: 0, title: 'Fundamentos', duration: '2 semanas' }]
+    }
+    const fetchMock = vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ roadmap: normalized, existing: null }))
+      .mockResolvedValueOnce(jsonResponse({ roadmap_id: 42, created_modules: 1, updated_modules: 0 }, 201))
+    const ImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<ImportPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar ejemplo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
+
+    expect(await screen.findByText('Vista previa válida')).toBeInTheDocument()
+    expect(screen.getByText('El título es nuevo. Se creará un roadmap.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar roadmap' }))
+    expect(await screen.findByText('Roadmap importado correctamente')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir roadmap' })).toHaveAttribute('href', '/roadmaps/42')
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/roadmaps/import', expect.objectContaining({
+      method: 'POST', body: expect.stringContaining('"strategy":"create"')
+    }))
+  })
+
+  it('shows import guards and readable JSON and server errors', async () => {
+    setRouter('/admin/import-roadmap')
+    mockAuth({ loading: true })
+    const LoadingImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<LoadingImportPage />)
+    expect(screen.getByText('Comprobando permisos...')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    mockAuth()
+    const UnauthorizedImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<UnauthorizedImportPage />)
+    expect(screen.getByText('Necesitas una cuenta admin para importar roadmaps.')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    mockAuth({ user: adminUser, isAdmin: true })
+    const ImportPage = (await import('../pages/admin/import-roadmap')).default
+    render(<ImportPage />)
+    fireEvent.change(screen.getByLabelText('Contenido JSON'), { target: { value: '{bad' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('No se puede leer el JSON')
+
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      error: 'El roadmap contiene errores.',
+      issues: [{ path: 'modules', message: 'Debe incluir al menos un módulo.' }]
+    }, 400))
+    fireEvent.change(screen.getByLabelText('Contenido JSON'), { target: { value: '{"title":"Ruta"}' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
+    expect(await screen.findByText('Errores que debes corregir')).toBeInTheDocument()
+    expect(screen.getByText(/Debe incluir al menos un módulo/)).toBeInTheDocument()
+  })
+
+  it('lets admins consult submitted module evidence', async () => {
+    setRouter('/admin/evidences')
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse([
+      {
+        id: 3,
+        evidence_type: 'github',
+        url: 'https://github.com/example/project',
+        note: 'Incluye pipeline y documentación.',
+        updated_at: '2026-07-20T10:00:00.000Z',
+        user_email: 'user@example.com',
+        user_name: 'Ada',
+        module_id: 7,
+        module_title: 'CI/CD',
+        roadmap_title: 'DevOps Junior'
+      }
+    ]))
+
+    const EvidencesPage = (await import('../pages/admin/evidences')).default
+    render(<EvidencesPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Evidencias entregadas' })).toBeInTheDocument()
+    expect(screen.getByText('CI/CD')).toBeInTheDocument()
+    expect(screen.getByText('Ada · user@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir evidencia' })).toHaveAttribute(
+      'href',
+      'https://github.com/example/project'
+    )
+    expect(screen.getByRole('link', { name: 'Ver módulo' })).toHaveAttribute('href', '/modules/7')
+
+    cleanup()
+    vi.resetModules()
+    mockAuth()
+    const UnauthorizedEvidencesPage = (await import('../pages/admin/evidences')).default
+    render(<UnauthorizedEvidencesPage />)
+    expect(screen.getByText('Necesitas una cuenta admin para consultar evidencias.')).toBeInTheDocument()
+  })
+
+  it('renders the admin dashboard with activity and stalled learners', async () => {
+    setRouter('/admin')
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      generated_at: '2026-07-23T12:00:00.000Z',
+      active_window_days: 30,
+      paused_after_days: 14,
+      overview: {
+        total_users: 8,
+        active_users: 5,
+        started_roadmaps: 12,
+        completed_roadmaps: 3,
+        submitted_evidences: 6,
+        stalled_users: 1
+      },
+      popular_roadmaps: [
+        {
+          roadmap_id: 10,
+          title: 'DevOps Junior',
+          learners_count: 6,
+          active_learners_count: 4,
+          completed_learners_count: 2
+        }
+      ],
+      completed_modules: [
+        {
+          module_id: 100,
+          title: 'CI/CD',
+          roadmap_id: 10,
+          roadmap_title: 'DevOps Junior',
+          total_lessons: 3,
+          learners_count: 5,
+          completed_learners_count: 4
+        }
+      ],
+      stalled_learners: [
+        {
+          user_id: 2,
+          email: 'user@example.com',
+          name: 'Ada',
+          roadmap_id: 10,
+          roadmap_title: 'DevOps Junior',
+          current_module_title: 'Docker',
+          completed_lessons_count: 2,
+          total_lessons: 8,
+          progress_percentage: 25,
+          last_activity_at: '2026-06-20T10:00:00.000Z',
+          inactivity_days: 33
+        }
+      ]
+    }))
+
+    const DashboardPage = (await import('../pages/admin/index')).default
+    render(<DashboardPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByText('Roadmaps más usados')).toBeInTheDocument()
+    expect(screen.getByText('Módulos más completados')).toBeInTheDocument()
+    expect(screen.getByText('Usuarios sin actividad reciente')).toBeInTheDocument()
+    expect(screen.getAllByText(/DevOps Junior/).length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByText('Ada')).toBeInTheDocument()
+    expect(screen.getByText('33 días')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'CI/CD' })).toHaveAttribute('href', '/modules/100')
+
+    cleanup()
+    vi.resetModules()
+    mockAuth()
+    const UnauthorizedDashboardPage = (await import('../pages/admin/index')).default
+    render(<UnauthorizedDashboardPage />)
+    expect(screen.getByText('Necesitas una cuenta admin para consultar el dashboard.')).toBeInTheDocument()
+  })
+
+  it('handles dashboard loading, API errors and empty metrics', async () => {
+    setRouter('/admin')
+    mockAuth({ loading: true })
+    const LoadingDashboardPage = (await import('../pages/admin/index')).default
+    render(<LoadingDashboardPage />)
+    expect(screen.getByText('Comprobando permisos...')).toBeInTheDocument()
+
+    cleanup()
+    vi.resetModules()
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'dashboard unavailable' }, 500))
+      .mockResolvedValueOnce(jsonResponse({
+        generated_at: '2026-07-23T12:00:00.000Z',
+        active_window_days: 30,
+        paused_after_days: 14,
+        overview: {
+          total_users: 0,
+          active_users: 0,
+          started_roadmaps: 0,
+          completed_roadmaps: 0,
+          submitted_evidences: 0,
+          stalled_users: 0
+        },
+        popular_roadmaps: [],
+        completed_modules: [],
+        stalled_learners: []
+      }))
+
+    const DashboardPage = (await import('../pages/admin/index')).default
+    render(<DashboardPage />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('dashboard unavailable')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByText('Todavía no hay roadmaps iniciados.')).toBeInTheDocument()
+    expect(screen.getByText('Todavía no hay módulos completados.')).toBeInTheDocument()
+    expect(screen.getByText('No hay usuarios con roadmaps pausados.')).toBeInTheDocument()
   })
 })

@@ -13,9 +13,12 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 - Página individual de módulo con lecciones y estado de completado.
 - Modo lectura para usuarios normales.
 - Panel admin para crear roadmaps, módulos, lecciones y usuarios.
+- Dashboard admin con actividad, adopción, finalización y usuarios sin actividad reciente.
+- Evidencias de portfolio por usuario y módulo, con consulta para administración.
 - Control admin para permitir que un usuario vea todos los roadmaps o solo una selección.
 - Activación, desactivación y reseteo de contraseña de usuarios.
 - Auditoría de acciones sensibles.
+- Importación manual de roadmaps JSON con validación y vista previa.
 - Setup guiado para crear el primer admin.
 
 ## Stack
@@ -87,9 +90,11 @@ Notas:
 - `/modules/[id]`: detalle de módulo y lecciones.
 - `/login`: login.
 - `/setup`: creación del primer admin.
-- `/admin/users`: gestión de usuarios.
+- `/admin`: dashboard de actividad formativa.
 - `/admin/users`: gestión de usuarios y acceso por roadmap.
+- `/admin/evidences`: consulta de evidencias entregadas por los usuarios.
 - `/admin/audit`: auditoría admin.
+- `/admin/import-roadmap`: importación y actualización controlada de roadmaps JSON.
 
 ## API
 
@@ -108,6 +113,9 @@ Lecturas públicas por defecto:
 Operaciones admin:
 
 - `POST /api/roadmaps`
+- `POST /api/roadmaps/import` (`preview` o `publish`, solo admin)
+- `GET /api/evidences` (consulta admin, con filtros opcionales por usuario, roadmap o módulo)
+- `GET|PUT|DELETE /api/evidences/modules/:id` (evidencia propia del usuario autenticado)
 - `PUT /api/roadmaps/:id`
 - `DELETE /api/roadmaps/:id`
 - `POST /api/modules`
@@ -120,6 +128,7 @@ Operaciones admin:
 - `POST /api/users`
 - `PATCH /api/users/:id`
 - `GET /api/audit-logs`
+- `GET /api/admin/dashboard`
 
 `PATCH /api/users/:id` acepta `action: "set_roadmap_access"` para cambiar entre acceso a todos los roadmaps y una lista concreta de `roadmap_ids`.
 
@@ -132,6 +141,11 @@ Autenticación:
 - `POST /api/auth/logout`
 
 Las guías rápidas con `curl` para módulos y lecciones están en `test/modules_api.md` y `test/lessons_api.md`.
+
+El importador acepta un objeto con `title`, `modules` y, opcionalmente, `description`, `duration`,
+`category`, `topics`, `objectives`, `methodology` y `evaluation_weights`. Cada módulo requiere `title`
+y puede incluir `position`, `level`, duración, contenidos, recursos, actividad, evidencia y evaluación.
+Al actualizar se conservan los módulos no incluidos y el progreso ya registrado.
 
 ## Seguridad
 

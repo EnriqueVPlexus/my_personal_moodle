@@ -40,10 +40,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const progress = user
       ? await getRoadmapDetailProgress(db, user.id, roadmap.id)
       : null
-    const modules = await db.all(
-      'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
-      [id]
-    )
+    const modules = user
+      ? await db.all(
+        `SELECT modules.*,
+                EXISTS (
+                  SELECT 1 FROM user_module_evidences
+                  WHERE user_module_evidences.module_id = modules.id
+                    AND user_module_evidences.user_id = ?
+                ) AS has_evidence
+         FROM modules
+         WHERE modules.roadmap_id = ?
+         ORDER BY COALESCE(modules.position, modules.id), modules.id`,
+        [user.id, id]
+      )
+      : await db.all(
+        'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
+        [id]
+      )
     const modulesWithProgress = progress
       ? modules.map((module: any) => ({
         ...module,

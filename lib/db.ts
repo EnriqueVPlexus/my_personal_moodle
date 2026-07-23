@@ -304,6 +304,24 @@ async function migrate(db: any) {
     CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_roadmap_id ON user_quiz_attempts(roadmap_id);
     CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_module_id ON user_quiz_attempts(module_id);
     CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_submitted_at ON user_quiz_attempts(submitted_at);
+
+    CREATE TABLE IF NOT EXISTS user_module_evidences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      module_id INTEGER NOT NULL,
+      evidence_type TEXT NOT NULL,
+      url TEXT,
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+      UNIQUE (user_id, module_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_module_evidences_user_id ON user_module_evidences(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_module_evidences_module_id ON user_module_evidences(module_id);
+    CREATE INDEX IF NOT EXISTS idx_user_module_evidences_updated_at ON user_module_evidences(updated_at);
   `)
 
   await ensureColumn(db, 'roadmaps', 'objectives', 'TEXT')
