@@ -144,6 +144,7 @@ describe('Next pages', () => {
           title: 'EC2',
           duration: '1 o 2 semanas',
           objective: 'Deploy compute',
+          has_evidence: 1,
           contents: '["AMI","Security groups"]',
           importance: 'Base operativa',
           official_resources: '[{"label":"Amazon EC2","url":"https://aws.amazon.com/ec2/"}]',
@@ -189,6 +190,8 @@ describe('Next pages', () => {
     expect(screen.getByText('Launch AWS')).toBeInTheDocument()
     expect(screen.getByText('Tu progreso en este roadmap')).toBeInTheDocument()
     expect(screen.getByText('Continuar con Instance review')).toBeInTheDocument()
+    expect(screen.getByText('Con evidencia')).toBeInTheDocument()
+    expect(screen.getByText('Solo lectura')).toBeInTheDocument()
     expect(screen.getByText((_content, element) => (
       element?.tagName.toLowerCase() === 'p' &&
       Boolean(element.textContent?.includes('1/3 lecciones completadas'))
@@ -771,5 +774,43 @@ describe('Next pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Validar y previsualizar' }))
     expect(await screen.findByText('Errores que debes corregir')).toBeInTheDocument()
     expect(screen.getByText(/Debe incluir al menos un módulo/)).toBeInTheDocument()
+  })
+
+  it('lets admins consult submitted module evidence', async () => {
+    setRouter('/admin/evidences')
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse([
+      {
+        id: 3,
+        evidence_type: 'github',
+        url: 'https://github.com/example/project',
+        note: 'Incluye pipeline y documentación.',
+        updated_at: '2026-07-20T10:00:00.000Z',
+        user_email: 'user@example.com',
+        user_name: 'Ada',
+        module_id: 7,
+        module_title: 'CI/CD',
+        roadmap_title: 'DevOps Junior'
+      }
+    ]))
+
+    const EvidencesPage = (await import('../pages/admin/evidences')).default
+    render(<EvidencesPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Evidencias entregadas' })).toBeInTheDocument()
+    expect(screen.getByText('CI/CD')).toBeInTheDocument()
+    expect(screen.getByText('Ada · user@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir evidencia' })).toHaveAttribute(
+      'href',
+      'https://github.com/example/project'
+    )
+    expect(screen.getByRole('link', { name: 'Ver módulo' })).toHaveAttribute('href', '/modules/7')
+
+    cleanup()
+    vi.resetModules()
+    mockAuth()
+    const UnauthorizedEvidencesPage = (await import('../pages/admin/evidences')).default
+    render(<UnauthorizedEvidencesPage />)
+    expect(screen.getByText('Necesitas una cuenta admin para consultar evidencias.')).toBeInTheDocument()
   })
 })

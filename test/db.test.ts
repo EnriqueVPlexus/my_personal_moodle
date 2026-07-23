@@ -78,6 +78,7 @@ describe('SQLite database bootstrap', () => {
     const lessonProgressColumns = await db.all('PRAGMA table_info(user_lesson_progress)')
     const roadmapProgressColumns = await db.all('PRAGMA table_info(user_roadmap_progress)')
     const quizAttemptColumns = await db.all('PRAGMA table_info(user_quiz_attempts)')
+    const evidenceColumns = await db.all('PRAGMA table_info(user_module_evidences)')
     const userColumns = await db.all('PRAGMA table_info(users)')
     const roadmapAccessTable = await db.get(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_roadmap_access'"
@@ -140,6 +141,15 @@ describe('SQLite database bootstrap', () => {
       'answers',
       'submitted_at'
     ]))
+    expect(evidenceColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
+      'user_id',
+      'module_id',
+      'evidence_type',
+      'url',
+      'note',
+      'created_at',
+      'updated_at'
+    ]))
     expect(userColumns.map((column: any) => column.name)).toContain('can_view_all_roadmaps')
     expect(roadmapAccessTable.name).toBe('user_roadmap_access')
     expect(roadmapColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
@@ -199,6 +209,7 @@ describe('SQLite database bootstrap', () => {
     const lessonProgressIndexes = await secondDb.all("PRAGMA index_list('user_lesson_progress')")
     const roadmapProgressIndexes = await secondDb.all("PRAGMA index_list('user_roadmap_progress')")
     const quizAttemptIndexes = await secondDb.all("PRAGMA index_list('user_quiz_attempts')")
+    const evidenceIndexes = await secondDb.all("PRAGMA index_list('user_module_evidences')")
     const moduleIndexes = await secondDb.all("PRAGMA index_list('modules')")
     const roadmapTopicCount = await secondDb.get('SELECT COUNT(*) AS count FROM roadmap_topics')
     const duplicateTopics = await secondDb.all(
@@ -227,6 +238,11 @@ describe('SQLite database bootstrap', () => {
       'idx_user_quiz_attempts_roadmap_id',
       'idx_user_quiz_attempts_module_id',
       'idx_user_quiz_attempts_submitted_at'
+    ]))
+    expect(evidenceIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
+      'idx_user_module_evidences_user_id',
+      'idx_user_module_evidences_module_id',
+      'idx_user_module_evidences_updated_at'
     ]))
     expect(moduleIndexes.map((index: any) => index.name)).toContain('idx_modules_roadmap_id')
     expect(roadmapTopicCount.count).toBe(26)

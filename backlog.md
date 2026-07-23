@@ -427,9 +427,9 @@ Notas de implementacion:
 - La actualizacion busca el roadmap por titulo y los modulos por posicion o titulo.
 - Actualizar no elimina modulos omitidos ni su progreso asociado.
 
-### [ ] Evidencias y portfolio por modulo
+### [x] Evidencias y portfolio por modulo
 
-Estado: pendiente.
+Estado: completado.
 
 Valor: conecta el aprendizaje con entregables reales y empleabilidad.
 
@@ -445,6 +445,14 @@ Hecho cuando:
 - El admin puede revisar o al menos consultar evidencias.
 - El roadmap refleja si un modulo esta completado solo por lectura o
   con evidencia real.
+
+Notas de implementacion:
+
+- Cada usuario dispone de una unica evidencia actualizable por modulo.
+- Se admiten enlaces de GitHub, demo o documento, y entregas basadas en nota.
+- El detalle del roadmap distingue `Solo lectura` y `Con evidencia`.
+- El panel admin permite consultar la evidencia con su usuario, roadmap,
+  modulo y fecha de actualizacion.
 
 ### [ ] Preparacion para despliegue
 

@@ -356,7 +356,7 @@ describe('content API handlers', () => {
             time_spent_seconds: 0
           }
         ])
-        .mockResolvedValueOnce([{ id: 15, title: 'Observabilidad' }]),
+        .mockResolvedValueOnce([{ id: 15, title: 'Observabilidad', has_evidence: 1 }]),
       run: vi.fn()
     }
     await mockApi(db, { user })
@@ -377,6 +377,7 @@ describe('content API handlers', () => {
       status: 'in_progress',
       completed_lessons_count: 1
     })
+    expect(res.body.modules[0].has_evidence).toBe(1)
   })
 
   it('lists and creates modules', async () => {
