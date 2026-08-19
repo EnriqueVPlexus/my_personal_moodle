@@ -25,8 +25,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'invalid filter id' })
   }
 
+  const statusFilter = typeof req.query.status === 'string' && ['pendiente', 'aprobado', 'requiere_cambios'].includes(req.query.status)
+    ? req.query.status
+    : null
+
   const filters: string[] = []
-  const params: number[] = []
+  const params: (number | string)[] = []
   if (userId) {
     filters.push('e.user_id = ?')
     params.push(userId)
@@ -39,9 +43,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     filters.push('m.roadmap_id = ?')
     params.push(roadmapId)
   }
+  if (statusFilter) {
+    filters.push("COALESCE(e.review_status, 'pendiente') = ?")
+    params.push(statusFilter)
+  }
 
   const evidences = await db.all(
     `SELECT e.id, e.user_id, e.module_id, e.evidence_type, e.url, e.note,
+            COALESCE(e.review_status, 'pendiente') AS review_status,
+            e.admin_comment, e.reviewed_at, e.reviewed_by_user_id,
             e.created_at, e.updated_at,
             u.email AS user_email, u.name AS user_name,
             m.title AS module_title, m.position AS module_position,

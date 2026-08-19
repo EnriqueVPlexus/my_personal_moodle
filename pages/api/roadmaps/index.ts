@@ -8,6 +8,7 @@ import {
   ROADMAP_CATALOG_SEARCH_SQL
 } from '../../../lib/roadmapSearch'
 import { parseRoadmapCatalogFilters } from '../../../lib/roadmapFilters'
+import { listUserRoadmapProgress } from '../../../lib/progress'
 import {
   normalizeDurationRange,
   normalizeTopics,
@@ -30,6 +31,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const visibleRows = scope.allRoadmaps
       ? rows
       : rows.filter((row: any) => scope.roadmapIds.includes(Number(row.id)))
+
+    if (scope.user) {
+      const userProgress = await listUserRoadmapProgress(db, scope.user.id)
+      const progressMap = new Map<number, string>()
+      userProgress.forEach(p => {
+        progressMap.set(p.roadmap_id, p.status === 'completed' ? 'completed' : 'in_progress')
+      })
+      visibleRows.forEach((row: any) => {
+        row.user_progress_status = progressMap.get(Number(row.id)) || 'not_started'
+      })
+    }
+
     const filters = parseRoadmapCatalogFilters(req.query)
     return res.status(200).json(filterAndRankRoadmaps(visibleRows, search, filters))
   }

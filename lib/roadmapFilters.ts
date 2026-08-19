@@ -11,11 +11,20 @@ export const ROADMAP_DURATION_FILTERS = [
 
 export type RoadmapDurationFilter = typeof ROADMAP_DURATION_FILTERS[number]['key']
 
+export const ROADMAP_PROGRESS_STATUS_FILTERS = [
+  { key: 'not_started', label: 'Sin empezar' },
+  { key: 'in_progress', label: 'En curso' },
+  { key: 'completed', label: 'Completados' }
+] as const
+
+export type RoadmapProgressStatusFilter = typeof ROADMAP_PROGRESS_STATUS_FILTERS[number]['key']
+
 export type RoadmapCatalogFilters = {
   categories: string[]
   topics: string[]
   levels: string[]
   durations: RoadmapDurationFilter[]
+  progressStatuses: RoadmapProgressStatusFilter[]
   sort: RoadmapSort
 }
 
@@ -27,8 +36,16 @@ function queryValues(value: string | string[] | undefined) {
     .slice(0, 20)
 }
 
+function queryProgressValues(value: string | string[] | undefined) {
+  const values = Array.isArray(value) ? value : value === undefined ? [] : [value]
+  return [...new Set(values.flatMap(item => String(item).split(','))
+    .map(item => String(item).trim().toLowerCase().replace(/-/g, '_'))
+    .filter(Boolean))]
+}
+
 export function parseRoadmapCatalogFilters(query: Record<string, string | string[] | undefined>): RoadmapCatalogFilters {
   const durationKeys = new Set(ROADMAP_DURATION_FILTERS.map(item => item.key))
+  const progressStatusKeys = new Set(ROADMAP_PROGRESS_STATUS_FILTERS.map(item => item.key))
   const sortValue = Array.isArray(query.sort) ? query.sort[0] : query.sort
 
   return {
@@ -37,6 +54,8 @@ export function parseRoadmapCatalogFilters(query: Record<string, string | string
     levels: queryValues(query.level).filter(value => MODULE_LEVELS.some(level => level === value)),
     durations: queryValues(query.duration)
       .filter((value): value is RoadmapDurationFilter => durationKeys.has(value as RoadmapDurationFilter)),
+    progressStatuses: queryProgressValues(query.progress_status ?? query.status)
+      .filter((value): value is RoadmapProgressStatusFilter => progressStatusKeys.has(value as RoadmapProgressStatusFilter)),
     sort: ROADMAP_SORT_OPTIONS.includes(sortValue as RoadmapSort) ? sortValue as RoadmapSort : 'relevance'
   }
 }

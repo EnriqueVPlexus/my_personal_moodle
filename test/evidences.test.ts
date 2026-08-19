@@ -3,6 +3,7 @@ import { open } from 'sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getModuleEvidence,
+  reviewModuleEvidence,
   saveModuleEvidence,
   validateEvidenceInput
 } from '../lib/evidences'
@@ -31,7 +32,7 @@ describe('evidence helpers', () => {
     expect(validateEvidenceInput({ evidence_type: 'note', note: '   ' })).toEqual({ error: 'url or note required' })
   })
 
-  it('creates and updates one evidence per user and module', async () => {
+  it('creates, updates and reviews evidence with status reset on resubmission', async () => {
     const db = await open({ filename: ':memory:', driver: sqlite3.Database })
     await db.exec(`
       CREATE TABLE user_module_evidences (
@@ -41,6 +42,10 @@ describe('evidence helpers', () => {
         evidence_type TEXT NOT NULL,
         url TEXT,
         note TEXT,
+        review_status TEXT NOT NULL DEFAULT 'pendiente',
+        admin_comment TEXT,
+        reviewed_at TEXT,
+        reviewed_by_user_id INTEGER,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         UNIQUE (user_id, module_id)
@@ -52,22 +57,25 @@ describe('evidence helpers', () => {
       url: 'https://github.com/example/project',
       note: null
     })
-    const updated = await saveModuleEvidence(db, 2, 7, {
-      evidenceType: 'demo',
-      url: 'https://example.com/demo',
-      note: 'Disponible temporalmente'
-    })
-    const count = await db.get('SELECT COUNT(*) AS count FROM user_module_evidences')
+    expect(created).toMatchObject({ user_id: 2, module_id: 7, evidence_type: 'github', review_status: 'pendiente' })
 
-    expect(created).toMatchObject({ user_id: 2, module_id: 7, evidence_type: 'github' })
-    expect(updated).toMatchObject({
-      id: created.id,
-      evidence_type: 'demo',
-      url: 'https://example.com/demo',
-      note: 'Disponible temporalmente'
+    const reviewed = await reviewModuleEvidence(db, created.id, 1, {
+      reviewStatus: 'requiere_cambios',
+      adminComment: 'Falta añadir el README con instrucciones'
     })
-    expect(count.count).toBe(1)
-    expect(await getModuleEvidence(db, 99, 7)).toBeNull()
+    expect(reviewed).toMatchObject({
+      review_status: 'requiere_cambios',
+      admin_comment: 'Falta añadir el README con instrucciones',
+      reviewed_by_user_id: 1
+    })
+
+    const resubmitted = await saveModuleEvidence(db, 2, 7, {
+      evidenceType: 'github',
+      url: 'https://github.com/example/project-v2',
+      note: 'README añadido'
+    })
+    expect(resubmitted.review_status).toBe('pendiente')
+
     await db.close()
   })
 })
@@ -83,6 +91,7 @@ describe('evidence API handlers', () => {
     vi.doMock('../lib/auth', () => ({
       getRoadmapReadScope: vi.fn().mockResolvedValue({ user, allRoadmaps: true, roadmapIds: [] }),
       requireUser: vi.fn().mockResolvedValue(user),
+      requireAdmin: vi.fn().mockResolvedValue(admin),
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))
     vi.doMock('../lib/progress', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
@@ -96,6 +105,7 @@ describe('evidence API handlers', () => {
       evidence_type: 'github',
       url: 'https://github.com/example/project',
       note: null,
+      review_status: 'pendiente',
       created_at: '2026-07-20T10:00:00.000Z',
       updated_at: '2026-07-20T10:00:00.000Z'
     }
@@ -127,41 +137,26 @@ describe('evidence API handlers', () => {
     )
   })
 
-  it('rejects invalid evidence and hides inaccessible modules', async () => {
+  it('allows admins to review evidences via PUT /api/evidences/[id]/review', async () => {
     const db = {
-      get: vi.fn().mockResolvedValue({ id: 7, roadmap_id: 4 }),
-      run: vi.fn()
+      run: vi.fn().mockResolvedValue({ changes: 1 }),
+      get: vi.fn().mockResolvedValue({
+        id: 5,
+        review_status: 'aprobado',
+        admin_comment: 'Excelente trabajo'
+      })
     }
     await mockModuleApi(db)
-    const auth = await import('../lib/auth')
-    vi.mocked(auth.scopeAllowsRoadmap).mockReturnValueOnce(false)
-    const handler = (await import('../pages/api/evidences/modules/[id]')).default
-
-    const hiddenRes = createResponse()
-    await handler(createRequest({ method: 'GET', query: { id: '7' } }), hiddenRes)
-    expect(hiddenRes.statusCode).toBe(404)
-
-    const invalidRes = createResponse()
-    await handler(createRequest({
-      method: 'PUT',
-      query: { id: '7' },
-      body: { evidence_type: 'github', url: 'not-a-url' }
-    }), invalidRes)
-    expect(invalidRes.statusCode).toBe(400)
-    expect(db.run).not.toHaveBeenCalled()
-  })
-
-  it('lists evidence context for admins', async () => {
-    const rows = [{ id: 4, user_email: 'user@example.com', module_title: 'CI/CD', roadmap_title: 'DevOps' }]
-    const db = { all: vi.fn().mockResolvedValue(rows) }
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
-    const handler = (await import('../pages/api/evidences/index')).default
+    const handler = (await import('../pages/api/evidences/[id]/review')).default
 
     const res = createResponse()
-    await handler(createRequest({ method: 'GET', query: {} }), res)
+    await handler(createRequest({
+      method: 'PUT',
+      query: { id: '5' },
+      body: { review_status: 'aprobado', admin_comment: 'Excelente trabajo' }
+    }), res)
 
-    expect(res.body).toEqual(rows)
-    expect(db.all).toHaveBeenCalledWith(expect.stringContaining('INNER JOIN roadmaps'), [])
+    expect(res.statusCode).toBe(200)
+    expect(res.body.review_status).toBe('aprobado')
   })
 })

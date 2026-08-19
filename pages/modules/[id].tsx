@@ -20,6 +20,7 @@ type ModuleProgress = {
 
 type QuizQuestion = {
   id: string
+  type?: 'multiple_choice' | 'true_false' | 'code_snippet'
   prompt: string
   options: string[]
   explanation: string
@@ -41,6 +42,13 @@ type QuizSummary = {
   } | null
 }
 
+type AttemptEligibility = {
+  allowed: boolean
+  remaining_attempts?: number | null
+  cooldown_ends_at?: string | null
+  pass_percentage: number
+}
+
 type QuizFeedbackItem = {
   question_id: string
   prompt: string
@@ -57,12 +65,14 @@ type QuizResult = {
   passed: boolean
   feedback: QuizFeedbackItem[]
   summary?: QuizSummary
+  eligibility?: AttemptEligibility
 }
 
 type ModuleDetail = LearningModule & {
   progress?: ModuleProgress | null
   quiz?: ModuleQuiz | null
   quiz_summary?: QuizSummary | null
+  quiz_eligibility?: AttemptEligibility | null
 }
 
 type LessonWithProgress = {
@@ -406,28 +416,63 @@ export default function ModulePage() {
             </div>
 
             <div className="mt-5 space-y-4">
-              {quiz.questions.map((question, questionIndex) => (
-                <fieldset key={question.id} className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                  <legend className="px-1 text-sm font-semibold text-slate-950">
-                    {questionIndex + 1}. {question.prompt}
-                  </legend>
-                  <div className="mt-3 grid gap-2">
-                    {question.options.map((option, optionIndex) => (
-                      <label key={option} className="flex items-start gap-3 rounded-md bg-white p-3 text-sm text-slate-700 shadow-sm">
-                        <input
-                          type="radio"
-                          name={`quiz-${question.id}`}
-                          checked={quizAnswers[question.id] === optionIndex}
-                          disabled={!user || quizSubmitting}
-                          onChange={() => setQuizAnswers(current => ({ ...current, [question.id]: optionIndex }))}
-                          className="mt-1"
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
+              {quiz.questions.map((question, questionIndex) => {
+                const isCodeSnippet = question.type === 'code_snippet'
+                const isTrueFalse = question.type === 'true_false'
+
+                return (
+                  <fieldset key={question.id} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                    <legend className="px-1 text-sm font-semibold text-slate-950">
+                      {questionIndex + 1}. {question.prompt}
+                      {isTrueFalse && (
+                        <span className="ml-2 rounded bg-violet-100 px-1.5 py-0.5 text-xs font-semibold text-violet-700">V/F</span>
+                      )}
+                    </legend>
+                    {isTrueFalse ? (
+                      <div className="mt-3 flex gap-3">
+                        {question.options.map((option, optionIndex) => {
+                          const selected = quizAnswers[question.id] === optionIndex
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              disabled={!user || quizSubmitting}
+                              onClick={() => setQuizAnswers(current => ({ ...current, [question.id]: optionIndex }))}
+                              className={`flex-1 rounded-lg border-2 py-3 text-sm font-semibold transition ${
+                                selected
+                                  ? 'border-sky-500 bg-sky-50 text-sky-800'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              {option}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-3 grid gap-2">
+                        {question.options.map((option, optionIndex) => (
+                          <label key={option} className="flex items-start gap-3 rounded-md bg-white p-3 text-sm text-slate-700 shadow-sm">
+                            <input
+                              type="radio"
+                              name={`quiz-${question.id}`}
+                              checked={quizAnswers[question.id] === optionIndex}
+                              disabled={!user || quizSubmitting}
+                              onChange={() => setQuizAnswers(current => ({ ...current, [question.id]: optionIndex }))}
+                              className="mt-1"
+                            />
+                            {isCodeSnippet ? (
+                              <code className="rounded bg-slate-900 px-2 py-0.5 font-mono text-emerald-300">{option}</code>
+                            ) : (
+                              <span>{option}</span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </fieldset>
+                )
+              })}
             </div>
 
             {quizError && (
@@ -441,18 +486,37 @@ export default function ModulePage() {
                   <span className="text-sm font-semibold text-emerald-900">
                     {quizResult.score}/{quizResult.max_score} respuestas correctas
                   </span>
-                  <span className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                  <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                    quizResult.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
                     {quizResult.passed ? 'Superado' : 'A reforzar'}
                   </span>
                 </div>
                 <div className="mt-4 grid gap-2">
                   {quizResult.feedback.map(item => (
-                    <div key={item.question_id} className="rounded-md bg-white p-3 text-sm text-slate-700">
-                      <div className="font-semibold text-slate-950">{item.prompt}</div>
-                      <div className="mt-1">
-                        {item.is_correct ? 'Correcta' : `Correcta: ${item.correct_option}`}
+                    <div key={item.question_id} className={`rounded-md border p-3 text-sm ${
+                      item.is_correct
+                        ? 'border-emerald-200 bg-white'
+                        : 'border-amber-200 bg-amber-50'
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        <span className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold ${
+                          item.is_correct ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {item.is_correct ? '✓' : '✗'}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-950">{item.prompt}</div>
+                          {!item.is_correct && (
+                            <div className="mt-1 text-slate-600">
+                              Respuesta correcta: <span className="font-semibold text-slate-800">{item.correct_option}</span>
+                            </div>
+                          )}
+                          <div className="mt-1.5 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
+                            💡 {item.explanation}
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-1 text-slate-600">{item.explanation}</div>
                     </div>
                   ))}
                 </div>

@@ -344,3 +344,89 @@ export async function persistRoadmapImport(
     throw error
   }
 }
+
+function parseJsonArray(value: unknown): any[] {
+  if (!value || typeof value !== 'string') return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function parseJsonObject(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'string') return {}
+  try {
+    const parsed = JSON.parse(value)
+    return Boolean(parsed) && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+export async function exportRoadmapAsJson(
+  db: any,
+  roadmapId: number | string
+): Promise<NormalizedRoadmapImport | null> {
+  const roadmap = await db.get(
+    `SELECT
+       roadmaps.*,
+       roadmap_categories.label AS category_label
+     FROM roadmaps
+     LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
+     WHERE roadmaps.id = ?`,
+    [roadmapId]
+  )
+
+  if (!roadmap) return null
+
+  const topicRows = await db.all(
+    `SELECT topics.label
+     FROM topics
+     INNER JOIN roadmap_topics ON roadmap_topics.topic_id = topics.id
+     WHERE roadmap_topics.roadmap_id = ?
+     ORDER BY topics.label COLLATE NOCASE, topics.key`,
+    [roadmapId]
+  )
+  const topics = topicRows.map((t: any) => String(t.label))
+
+  const moduleRows = await db.all(
+    `SELECT *
+     FROM modules
+     WHERE roadmap_id = ?
+     ORDER BY COALESCE(position, id), id`,
+    [roadmapId]
+  )
+
+  const modules = moduleRows.map((m: any, index: number) => ({
+    position: m.position !== null && m.position !== undefined ? Number(m.position) : index,
+    title: String(m.title || ''),
+    level: m.level ? (String(m.level) as ModuleLevel) : null,
+    duration: m.duration ? String(m.duration) : null,
+    duration_weeks_min: m.duration_weeks_min !== null && m.duration_weeks_min !== undefined ? Number(m.duration_weeks_min) : null,
+    duration_weeks_max: m.duration_weeks_max !== null && m.duration_weeks_max !== undefined ? Number(m.duration_weeks_max) : null,
+    objective: m.objective ? String(m.objective) : null,
+    contents: parseJsonArray(m.contents),
+    importance: m.importance ? String(m.importance) : null,
+    official_resources: parseJsonArray(m.official_resources),
+    support_videos: parseJsonArray(m.support_videos),
+    practical_activity: parseJsonArray(m.practical_activity),
+    deliverable_evidence: parseJsonArray(m.deliverable_evidence),
+    evaluation: m.evaluation ? String(m.evaluation) : null
+  }))
+
+  return {
+    title: String(roadmap.title || ''),
+    description: roadmap.description ? String(roadmap.description) : null,
+    duration: roadmap.duration ? String(roadmap.duration) : null,
+    duration_weeks_min: roadmap.duration_weeks_min !== null && roadmap.duration_weeks_min !== undefined ? Number(roadmap.duration_weeks_min) : null,
+    duration_weeks_max: roadmap.duration_weeks_max !== null && roadmap.duration_weeks_max !== undefined ? Number(roadmap.duration_weeks_max) : null,
+    category: roadmap.category_label ? String(roadmap.category_label) : null,
+    topics,
+    objectives: parseJsonArray(roadmap.objectives),
+    methodology: parseJsonArray(roadmap.methodology),
+    evaluation_weights: parseJsonObject(roadmap.evaluation_weights),
+    modules
+  }
+}

@@ -51,22 +51,52 @@ const rows = [
 ]
 
 describe('roadmap search helpers', () => {
-  it('parses canonical filter families and duration ranges', () => {
+  it('parses canonical filter families, progress statuses and duration ranges', () => {
     expect(parseRoadmapCatalogFilters({
       category: ['cloud-y-devops', 'inteligencia-artificial'],
       topic: 'AWS,DevOps',
       level: 'advanced',
       duration: ['5-to-12', 'invalid'],
+      progress_status: ['in_progress', 'invalid'],
       sort: 'duration'
     })).toEqual({
       categories: ['cloud-y-devops', 'inteligencia-artificial'],
       topics: ['aws', 'devops'],
       levels: ['advanced'],
       durations: ['5-to-12'],
+      progressStatuses: ['in_progress'],
       sort: 'duration'
     })
     expect(roadmapDurationMatches(3, 6, ['up-to-4', 'over-12'])).toBe(true)
     expect(roadmapDurationMatches(null, null, ['5-to-12'])).toBe(false)
+  })
+
+  it('filters catalog rows by personal progress_status', () => {
+    const rowsWithProgress = [
+      { ...rows[0], user_progress_status: 'in_progress' },
+      { ...rows[1], user_progress_status: 'completed' },
+      { ...rows[2], user_progress_status: 'not_started' }
+    ]
+
+    const inProgress = filterAndRankRoadmaps(
+      rowsWithProgress,
+      parseRoadmapSearchQuery(''),
+      parseRoadmapCatalogFilters({ progress_status: 'in_progress' })
+    )
+    const completed = filterAndRankRoadmaps(
+      rowsWithProgress,
+      parseRoadmapSearchQuery(''),
+      parseRoadmapCatalogFilters({ progress_status: 'completed' })
+    )
+    const notStarted = filterAndRankRoadmaps(
+      rowsWithProgress,
+      parseRoadmapSearchQuery(''),
+      parseRoadmapCatalogFilters({ progress_status: 'not_started' })
+    )
+
+    expect(inProgress.map(row => row.id)).toEqual([3])
+    expect(completed.map(row => row.id)).toEqual([2])
+    expect(notStarted.map(row => row.id)).toEqual([1])
   })
 
   it('combines filter families with AND and values within a family with OR', () => {

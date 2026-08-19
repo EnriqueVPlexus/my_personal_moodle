@@ -10,6 +10,7 @@ import { branding } from '../../lib/branding'
 import {
   parseRoadmapCatalogFilters,
   ROADMAP_DURATION_FILTERS,
+  ROADMAP_PROGRESS_STATUS_FILTERS,
   RoadmapCatalogFilters
 } from '../../lib/roadmapFilters'
 
@@ -20,6 +21,7 @@ type Roadmap = {
   module_count?: number
   category?: { key: string; label: string } | null
   topics?: Array<{ key: string; label: string }>
+  user_progress_status?: string
 }
 
 type FilterOption = { key: string; label?: string; roadmap_count: number }
@@ -28,6 +30,7 @@ type CatalogMetadata = {
   topics: FilterOption[]
   levels: FilterOption[]
   duration_ranges?: FilterOption[]
+  progress_statuses?: FilterOption[]
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -52,6 +55,7 @@ function canonicalCatalogQuery(search: string, filters: RoadmapCatalogFilters) {
   if (filters.topics.length) query.topic = filters.topics
   if (filters.levels.length) query.level = filters.levels
   if (filters.durations.length) query.duration = filters.durations
+  if (filters.progressStatuses.length) query.progress_status = filters.progressStatuses
   if (filters.sort !== 'relevance') query.sort = filters.sort
   return query
 }
@@ -60,7 +64,7 @@ function managedCatalogQuery(query: Record<string, string | string[] | undefined
   const managed: Record<string, string | string[]> = {}
   const search = queryValue(query.q)
   if (search) managed.q = search
-  const managedKeys = ['category', 'topic', 'level', 'duration', 'sort']
+  const managedKeys = ['category', 'topic', 'level', 'duration', 'progress_status', 'sort']
   managedKeys.forEach(key => {
     const value = query[key]
     if (value !== undefined) managed[key] = value
@@ -85,18 +89,21 @@ export default function RoadmapsPage() {
   const topicQuery = router.query.topic
   const levelQuery = router.query.level
   const durationQuery = router.query.duration
+  const progressStatusQuery = router.query.progress_status ?? router.query.status
   const sortQuery = router.query.sort
   const filters = useMemo(() => parseRoadmapCatalogFilters({
     category: categoryQuery,
     topic: topicQuery,
     level: levelQuery,
     duration: durationQuery,
+    progress_status: progressStatusQuery,
     sort: sortQuery
-  }), [categoryQuery, topicQuery, levelQuery, durationQuery, sortQuery])
+  }), [categoryQuery, topicQuery, levelQuery, durationQuery, progressStatusQuery, sortQuery])
   const categoryKey = filters.categories.join(',')
   const topicKey = filters.topics.join(',')
   const levelKey = filters.levels.join(',')
   const durationKey = filters.durations.join(',')
+  const progressStatusKey = filters.progressStatuses.join(',')
   const sortKey = filters.sort
 
   const syncQueryToUrl = useCallback((query: string) => {
@@ -154,11 +161,13 @@ export default function RoadmapsPage() {
     const validCategories = new Set(metadata.categories.map(item => item.key))
     const validTopics = new Set(metadata.topics.map(item => item.key))
     const validLevels = new Set(metadata.levels.filter(item => item.roadmap_count > 0).map(item => item.key))
+    const validProgressStatuses = new Set((metadata.progress_statuses ?? []).map(item => item.key))
     const canonicalFilters = {
       ...filters,
       categories: filters.categories.filter(value => validCategories.has(value)),
       topics: filters.topics.filter(value => validTopics.has(value)),
-      levels: filters.levels.filter(value => validLevels.has(value))
+      levels: filters.levels.filter(value => validLevels.has(value)),
+      progressStatuses: filters.progressStatuses.filter(value => validProgressStatuses.has(value))
     }
     const current = JSON.stringify(managedCatalogQuery(router.query))
     const canonical = canonicalCatalogQuery(queryValue(router.query.q), canonicalFilters)
@@ -179,6 +188,7 @@ export default function RoadmapsPage() {
       topicKey.split(',').filter(Boolean).forEach(value => params.append('topic', value))
       levelKey.split(',').filter(Boolean).forEach(value => params.append('level', value))
       durationKey.split(',').filter(Boolean).forEach(value => params.append('duration', value))
+      progressStatusKey.split(',').filter(Boolean).forEach(value => params.append('progress_status', value))
       if (sortKey !== 'relevance') params.set('sort', sortKey)
       const url = params.size > 0 ? `/api/roadmaps?${params.toString()}` : '/api/roadmaps'
       const res = await fetch(url, { signal })
@@ -202,7 +212,7 @@ export default function RoadmapsPage() {
         setHasLoaded(true)
       }
     }
-  }, [appliedQuery, categoryKey, topicKey, levelKey, durationKey, sortKey, router])
+  }, [appliedQuery, categoryKey, topicKey, levelKey, durationKey, progressStatusKey, sortKey, router])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -233,7 +243,7 @@ export default function RoadmapsPage() {
   }
 
   const toggleFilter = (
-    family: 'categories' | 'topics' | 'levels' | 'durations',
+    family: 'categories' | 'topics' | 'levels' | 'durations' | 'progressStatuses',
     value: string
   ) => {
     const current = filters[family] as string[]
@@ -250,7 +260,7 @@ export default function RoadmapsPage() {
   }
 
   const activeFilterCount = filters.categories.length + filters.topics.length +
-    filters.levels.length + filters.durations.length
+    filters.levels.length + filters.durations.length + filters.progressStatuses.length
 
   const searchIsPending = queryValue(searchInput) !== appliedQuery
   const showResults = hasLoaded && !loading && !searchIsPending && !error
@@ -338,7 +348,7 @@ export default function RoadmapsPage() {
               </label>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <FilterGroup
                 title="Categoría"
                 options={metadata?.categories ?? []}
@@ -364,6 +374,14 @@ export default function RoadmapsPage() {
                 onToggle={value => toggleFilter('durations', value)}
                 hideCounts={!metadata?.duration_ranges}
               />
+              {metadata?.progress_statuses && metadata.progress_statuses.some(item => item.roadmap_count > 0) ? (
+                <FilterGroup
+                  title="Estado mi progreso"
+                  options={metadata.progress_statuses}
+                  selected={filters.progressStatuses}
+                  onToggle={value => toggleFilter('progressStatuses', value)}
+                />
+              ) : null}
             </div>
 
             {(activeFilterCount > 0 || appliedQuery || filters.sort !== 'relevance') && (
@@ -372,6 +390,7 @@ export default function RoadmapsPage() {
                 {filters.topics.map(value => <FilterChip key={`topic-${value}`} label={metadata?.topics.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('topics', value)} />)}
                 {filters.levels.map(value => <FilterChip key={`level-${value}`} label={levelLabel(value)} onRemove={() => toggleFilter('levels', value)} />)}
                 {filters.durations.map(value => <FilterChip key={`duration-${value}`} label={ROADMAP_DURATION_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('durations', value)} />)}
+                {filters.progressStatuses.map(value => <FilterChip key={`progress_status-${value}`} label={ROADMAP_PROGRESS_STATUS_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('progressStatuses', value)} />)}
                 <button type="button" onClick={clearAll} className="ml-auto rounded-sm text-sm font-semibold text-sky-700 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
                   Limpiar todo
                 </button>

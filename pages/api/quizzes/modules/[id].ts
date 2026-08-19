@@ -4,6 +4,7 @@ import { openDb } from '../../../../lib/db'
 import { touchRoadmapProgress } from '../../../../lib/progress'
 import {
   buildModuleQuiz,
+  checkAttemptEligibility,
   getModuleQuizSummary,
   saveModuleQuizAttempt,
   toPublicModuleQuiz
@@ -37,10 +38,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await getUserFromRequest(req, db)
     const quiz = buildModuleQuiz(moduleRow)
     const summary = user ? await getModuleQuizSummary(db, user.id, moduleId) : null
+    const eligibility = user ? await checkAttemptEligibility(db, user.id, moduleRow) : null
 
     return res.status(200).json({
       quiz: toPublicModuleQuiz(quiz),
-      summary
+      summary,
+      eligibility
     })
   }
 
@@ -50,6 +53,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [moduleId])
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
+
+    // Fase 3: comprobar elegibilidad antes de procesar el intento
+    const eligibility = await checkAttemptEligibility(db, user.id, moduleRow)
+    if (!eligibility.allowed) {
+      return res.status(429).json({
+        error: eligibility.cooldown_ends_at
+          ? 'Debes esperar antes de volver a intentarlo.'
+          : 'Has alcanzado el limite de intentos permitidos para este modulo.',
+        eligibility
+      })
+    }
 
     const quiz = buildModuleQuiz(moduleRow)
     if (quiz.questions.length === 0) {
@@ -80,10 +94,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       moduleId: moduleRow.id
     })
     const summary = await getModuleQuizSummary(db, user.id, moduleId)
+    const updatedEligibility = await checkAttemptEligibility(db, user.id, moduleRow)
 
     return res.status(201).json({
       ...attempt,
-      summary
+      summary,
+      eligibility: updatedEligibility
     })
   }
 

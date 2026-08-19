@@ -312,15 +312,21 @@ async function migrate(db: any) {
       evidence_type TEXT NOT NULL,
       url TEXT,
       note TEXT,
+      review_status TEXT NOT NULL DEFAULT 'pendiente',
+      admin_comment TEXT,
+      reviewed_at TEXT,
+      reviewed_by_user_id INTEGER,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
       UNIQUE (user_id, module_id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_user_module_evidences_user_id ON user_module_evidences(user_id);
     CREATE INDEX IF NOT EXISTS idx_user_module_evidences_module_id ON user_module_evidences(module_id);
+    CREATE INDEX IF NOT EXISTS idx_user_module_evidences_review_status ON user_module_evidences(review_status);
     CREATE INDEX IF NOT EXISTS idx_user_module_evidences_updated_at ON user_module_evidences(updated_at);
   `)
 
@@ -345,6 +351,17 @@ async function migrate(db: any) {
   await ensureColumn(db, 'modules', 'level', 'TEXT')
   await ensureColumn(db, 'modules', 'duration_weeks_min', 'REAL')
   await ensureColumn(db, 'modules', 'duration_weeks_max', 'REAL')
+  // Fase 2: banco de preguntas explícito por módulo
+  await ensureColumn(db, 'modules', 'quiz_bank', 'TEXT')
+  // Fase 3: configuración de evaluación por módulo
+  await ensureColumn(db, 'modules', 'quiz_pass_percentage', 'INTEGER')
+  await ensureColumn(db, 'modules', 'quiz_max_attempts', 'INTEGER')
+  await ensureColumn(db, 'modules', 'quiz_cooldown_minutes', 'INTEGER')
+
+  await ensureColumn(db, 'user_module_evidences', 'review_status', "TEXT NOT NULL DEFAULT 'pendiente'")
+  await ensureColumn(db, 'user_module_evidences', 'admin_comment', 'TEXT')
+  await ensureColumn(db, 'user_module_evidences', 'reviewed_at', 'TEXT')
+  await ensureColumn(db, 'user_module_evidences', 'reviewed_by_user_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL')
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS roadmap_topics (
@@ -496,6 +513,10 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
       [roadmapId, normalizedModule.position, normalizedModule.title]
     )
 
+    const quizBank = moduleSeed.quiz && moduleSeed.quiz.length > 0
+      ? JSON.stringify(moduleSeed.quiz)
+      : null
+
     const values = [
       roadmapId,
       normalizedModule.position,
@@ -511,7 +532,8 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
       JSON.stringify(normalizedModule.support_videos),
       JSON.stringify(normalizedModule.practical_activity),
       JSON.stringify(normalizedModule.deliverable_evidence ?? deliverableEvidence),
-      normalizedModule.evaluation
+      normalizedModule.evaluation,
+      quizBank
     ]
 
     if (moduleRow?.id) {
@@ -520,7 +542,7 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
          SET roadmap_id = ?, position = ?, title = ?, duration = ?,
              duration_weeks_min = ?, duration_weeks_max = ?, level = ?, objective = ?, contents = ?,
              importance = ?, official_resources = ?, support_videos = ?, practical_activity = ?,
-             deliverable_evidence = ?, evaluation = ?
+             deliverable_evidence = ?, evaluation = ?, quiz_bank = ?
          WHERE id = ?`,
         [...values, moduleRow.id]
       )
@@ -529,8 +551,8 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
         `INSERT INTO modules (
           roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max, level,
           objective, contents, importance,
-          official_resources, support_videos, practical_activity, deliverable_evidence, evaluation
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          official_resources, support_videos, practical_activity, deliverable_evidence, evaluation, quiz_bank
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         values
       )
     }

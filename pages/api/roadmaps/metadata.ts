@@ -2,7 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { getRoadmapReadScope } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { MODULE_LEVELS } from '../../../lib/roadmapMetadata'
-import { ROADMAP_DURATION_FILTERS } from '../../../lib/roadmapFilters'
+import { ROADMAP_DURATION_FILTERS, ROADMAP_PROGRESS_STATUS_FILTERS } from '../../../lib/roadmapFilters'
+import { listUserRoadmapProgress } from '../../../lib/progress'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -22,6 +23,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       duration_ranges: ROADMAP_DURATION_FILTERS.map(range => ({
         key: range.key,
         label: range.label,
+        roadmap_count: 0
+      })),
+      progress_statuses: ROADMAP_PROGRESS_STATUS_FILTERS.map(item => ({
+        key: item.key,
+        label: item.label,
         roadmap_count: 0
       })),
       unclassified_roadmaps: 0
@@ -55,6 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     db.get(
       `SELECT MIN(duration_weeks_min) AS min_weeks,
               MAX(duration_weeks_max) AS max_weeks,
+              COUNT(*) AS total_count,
               SUM(CASE WHEN duration_weeks_min <= 4 AND duration_weeks_max >= 0 THEN 1 ELSE 0 END) AS up_to_4_count,
               SUM(CASE WHEN duration_weeks_min <= 12 AND duration_weeks_max >= 5 THEN 1 ELSE 0 END) AS from_5_to_12_count,
               SUM(CASE WHEN duration_weeks_max >= 13 THEN 1 ELSE 0 END) AS over_12_count
@@ -62,6 +69,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       scopeParams
     )
   ])
+
+  const totalRoadmaps = Number(duration?.total_count || 0)
+
+  let completedCount = 0
+  let inProgressCount = 0
+  let notStartedCount = totalRoadmaps
+
+  if (scope.user) {
+    const userProgress = await listUserRoadmapProgress(db, scope.user.id)
+    const visibleUserProgress = scope.allRoadmaps
+      ? userProgress
+      : userProgress.filter(p => scope.roadmapIds.includes(p.roadmap_id))
+
+    completedCount = visibleUserProgress.filter(p => p.status === 'completed').length
+    inProgressCount = visibleUserProgress.filter(p => p.status !== 'completed').length
+    notStartedCount = Math.max(0, totalRoadmaps - completedCount - inProgressCount)
+  }
 
   const levelCounts = await db.all(
     `SELECT level AS key, COUNT(DISTINCT roadmap_id) AS roadmap_count
@@ -86,6 +110,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         duration?.from_5_to_12_count,
         duration?.over_12_count
       ][index] ?? 0)
+    })),
+    progress_statuses: ROADMAP_PROGRESS_STATUS_FILTERS.map(item => ({
+      key: item.key,
+      label: item.label,
+      roadmap_count: item.key === 'completed'
+        ? completedCount
+        : item.key === 'in_progress'
+          ? inProgressCount
+          : notStartedCount
     })),
     unclassified_roadmaps: (await db.get(
       `SELECT COUNT(*) AS count FROM roadmaps

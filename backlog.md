@@ -400,6 +400,17 @@ Hecho cuando:
 - Hay cobertura para estados vacios, errores, combinaciones, URL y borrado.
 - El rendimiento esta medido y es suficiente para el volumen objetivo.
 
+#### [x] Filtro por estado de progreso del usuario
+
+Estado: hecho.
+
+Valor: permite al usuario filtrar en el catalogo o en su dashboard entre roadmaps "Sin empezar", "En curso" y "Completados".
+
+Tareas:
+
+- Anadir faceta de estado personal (`not_started`, `in_progress`, `completed`) en la busqueda y catalogo.
+- Sincronizar con la URL como el resto de filtros.
+
 ### [x] Importador JSON de roadmaps
 
 Estado: completado.
@@ -426,6 +437,17 @@ Notas de implementacion:
 - La vista previa muestra errores asociados a su ruta dentro del JSON antes de guardar.
 - La actualizacion busca el roadmap por titulo y los modulos por posicion o titulo.
 - Actualizar no elimina modulos omitidos ni su progreso asociado.
+
+#### [x] Exportador y Backup JSON de roadmaps
+
+Estado: completado.
+
+Valor: permite a los administradores descargar cualquier roadmap existente en formato JSON estandarizado para backups, migraciones entre entornos o edicion externa.
+
+Tareas:
+
+- Crear endpoint `GET /api/roadmaps/:id/export` que devuelva el JSON completo del roadmap con modulos, lecciones y metadatos.
+- Boton de "Exportar JSON" en la vista admin y en el detalle del roadmap.
 
 ### [x] Evidencias y portfolio por modulo
 
@@ -454,42 +476,97 @@ Notas de implementacion:
 - El panel admin permite consultar la evidencia con su usuario, roadmap,
   modulo y fecha de actualizacion.
 
+#### [x] Feedback y revision de evidencias por el admin (Mentoria)
+
+Estado: completado.
+
+Valor: transforma el registro de evidencias en un canal de revision interactiva y mentoria entre admins/formadores y alumnos.
+
+Tareas:
+
+- Permitir al admin escribir comentarios de retroalimentacion y asignar estado de revision (`pendiente`, `aprobado`, `requiere_cambios`) a una evidencia.
+- Notificacion o indicador visual para el usuario cuando su evidencia reciba comentarios.
+- Posibilidad de reentregar evidencia con correcciones.
+
+#### [x] Portfolio publico / exportable del usuario
+
+Estado: completado.
+
+Valor: permite al estudiante generar una pagina o documento Markdown/PDF descargable con todas sus evidencias y proyectos completados para compartir en su CV o perfil profesional.
+
+Tareas:
+
+- Vista o exportacion de "Mi Portfolio de Evidencias".
+- Generacion de resumen con links a GitHub, demos y notas de modulos superados.
+
 ## Prioridad media
 
 ### [ ] Quizzes reales por modulo
 
 Estado: pendiente.
 
-Valor: reutiliza los datos ya presentes en los roadmaps y aporta evaluacion ligera.
+Valor: reutiliza los datos ya presentes en los roadmaps y aporta evaluacion ligera con aprendizaje activo.
 
-Alcance inicial:
+#### [ ] Fase 1. Tipos de pregunta enriquecidos y feedback explicativo
 
-- Convertir preguntas del roadmap en mini evaluaciones.
-- Guardar respuestas por usuario.
-- Mostrar resultado o feedback basico.
+Estado: pendiente.
 
-Hecho cuando:
+Tareas:
 
-- Al menos un roadmap usa quizzes reales.
-- Las respuestas quedan persistidas por usuario.
-- Hay tests del flujo de respuesta y consulta.
+- Soportar preguntas de opcion multiple, respuesta unica, verdadero/falso y fragmentos de codigo/comandos.
+- Incluir un campo `explicacion` o `feedback` que se muestre tras responder para argumentar por que la opcion elegida es correcta o incorrecta.
+- Tests de API y UI para la renderizacion y correccion de respuestas.
+
+#### [ ] Fase 2. Banco de preguntas y aleatorizacion
+
+Estado: pendiente.
+
+Tareas:
+
+- Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
+- Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
+
+#### [ ] Fase 3. Nota minima exigible y modo evaluativo
+
+Estado: pendiente.
+
+Tareas:
+
+- Ajustar de forma opcional por modulo una nota minima requerida (ej. 70% o 7/10) para marcar la evaluacion como superada.
+- Opcion para limitar el numero de intentos o aplicar un tiempo de espera entre reintentos fallidos.
 
 ### [ ] Versionado de roadmaps
 
 Estado: pendiente.
 
-Valor: permite evolucionar contenido sin perder historico.
+Valor: permite evolucionar contenido sin perder el historico de progreso ni romper el aprendizaje de alumnos existentes.
 
-Alcance inicial:
+#### [ ] Fase 1. Modelo de datos con etiquetado de version
 
-- Guardar version y fecha de validacion.
-- Mantener varias versiones o al menos historial basico.
-- Mostrar cambios visibles entre versiones si compensa.
+Estado: pendiente.
 
-Hecho cuando:
+Tareas:
 
-- Un roadmap puede actualizarse sin borrar contexto anterior.
-- El usuario distingue claramente la version activa.
+- Anadir campo `version` (ej. `v1.0.0`, `v2.0.0`) a la entidad `roadmap`.
+- Registrar la fecha de publicacion de cada version.
+
+#### [ ] Fase 2. Estrategia de migracion de progreso
+
+Estado: pendiente.
+
+Tareas:
+
+- Definir que ocurre con el progreso de un usuario cuando un modulo anade lecciones en una nueva version.
+- Permitir al usuario mantener su version en curso o actualizar a la ultima version con un aviso claro de cambios (`changelog`).
+
+#### [ ] Fase 3. Historial y diferencias visibles en UI
+
+Estado: pendiente.
+
+Tareas:
+
+- Selector de version en el detalle del roadmap.
+- Indicador visual si el usuario esta cursando una version anterior a la vigente.
 
 ### [x] Dashboard admin
 
@@ -519,22 +596,29 @@ Notas de implementacion:
 - El seguimiento identifica roadmaps incompletos sin actividad durante
   14 dias o mas.
 
+#### [ ] Ficha individual de estudiante y exportacion de metricas
+
+Estado: pendiente.
+
+Valor: permite a los mentores/admins hacer un seguimiento individualizado de un alumno y exportar reportes de uso para informes de formacion.
+
+Tareas:
+
+- Crear vista de detalle por usuario en el panel admin: roadmaps activos, porcentaje global, evidencias entregadas e historial de quizzes.
+- Anadir boton de exportacion de metricas generales y por usuario en CSV/JSON.
+
 ### [ ] Guia de Google Skills badges
 
 Estado: pendiente.
 
-Valor: aprovecha el contenido ya preparado en el roadmap de IA y da
-mas profundidad al producto.
+Valor: aprovecha el contenido ya preparado en el roadmap de IA y da mas profundidad al producto vinculandolo con certificaciones oficiales.
 
-Alcance inicial:
+Tareas:
 
-- Pagina propia con pasos, enlaces y orden recomendado.
-- Integracion visible desde el roadmap `IA para DevOps`.
-
-Hecho cuando:
-
-- La guia se puede descubrir desde la UI sin perderse.
-- Conserva la estetica actual de la app.
+- Crear vista dedicada `/skills-badges` con listado de insignias oficiales de Google Cloud Skills Boost vinculadas a DevOps e IA.
+- Mapear cada badge con sus modulos correspondientes dentro del roadmap `IA para DevOps`.
+- Permitir a los usuarios marcar badges como completadas o adjuntar el enlace a su perfil publico de Credly / Google Cloud Skills Boost.
+- Incluir acceso directo desde la cabecera y desde el detalle del roadmap `IA para DevOps`.
 
 ## Ideas a revisar mas adelante
 
@@ -542,20 +626,35 @@ Hecho cuando:
 
 Estado: idea.
 
-Valor: permitiria uso mas cercano a formacion interna o mentoring.
+Valor: permitiria uso mas cercano a formacion interna o mentoring donde un tutor asigna itinerarios especificos a cada integrante del equipo.
 
-### [ ] Comentarios o feedback del admin en evidencias
+### [ ] Feedback y revision de evidencias por el admin (Mentoria)
 
-Estado: idea.
-
-Valor: cerraria mejor el ciclo de aprendizaje.
+Estado: en planificacion (ver subtarea en Evidencias y Portfolio).
 
 ### [ ] Notificaciones o recordatorios
 
 Estado: idea.
 
-Valor: puede ayudar a la continuidad, aunque no es prioritario
-mientras falte progreso por usuario.
+Valor: enviar alertas por email o avisos in-app tras N dias de inactividad para fomentar la continuidad.
+
+### [ ] Certificado y Badge digital de finalizacion
+
+Estado: idea.
+
+Valor: generar un diploma en PDF o insignia SVG verificable con un identificador unico al completar el 100% de un roadmap y sus evaluaciones.
+
+### [ ] Apuntes y notas personales Markdown por leccion
+
+Estado: idea.
+
+Valor: permitir que el alumno guarde un cuaderno de notas privado en Markdown asociado a cada leccion para consulta posterior.
+
+### [ ] Modo Lectura Offline / PWA ligera
+
+Estado: idea.
+
+Valor: cachear contenidos y lecciones mediante un Service Worker para poder consultar los roadmaps sin conexion a internet.
 
 ## Ultimo paso: preparacion para despliegue
 

@@ -2,6 +2,7 @@ import { asLearningLinks, asTextList } from './roadmapPresentation'
 
 type DbHandle = {
   get: (sql: string, params?: any[]) => Promise<any>
+  all: (sql: string, params?: any[]) => Promise<any[]>
   run: (sql: string, params?: any[]) => Promise<any>
 }
 
@@ -14,10 +15,17 @@ type ModuleQuizSource = {
   practical_activity?: unknown
   deliverable_evidence?: unknown
   evaluation?: string | null
+  quiz_bank?: string | null
+  quiz_pass_percentage?: number | null
+  quiz_max_attempts?: number | null
+  quiz_cooldown_minutes?: number | null
 }
+
+export type QuestionType = 'multiple_choice' | 'true_false' | 'code_snippet'
 
 export type ModuleQuizQuestion = {
   id: string
+  type: QuestionType
   prompt: string
   options: string[]
   correct_option_index: number
@@ -69,6 +77,13 @@ export type ModuleQuizSummary = {
   } | null
 }
 
+export type AttemptEligibility = {
+  allowed: boolean
+  remaining_attempts?: number | null
+  cooldown_ends_at?: string | null
+  pass_percentage: number
+}
+
 const PASSING_PERCENTAGE = 70
 
 const DISTRACTORS = [
@@ -116,12 +131,14 @@ function buildQuestion(
   correct: string,
   candidates: string[],
   seed: number,
-  explanation: string
+  explanation: string,
+  type: QuestionType = 'multiple_choice'
 ): ModuleQuizQuestion {
   const options = buildOptions(shortText(correct), candidates, seed)
 
   return {
     id,
+    type,
     prompt,
     options: options.options,
     correct_option_index: options.correctIndex,
@@ -129,7 +146,100 @@ function buildQuestion(
   }
 }
 
+function buildTrueFalseQuestion(
+  id: string,
+  prompt: string,
+  isTrue: boolean,
+  explanation: string
+): ModuleQuizQuestion {
+  const correctIndex = isTrue ? 0 : 1
+  return {
+    id,
+    type: 'true_false',
+    prompt,
+    options: ['Verdadero', 'Falso'],
+    correct_option_index: correctIndex,
+    explanation
+  }
+}
+
+// ─── Fase 2: banco de preguntas con seeded shuffle ───────────────────────────
+
+/** Murmur2-like hash numérico para producir un seed determinista. */
+function hashSeed(str: string): number {
+  let h = 0
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(31, h) + str.charCodeAt(i) | 0
+  }
+  return Math.abs(h)
+}
+
+/** Fisher-Yates shuffle determinista con un entero como seed. */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const a = [...arr]
+  let s = seed
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff
+    const j = Math.abs(s) % (i + 1);[
+      a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+type BankEntry = { question: string; answer: string; explanation?: string; type?: QuestionType }
+
+/**
+ * Construye preguntas de opción múltiple a partir del banco persitido.
+ * Usa un seed derivado de module_id para selección reproducible.
+ */
+export function buildQuizFromBank(
+  bank: BankEntry[],
+  moduleId: number,
+  maxQuestions = 5
+): ModuleQuizQuestion[] {
+  if (!bank.length) return []
+  const seed = hashSeed(`bank-${moduleId}`)
+  const shuffled = seededShuffle(bank, seed)
+  const selected = shuffled.slice(0, maxQuestions)
+
+  return selected.map((entry, index) => {
+    const correct = shortText(entry.answer)
+    const candidates = selected
+      .filter((_e, i) => i !== index)
+      .map(e => shortText(e.answer))
+    const qType: QuestionType = entry.type ?? 'multiple_choice'
+    const opts = buildOptions(correct, candidates, seed + index)
+    return {
+      id: `bank-${index}`,
+      type: qType,
+      prompt: cleanText(entry.question),
+      options: opts.options,
+      correct_option_index: opts.correctIndex,
+      explanation: entry.explanation ? cleanText(entry.explanation) : `La respuesta correcta es: ${correct}`
+    }
+  })
+}
+
 export function buildModuleQuiz(module: ModuleQuizSource): ModuleQuiz {
+  // Fase 2: si el módulo tiene banco de preguntas, usarlo en lugar de la generación dinámica
+  if (module.quiz_bank) {
+    try {
+      const bank: BankEntry[] = JSON.parse(module.quiz_bank)
+      if (Array.isArray(bank) && bank.length > 0) {
+        const questions = buildQuizFromBank(bank, module.id)
+        return {
+          scope: 'module',
+          module_id: module.id,
+          roadmap_id: module.roadmap_id,
+          title: cleanText(module.title),
+          questions
+        }
+      }
+    } catch {
+      // banco inválido: continuar con generación dinámica
+    }
+  }
+
   const title = cleanText(module.title)
   const contents = unique(asTextList(module.contents).map(shortText))
   const practicalActivities = unique(asTextList(module.practical_activity).map(shortText))
@@ -181,6 +291,20 @@ export function buildModuleQuiz(module: ModuleQuizSource): ModuleQuiz {
     ))
   }
 
+  // true_false: si hay un recurso con URL conocida, preguntar si es correcto
+  if (questions.length < 5) {
+    const resourceLinks = asLearningLinks(module.official_resources)
+    const linkWithUrl = resourceLinks.find(link => link.url)
+    if (linkWithUrl?.url) {
+      questions.push(buildTrueFalseQuestion(
+        'module-resource-tf',
+        `El recurso "${shortText(linkWithUrl.label)}" es parte de los materiales recomendados para ${title}.`,
+        true,
+        `Efectivamente, "${shortText(linkWithUrl.label)}" es uno de los recursos oficiales curados para este modulo.`
+      ))
+    }
+  }
+
   if (questions.length === 0 && module.evaluation) {
     questions.push(buildQuestion(
       'module-evaluation',
@@ -197,7 +321,7 @@ export function buildModuleQuiz(module: ModuleQuizSource): ModuleQuiz {
     module_id: module.id,
     roadmap_id: module.roadmap_id,
     title,
-    questions: questions.slice(0, 3)
+    questions: questions.slice(0, 5)
   }
 }
 
@@ -213,8 +337,13 @@ function percentage(score: number, maxScore: number) {
   return Math.round((score / maxScore) * 100)
 }
 
-export function gradeModuleQuiz(module: ModuleQuizSource, answers: Record<string, unknown>): QuizGrade {
+export function gradeModuleQuiz(
+  module: ModuleQuizSource,
+  answers: Record<string, unknown>,
+  passingPercentage?: number
+): QuizGrade {
   const quiz = buildModuleQuiz(module)
+  const effectivePassing = passingPercentage ?? module.quiz_pass_percentage ?? PASSING_PERCENTAGE
   let score = 0
   const feedback = quiz.questions.map(question => {
     const rawAnswer = answers[question.id]
@@ -242,7 +371,7 @@ export function gradeModuleQuiz(module: ModuleQuizSource, answers: Record<string
     score,
     max_score: maxScore,
     percentage: scorePercentage,
-    passed: scorePercentage >= PASSING_PERCENTAGE,
+    passed: scorePercentage >= effectivePassing,
     feedback
   }
 }
@@ -324,5 +453,69 @@ export async function getModuleQuizSummary(
         submitted_at: latest.submitted_at
       }
       : null
+  }
+}
+
+// ─── Fase 3: elegibilidad de intentos ─────────────────────────────────────────
+
+/**
+ * Comprueba si un usuario puede realizar un nuevo intento de quiz en un módulo.
+ * Considera el límite de intentos y el cooldown entre reintentos fallidos.
+ */
+export async function checkAttemptEligibility(
+  db: DbHandle,
+  userId: number,
+  module: ModuleQuizSource
+): Promise<AttemptEligibility> {
+  const passPct = module.quiz_pass_percentage ?? PASSING_PERCENTAGE
+  const maxAttempts = module.quiz_max_attempts ?? null
+  const cooldownMinutes = module.quiz_cooldown_minutes ?? null
+
+  const attemptsCount = await db.get(
+    `SELECT COUNT(*) AS cnt FROM user_quiz_attempts
+     WHERE user_id = ? AND module_id = ? AND max_score > 0`,
+    [userId, module.id]
+  )
+  const count = Number(attemptsCount?.cnt || 0)
+
+  // Comprobar límite de intentos
+  if (maxAttempts !== null && count >= maxAttempts) {
+    return {
+      allowed: false,
+      remaining_attempts: 0,
+      cooldown_ends_at: null,
+      pass_percentage: passPct
+    }
+  }
+
+  // Comprobar cooldown sobre el último intento fallido
+  if (cooldownMinutes !== null) {
+    const lastFailed = await db.get(
+      `SELECT submitted_at, score, max_score FROM user_quiz_attempts
+       WHERE user_id = ? AND module_id = ? AND max_score > 0
+         AND (score * 100.0 / max_score) < ?
+       ORDER BY datetime(submitted_at) DESC, id DESC
+       LIMIT 1`,
+      [userId, module.id, passPct]
+    )
+    if (lastFailed?.submitted_at) {
+      const cooldownEnds = new Date(lastFailed.submitted_at)
+      cooldownEnds.setMinutes(cooldownEnds.getMinutes() + cooldownMinutes)
+      if (new Date() < cooldownEnds) {
+        return {
+          allowed: false,
+          remaining_attempts: maxAttempts !== null ? maxAttempts - count : null,
+          cooldown_ends_at: cooldownEnds.toISOString(),
+          pass_percentage: passPct
+        }
+      }
+    }
+  }
+
+  return {
+    allowed: true,
+    remaining_attempts: maxAttempts !== null ? maxAttempts - count : null,
+    cooldown_ends_at: null,
+    pass_percentage: passPct
   }
 }

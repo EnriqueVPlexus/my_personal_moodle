@@ -5,6 +5,9 @@ export type ModuleEvidence = {
   evidence_type: 'github' | 'demo' | 'document' | 'note'
   url?: string | null
   note?: string | null
+  review_status?: 'pendiente' | 'aprobado' | 'requiere_cambios'
+  admin_comment?: string | null
+  reviewed_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -27,6 +30,12 @@ function formatDate(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date(value))
+}
+
+function reviewBadge(status: ModuleEvidence['review_status']) {
+  if (status === 'aprobado') return { label: 'Aprobado', class: 'bg-emerald-100 text-emerald-800' }
+  if (status === 'requiere_cambios') return { label: 'Requiere cambios', class: 'bg-amber-100 text-amber-800' }
+  return { label: 'Pendiente de revisión', class: 'bg-sky-100 text-sky-800' }
 }
 
 export default function ModuleEvidencePanel({ moduleId, evidence, onChange }: Props) {
@@ -92,6 +101,8 @@ export default function ModuleEvidencePanel({ moduleId, evidence, onChange }: Pr
     }
   }
 
+  const badge = reviewBadge(evidence?.review_status)
+
   return (
     <section className="panel mt-6 p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -103,6 +114,11 @@ export default function ModuleEvidencePanel({ moduleId, evidence, onChange }: Pr
             }`}>
               {evidence ? 'Con evidencia' : 'Solo lectura'}
             </span>
+            {evidence && (
+              <span className={`rounded-md px-2 py-1 text-xs font-semibold ${badge.class}`}>
+                {badge.label}
+              </span>
+            )}
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Registra un entregable que demuestre la aplicación práctica de este módulo.
@@ -110,7 +126,7 @@ export default function ModuleEvidencePanel({ moduleId, evidence, onChange }: Pr
         </div>
         {evidence && !editing && (
           <button type="button" onClick={() => setEditing(true)} className="secondary-action">
-            Editar evidencia
+            {evidence.review_status === 'requiere_cambios' ? 'Reentregar evidencia' : 'Editar evidencia'}
           </button>
         )}
       </div>
@@ -122,24 +138,39 @@ export default function ModuleEvidencePanel({ moduleId, evidence, onChange }: Pr
       )}
 
       {evidence && !editing ? (
-        <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-800">
+            <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-800 shadow-sm">
               {typeLabels[evidence.evidence_type]}
             </span>
-            <span className="text-xs text-emerald-800">Actualizada el {formatDate(evidence.updated_at)}</span>
+            <span className="text-xs text-slate-600">Actualizada el {formatDate(evidence.updated_at)}</span>
           </div>
           {evidence.url && (
             <a
               href={evidence.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 block break-all text-sm font-semibold text-emerald-800 underline"
+              className="mt-3 block break-all text-sm font-semibold text-sky-800 underline"
             >
               Abrir evidencia
             </a>
           )}
-          {evidence.note && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{evidence.note}</p>}
+          {evidence.note && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-900">{evidence.note}</p>}
+
+          {evidence.admin_comment && (
+            <div className={`mt-4 rounded-md border p-4 ${
+              evidence.review_status === 'requiere_cambios'
+                ? 'border-amber-300 bg-amber-50 text-amber-900'
+                : 'border-sky-200 bg-sky-50 text-sky-900'
+            }`}>
+              <p className="text-xs font-bold uppercase tracking-wider">
+                Retroalimentación del tutor
+                {evidence.reviewed_at && ` · ${formatDate(evidence.reviewed_at)}`}
+              </p>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6">{evidence.admin_comment}</p>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={remove}

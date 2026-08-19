@@ -151,10 +151,12 @@ function matchesFilters(row: RoadmapSearchRow, filters?: RoadmapCatalogFilters) 
   if (!filters) return true
   const topicKeys = metadataValues(row.topics_metadata).map(value => value.split('\u001f')[0])
   const levels = metadataValues(row.module_levels)
+  const userProgressStatus = (row.user_progress_status as string) || 'not_started'
 
   return (!filters.categories.length || Boolean(row.category_key && filters.categories.includes(row.category_key))) &&
     (!filters.topics.length || filters.topics.some(topic => topicKeys.includes(topic))) &&
     (!filters.levels.length || filters.levels.some(level => levels.includes(level))) &&
+    (!filters.progressStatuses.length || filters.progressStatuses.includes(userProgressStatus as any)) &&
     roadmapDurationMatches(row.duration_weeks_min, row.duration_weeks_max, filters.durations)
 }
 

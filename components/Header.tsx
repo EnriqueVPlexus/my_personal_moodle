@@ -51,7 +51,12 @@ export default function Header() {
 
         <nav className="flex flex-wrap items-center gap-2">
           <NavLink href="/roadmaps">Roadmaps</NavLink>
-          {user && <NavLink href="/my-roadmaps">Mi progreso</NavLink>}
+          {user && (
+            <>
+              <NavLink href="/my-roadmaps">Mi progreso</NavLink>
+              <NavLink href="/portfolio">Mi Portfolio</NavLink>
+            </>
+          )}
           {isAdmin && (
             <>
               <NavLink href="/admin" exact>Dashboard</NavLink>
