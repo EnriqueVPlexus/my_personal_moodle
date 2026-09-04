@@ -321,6 +321,7 @@ describe('content API edge cases', () => {
       get: vi.fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 1, title: 'Empty module', roadmap_id: 7 })
+        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
           id: 1,
           title: 'EC2',
@@ -328,6 +329,7 @@ describe('content API edge cases', () => {
           contents: '["AMI"]',
           practical_activity: '["Crear instancia"]'
         })
+        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
           id: 1,
           title: 'EC2',
@@ -335,6 +337,15 @@ describe('content API edge cases', () => {
           contents: '["AMI"]',
           practical_activity: '["Crear instancia"]'
         })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 1,
+          title: 'EC2',
+          roadmap_id: 7,
+          contents: '["AMI"]',
+          practical_activity: '["Crear instancia"]'
+        })
+        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
           id: 1,
           title: 'EC2',

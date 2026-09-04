@@ -18,7 +18,7 @@ async function apiDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT, roadmap_id INTEGER, position INTEGER, title TEXT,
       duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, level TEXT, objective TEXT,
       contents TEXT, importance TEXT, official_resources TEXT, support_videos TEXT,
-      practical_activity TEXT, deliverable_evidence TEXT, evaluation TEXT
+      practical_activity TEXT, deliverable_evidence TEXT, evaluation TEXT, quiz_bank TEXT
     );
     CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
     CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);

@@ -7,6 +7,7 @@ import awsRoadmapSeed from './roadmapSeeds/awsRoadmapSeed.json'
 import iaDevopsRoadmapSeed from './iaDevopsRoadmapSeed.json'
 import devopsRoadmapSeed from './devopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
+import { getSeedQuizForModule } from './roadmapQuizBanks'
 import {
   normalizeModuleLevel,
   parseDurationWeeks,
@@ -86,7 +87,14 @@ type RoadmapSeed = {
     deliverable_evidence?: string | string[]
     deliverables?: string[]
     evaluation?: string
-    quiz?: Array<{ question: string; answer: string }>
+    quiz?: Array<{
+      question: string
+      answer: string
+      options?: string[]
+      explanation?: string
+      feedback?: string
+      type?: 'multiple_choice' | 'true_false' | 'code_snippet'
+    }>
   }>
 }
 
@@ -513,9 +521,10 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
       [roadmapId, normalizedModule.position, normalizedModule.title]
     )
 
-    const quizBank = moduleSeed.quiz && moduleSeed.quiz.length > 0
-      ? JSON.stringify(moduleSeed.quiz)
-      : null
+    const quiz = moduleSeed.quiz && moduleSeed.quiz.length > 0
+      ? moduleSeed.quiz
+      : getSeedQuizForModule(normalizedModule.title)
+    const quizBank = quiz.length > 0 ? JSON.stringify(quiz) : null
 
     const values = [
       roadmapId,

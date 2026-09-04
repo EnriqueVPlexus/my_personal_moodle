@@ -15,6 +15,13 @@ export type RoadmapImportIssue = {
 }
 
 type ImportLink = { label: string; url?: string }
+type ImportQuizQuestion = {
+  question: string
+  answer: string
+  options: string[]
+  explanation: string | null
+  type: 'multiple_choice' | 'true_false' | 'code_snippet'
+}
 
 export type NormalizedRoadmapImport = {
   title: string
@@ -42,6 +49,7 @@ export type NormalizedRoadmapImport = {
     practical_activity: string[]
     deliverable_evidence: string[]
     evaluation: string | null
+    quiz: ImportQuizQuestion[]
   }>
 }
 
@@ -116,6 +124,48 @@ function links(value: unknown, path: string, issues: RoadmapImportIssue[]) {
       issues.push({ path: `${itemPath}.url`, message: 'La URL debe comenzar por http:// o https://.' })
     }
     return label ? [{ label, ...(url ? { url } : {}) }] : []
+  })
+}
+
+function quiz(value: unknown, path: string, issues: RoadmapImportIssue[]): ImportQuizQuestion[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) {
+    issues.push({ path, message: 'Debe ser una lista de preguntas.' })
+    return []
+  }
+  if (value.length > 100) issues.push({ path, message: 'No puede contener más de 100 preguntas.' })
+
+  return value.flatMap((item, index) => {
+    const itemPath = `${path}[${index}]`
+    if (!isRecord(item)) {
+      issues.push({ path: itemPath, message: 'Debe ser un objeto de pregunta.' })
+      return []
+    }
+    const question = requiredText(item.question, `${itemPath}.question`, issues, 1000)
+    const answer = requiredText(item.answer, `${itemPath}.answer`, issues, 500)
+    const explanation = optionalText(item.explanation ?? item.feedback, `${itemPath}.explanation`, issues, 2000)
+    const type = item.type === undefined ? 'multiple_choice' : item.type
+    if (!['multiple_choice', 'true_false', 'code_snippet'].includes(String(type))) {
+      issues.push({ path: `${itemPath}.type`, message: 'Tipo permitido: multiple_choice, true_false o code_snippet.' })
+    }
+    if (!Array.isArray(item.options) || item.options.length < 2 || item.options.length > 6) {
+      issues.push({ path: `${itemPath}.options`, message: 'Debe incluir entre 2 y 6 opciones.' })
+      return []
+    }
+    const options = item.options.flatMap((option, optionIndex) => {
+      if (typeof option !== 'string' || !option.trim()) {
+        issues.push({ path: `${itemPath}.options[${optionIndex}]`, message: 'Debe ser un texto no vacío.' })
+        return []
+      }
+      return [option.trim()]
+    })
+    if (!options.some(option => option.toLowerCase() === answer.toLowerCase())) {
+      issues.push({ path: `${itemPath}.answer`, message: 'La respuesta debe coincidir con una de las opciones.' })
+    }
+    if (type === 'true_false' && options.length !== 2) {
+      issues.push({ path: `${itemPath}.options`, message: 'Las preguntas verdadero/falso deben tener exactamente 2 opciones.' })
+    }
+    return question && answer ? [{ question, answer, options, explanation, type: type as ImportQuizQuestion['type'] }] : []
   })
 }
 
@@ -210,7 +260,8 @@ export function validateRoadmapImport(input: unknown): RoadmapImportValidation {
       support_videos: links(value.support_videos, `${path}.support_videos`, issues),
       practical_activity: textList(value.practical_activity, `${path}.practical_activity`, issues),
       deliverable_evidence: textList(value.deliverable_evidence, `${path}.deliverable_evidence`, issues),
-      evaluation: optionalText(value.evaluation, `${path}.evaluation`, issues)
+      evaluation: optionalText(value.evaluation, `${path}.evaluation`, issues),
+      quiz: quiz(value.quiz, `${path}.quiz`, issues)
     }]
   })
 
@@ -313,14 +364,15 @@ export async function persistRoadmapImport(
         JSON.stringify(moduleItem.support_videos),
         JSON.stringify(moduleItem.practical_activity),
         JSON.stringify(moduleItem.deliverable_evidence),
-        moduleItem.evaluation
+        moduleItem.evaluation,
+        moduleItem.quiz.length ? JSON.stringify(moduleItem.quiz) : null
       ]
       if (moduleRow) {
         await db.run(
           `UPDATE modules SET roadmap_id = ?, position = ?, title = ?, duration = ?,
            duration_weeks_min = ?, duration_weeks_max = ?, level = ?, objective = ?, contents = ?,
            importance = ?, official_resources = ?, support_videos = ?, practical_activity = ?,
-           deliverable_evidence = ?, evaluation = ? WHERE id = ?`,
+           deliverable_evidence = ?, evaluation = ?, quiz_bank = ? WHERE id = ?`,
           [...values, moduleRow.id]
         )
         updatedModules += 1
@@ -329,8 +381,8 @@ export async function persistRoadmapImport(
           `INSERT INTO modules (
              roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max,
              level, objective, contents, importance, official_resources, support_videos,
-             practical_activity, deliverable_evidence, evaluation
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             practical_activity, deliverable_evidence, evaluation, quiz_bank
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           values
         )
         createdModules += 1
@@ -413,7 +465,8 @@ export async function exportRoadmapAsJson(
     support_videos: parseJsonArray(m.support_videos),
     practical_activity: parseJsonArray(m.practical_activity),
     deliverable_evidence: parseJsonArray(m.deliverable_evidence),
-    evaluation: m.evaluation ? String(m.evaluation) : null
+    evaluation: m.evaluation ? String(m.evaluation) : null,
+    quiz: parseJsonArray(m.quiz_bank)
   }))
 
   return {

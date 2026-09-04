@@ -31,7 +31,13 @@ const validInput = {
     support_videos: [{ label: 'Curso' }],
     practical_activity: ['Crear una cuenta'],
     deliverable_evidence: ['Captura'],
-    evaluation: 'Revisión'
+    evaluation: 'Revisión',
+    quiz: [{
+      question: '¿Qué servicio gestiona identidades?',
+      answer: 'IAM',
+      options: ['IAM', 'S3', 'EC2'],
+      explanation: 'IAM gestiona identidades y permisos.'
+    }]
   }]
 }
 
@@ -48,6 +54,7 @@ async function importDb() {
       duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, level TEXT, objective TEXT,
       contents TEXT, importance TEXT, official_resources TEXT, support_videos TEXT,
       practical_activity TEXT, deliverable_evidence TEXT, evaluation TEXT
+      , quiz_bank TEXT
     );
     CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
     CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
@@ -74,11 +81,69 @@ describe('roadmap JSON import validation', () => {
       title: 'Fundamentos',
       level: 'beginner',
       duration_weeks_min: 2,
+      quiz: [{
+        question: '¿Qué servicio gestiona identidades?',
+        answer: 'IAM',
+        options: ['IAM', 'S3', 'EC2'],
+        explanation: 'IAM gestiona identidades y permisos.',
+        type: 'multiple_choice'
+      }],
       official_resources: [
         { label: 'Documentación' },
         { label: 'AWS', url: 'https://aws.amazon.com/' }
       ]
     })
+  })
+
+  it('validates explicit quiz options and supported question types', () => {
+    const result = validateRoadmapImport({
+      title: 'Quiz inválido',
+      modules: [{
+        title: 'Módulo',
+        quiz: [
+          { question: 'Q1', answer: 'No está', options: ['A', 'B'] },
+          { question: 'Q2', answer: 'Sí', options: ['Sí', 'No'], type: 'true_false' },
+          { question: 'Q3', answer: 'run', options: ['run', 'build'], type: 'code_snippet' }
+        ]
+      }]
+    })
+
+    expect(result.valid).toBe(false)
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      path: 'modules[0].quiz[0].answer'
+    }))
+    expect(result.roadmap).toBeNull()
+  })
+
+  it('reports malformed quiz banks without accepting partial questions', () => {
+    const result = validateRoadmapImport({
+      title: 'Quiz inválido 2',
+      modules: [{
+        title: 'Módulo',
+        quiz: [
+          { question: 'Q', answer: 'A', options: ['A'], type: 'multiple_choice' },
+          { question: 'Q', answer: 'A', options: ['A', 'B', 'C'], type: 'other' },
+          { question: 'Q', answer: 'A', options: ['A', 'B', 'C'], type: 'true_false' }
+        ]
+      }]
+    })
+
+    expect(result.valid).toBe(false)
+    expect(result.issues.map(issue => issue.path)).toEqual(expect.arrayContaining([
+      'modules[0].quiz[0].options',
+      'modules[0].quiz[1].type',
+      'modules[0].quiz[2].options'
+    ]))
+  })
+
+  it('rejects a quiz bank that is not a list', () => {
+    const result = validateRoadmapImport({
+      title: 'Quiz inválido 3',
+      modules: [{ title: 'Módulo', quiz: {} }]
+    })
+
+    expect(result.valid).toBe(false)
+    expect(result.issues[0].path).toBe('modules[0].quiz')
   })
 
   it('derives total duration from modules and defaults positions', () => {
@@ -173,6 +238,7 @@ describe('roadmap JSON import persistence', () => {
     expect(await db.get('SELECT title, contents FROM modules WHERE roadmap_id = 1')).toEqual({
       title: 'Fundamentos', contents: '["IAM"]'
     })
+    expect(JSON.parse((await db.get('SELECT quiz_bank FROM modules WHERE roadmap_id = 1')).quiz_bank)).toHaveLength(1)
     expect((await db.all('SELECT label FROM topics ORDER BY label')).map(row => row.label)).toEqual(['AWS', 'Terraform'])
     await db.close()
   })

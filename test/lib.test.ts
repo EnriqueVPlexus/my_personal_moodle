@@ -27,6 +27,7 @@ import {
   normalizeTopics,
   parseDurationWeeks
 } from '../lib/roadmapMetadata'
+import { getSeedQuizForModule } from '../lib/roadmapQuizBanks'
 
 describe('roadmap metadata helpers', () => {
   it('normalizes categories, topics and stable module levels', () => {
@@ -104,7 +105,8 @@ describe('quiz helpers', () => {
     const quiz = buildModuleQuiz(moduleFixture)
     const publicQuiz = toPublicModuleQuiz(quiz)
 
-    expect(quiz.questions).toHaveLength(3)
+    expect(quiz.questions.length).toBeGreaterThanOrEqual(3)
+    expect(quiz.questions.length).toBeLessThanOrEqual(5)
     expect(quiz.questions[0].prompt).toContain('EC2')
     expect(publicQuiz.questions[0]).not.toHaveProperty('correct_option_index')
 
@@ -114,8 +116,8 @@ describe('quiz helpers', () => {
     const grade = gradeModuleQuiz(moduleFixture, answers)
 
     expect(grade).toMatchObject({
-      score: 3,
-      max_score: 3,
+      score: quiz.questions.length,
+      max_score: quiz.questions.length,
       percentage: 100,
       passed: true
     })
@@ -161,6 +163,49 @@ describe('quiz helpers', () => {
         percentage: 67
       }
     })
+  })
+
+  it('uses explicit options, supports enriched types and caps the bank at five questions', () => {
+    const quiz = buildModuleQuiz({
+      id: 22,
+      roadmap_id: 7,
+      title: 'Kubernetes',
+      quiz_bank: JSON.stringify(Array.from({ length: 6 }, (_, index) => ({
+        question: `Pregunta ${index}`,
+        answer: index === 0 ? 'kubectl get pods' : `Respuesta ${index}`,
+        options: index === 0
+          ? ['kubectl get pods', 'kubectl delete pod', 'docker ps']
+          : [`Respuesta ${index}`, 'Otra opción', 'Una tercera opción'],
+        type: index === 1 ? 'true_false' : index === 2 ? 'code_snippet' : 'multiple_choice',
+        explanation: `Explicación ${index}`
+      })))
+    })
+
+    expect(quiz.questions).toHaveLength(5)
+    expect(quiz.questions.every(question => question.options.length === 3)).toBe(true)
+    expect(quiz.questions.some(question => question.type === 'true_false')).toBe(true)
+    expect(quiz.questions.some(question => question.type === 'code_snippet')).toBe(true)
+    expect(quiz.questions.every(question => question.explanation.startsWith('Explicación'))).toBe(true)
+  })
+
+  it('provides a real seed question for the built-in module families', () => {
+    const awsQuiz = getSeedQuizForModule('Amazon EC2')
+    const devopsQuiz = getSeedQuizForModule('Fase 3 - Kubernetes básico')
+    const aiQuiz = getSeedQuizForModule('RAG para documentación')
+
+    expect(awsQuiz[0]).toMatchObject({ answer: 'Security group', options: expect.arrayContaining(['Security group']) })
+    expect(devopsQuiz[0]).toMatchObject({ answer: 'Deployment' })
+    expect(aiQuiz[0]).toMatchObject({ answer: 'Contexto relevante para generar la respuesta' })
+  })
+
+  it('falls back safely for unknown or invalid banks', () => {
+    expect(getSeedQuizForModule('Módulo externo')).toEqual([])
+    expect(buildModuleQuiz({
+      id: 23,
+      title: 'Módulo externo',
+      quiz_bank: '{invalid-json',
+      contents: '["Contenido"]'
+    }).questions[0].id).toBe('module-content')
   })
 })
 

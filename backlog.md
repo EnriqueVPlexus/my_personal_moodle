@@ -501,13 +501,15 @@ Tareas:
 
 ## Prioridad media
 
-### [ ] Quizzes reales por modulo
+### [x] Quizzes reales por modulo
 
-Estado: pendiente.
+Estado: hecho. Los roadmaps iniciales cargan bancos explícitos por módulo,
+con opciones, respuesta correcta, tipo y explicación. El importador JSON
+permite ampliar o sustituir el banco de cada módulo.
 
 Valor: reutiliza los datos ya presentes en los roadmaps y aporta evaluacion ligera con aprendizaje activo.
 
-#### [ ] Fase 1. Tipos de pregunta enriquecidos y feedback explicativo
+#### [x] Fase 1. Tipos de pregunta enriquecidos y feedback explicativo
 
 Estado: pendiente.
 
@@ -517,7 +519,7 @@ Tareas:
 - Incluir un campo `explicacion` o `feedback` que se muestre tras responder para argumentar por que la opcion elegida es correcta o incorrecta.
 - Tests de API y UI para la renderizacion y correccion de respuestas.
 
-#### [ ] Fase 2. Banco de preguntas y aleatorizacion
+#### [x] Fase 2. Banco de preguntas y aleatorizacion
 
 Estado: pendiente.
 
@@ -526,7 +528,7 @@ Tareas:
 - Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
 - Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
 
-#### [ ] Fase 3. Nota minima exigible y modo evaluativo
+#### [x] Fase 3. Nota minima exigible y modo evaluativo
 
 Estado: pendiente.
 

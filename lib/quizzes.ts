@@ -186,7 +186,14 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return a
 }
 
-type BankEntry = { question: string; answer: string; explanation?: string; type?: QuestionType }
+type BankEntry = {
+  question: string
+  answer: string
+  options?: string[]
+  explanation?: string
+  feedback?: string
+  type?: QuestionType
+}
 
 /**
  * Construye preguntas de opción múltiple a partir del banco persitido.
@@ -204,18 +211,29 @@ export function buildQuizFromBank(
 
   return selected.map((entry, index) => {
     const correct = shortText(entry.answer)
+    const explicitOptions = Array.isArray(entry.options) && entry.options.length >= 2
+      ? unique(entry.options.map(shortText))
+      : []
+    const shuffledOptions = explicitOptions.length >= 2
+      ? seededShuffle(explicitOptions, seed + index)
+      : []
+    const correctIndex = shuffledOptions.findIndex(option => option.toLowerCase() === correct.toLowerCase())
     const candidates = selected
       .filter((_e, i) => i !== index)
       .map(e => shortText(e.answer))
     const qType: QuestionType = entry.type ?? 'multiple_choice'
-    const opts = buildOptions(correct, candidates, seed + index)
+    const opts = correctIndex >= 0
+      ? { options: shuffledOptions, correctIndex }
+      : buildOptions(correct, candidates, seed + index)
     return {
       id: `bank-${index}`,
       type: qType,
       prompt: cleanText(entry.question),
       options: opts.options,
       correct_option_index: opts.correctIndex,
-      explanation: entry.explanation ? cleanText(entry.explanation) : `La respuesta correcta es: ${correct}`
+      explanation: entry.explanation || entry.feedback
+        ? cleanText(entry.explanation ?? entry.feedback)
+        : `La respuesta correcta es: ${correct}`
     }
   })
 }

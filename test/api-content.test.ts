@@ -549,6 +549,7 @@ describe('content API handlers', () => {
           official_resources: '[{"label":"Amazon EC2"}]'
         })
         .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
           attempts_count: 1,
           average_score_percentage: 100,
@@ -558,7 +559,8 @@ describe('content API handlers', () => {
           score: 3,
           max_score: 3,
           submitted_at: '2026-07-12T08:00:00.000Z'
-        }),
+        })
+        .mockResolvedValueOnce(null),
       run: vi.fn()
     }
     await mockApi(db, { user })
