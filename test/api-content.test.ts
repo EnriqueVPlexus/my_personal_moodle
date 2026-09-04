@@ -46,7 +46,7 @@ describe('content API handlers', () => {
     expect(postRes.statusCode).toBe(201)
     expect(db.run).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO roadmaps'),
-      ['New', 'Desc', null, null, null]
+      ['New', 'Desc', null, null, null, 'v1.0.0', expect.any(String)]
     )
   })
 

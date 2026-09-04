@@ -32,7 +32,7 @@ describe('SQLite database bootstrap', () => {
     const { openDb } = await import('../lib/db')
     const db = await openDb()
     const roadmap = await db.get(
-      'SELECT title, category_id, duration_weeks_min, duration_weeks_max FROM roadmaps WHERE id = 50'
+      'SELECT title, category_id, duration_weeks_min, duration_weeks_max, version, published_at FROM roadmaps WHERE id = 50'
     )
     const moduleRow = await db.get(
       'SELECT title, level, duration_weeks_min, duration_weeks_max FROM modules WHERE id = 60'
@@ -40,6 +40,7 @@ describe('SQLite database bootstrap', () => {
 
     expect(roadmap).toMatchObject({
       title: 'Ruta interna',
+      version: 'v1.0.0',
       category_id: null,
       duration_weeks_min: 3,
       duration_weeks_max: 3
@@ -153,7 +154,7 @@ describe('SQLite database bootstrap', () => {
     expect(userColumns.map((column: any) => column.name)).toContain('can_view_all_roadmaps')
     expect(roadmapAccessTable.name).toBe('user_roadmap_access')
     expect(roadmapColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
-      'category_id', 'duration_weeks_min', 'duration_weeks_max'
+      'category_id', 'duration_weeks_min', 'duration_weeks_max', 'version', 'published_at'
     ]))
     expect(moduleColumns.map((column: any) => column.name)).toEqual(expect.arrayContaining([
       'level', 'duration_weeks_min', 'duration_weeks_max'

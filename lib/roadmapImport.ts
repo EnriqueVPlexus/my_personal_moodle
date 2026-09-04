@@ -6,6 +6,7 @@ import {
   parseDurationWeeks,
   saveRoadmapMetadata
 } from './roadmapMetadata'
+import { normalizePublishedAt, normalizeRoadmapVersion } from './roadmapVersion'
 
 export type RoadmapImportStrategy = 'create' | 'update'
 
@@ -34,6 +35,8 @@ export type NormalizedRoadmapImport = {
   objectives: string[]
   methodology: string[]
   evaluation_weights: Record<string, string>
+  version: string
+  published_at: string
   modules: Array<{
     position: number
     title: string
@@ -220,6 +223,10 @@ export function validateRoadmapImport(input: unknown): RoadmapImportValidation {
   const objectives = textList(input.objectives, 'objectives', issues)
   const methodology = textList(input.methodology, 'methodology', issues)
   const weights = evaluationWeights(input.evaluation_weights, issues)
+  const version = normalizeRoadmapVersion(input.version)
+  const publishedAt = normalizePublishedAt(input.published_at)
+  if (!version) issues.push({ path: 'version', message: 'Debe usar el formato v1.0.0.' })
+  if (!publishedAt) issues.push({ path: 'published_at', message: 'Debe ser una fecha ISO válida.' })
 
   if (!Array.isArray(input.modules) || input.modules.length === 0) {
     issues.push({ path: 'modules', message: 'Debe incluir al menos un módulo.' })
@@ -284,6 +291,8 @@ export function validateRoadmapImport(input: unknown): RoadmapImportValidation {
     objectives,
     methodology,
     evaluation_weights: weights,
+    version: version || 'v1.0.0',
+    published_at: publishedAt || new Date().toISOString(),
     modules
   }
 
@@ -316,20 +325,23 @@ export async function persistRoadmapImport(
       roadmap.duration_weeks_max,
       JSON.stringify(roadmap.objectives),
       JSON.stringify(roadmap.methodology),
-      JSON.stringify(roadmap.evaluation_weights)
+      JSON.stringify(roadmap.evaluation_weights),
+      roadmap.version,
+      roadmap.published_at
     ]
     if (roadmapId) {
       await db.run(
         `UPDATE roadmaps SET title = ?, description = ?, duration = ?, duration_weeks_min = ?,
-         duration_weeks_max = ?, objectives = ?, methodology = ?, evaluation_weights = ? WHERE id = ?`,
+         duration_weeks_max = ?, objectives = ?, methodology = ?, evaluation_weights = ?,
+         version = ?, published_at = ? WHERE id = ?`,
         [...roadmapValues, roadmapId]
       )
     } else {
       const result = await db.run(
         `INSERT INTO roadmaps (
            title, description, duration, duration_weeks_min, duration_weeks_max,
-           objectives, methodology, evaluation_weights
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           objectives, methodology, evaluation_weights, version, published_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         roadmapValues
       )
       roadmapId = result.lastID
@@ -480,6 +492,8 @@ export async function exportRoadmapAsJson(
     objectives: parseJsonArray(roadmap.objectives),
     methodology: parseJsonArray(roadmap.methodology),
     evaluation_weights: parseJsonObject(roadmap.evaluation_weights),
+    version: String(roadmap.version || 'v1.0.0'),
+    published_at: String(roadmap.published_at || new Date().toISOString()),
     modules
   }
 }

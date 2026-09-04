@@ -539,13 +539,16 @@ Tareas:
 
 ### [ ] Versionado de roadmaps
 
-Estado: pendiente.
+Estado: en curso. La fase 1 ya está implementada; el historial de versiones
+y la migración de progreso requieren una estrategia de snapshots pendiente.
 
 Valor: permite evolucionar contenido sin perder el historico de progreso ni romper el aprendizaje de alumnos existentes.
 
-#### [ ] Fase 1. Modelo de datos con etiquetado de version
+#### [x] Fase 1. Modelo de datos con etiquetado de version
 
-Estado: pendiente.
+Estado: hecho. Cada roadmap tiene versión semántica y fecha de publicación,
+con migración idempotente desde bases legacy y soporte en seeds, APIs e
+importación/exportación JSON.
 
 Tareas:
 

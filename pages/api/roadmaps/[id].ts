@@ -10,6 +10,7 @@ import {
   parseDurationWeeks,
   saveRoadmapMetadata
 } from '../../../lib/roadmapMetadata'
+import { normalizePublishedAt, normalizeRoadmapVersion } from '../../../lib/roadmapVersion'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -79,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PUT') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, description, duration, category, topics, duration_weeks_min, duration_weeks_max } = req.body
+    const { title, description, duration, category, topics, duration_weeks_min, duration_weeks_max, version, published_at } = req.body
     if (!title) return res.status(400).json({ error: 'title required' })
     const hasDuration = Object.prototype.hasOwnProperty.call(req.body, 'duration')
     const hasDurationRange = Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_min') ||
@@ -92,13 +93,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
     const hasCategory = Object.prototype.hasOwnProperty.call(req.body, 'category')
     const hasTopics = Object.prototype.hasOwnProperty.call(req.body, 'topics')
+    const hasVersion = Object.prototype.hasOwnProperty.call(req.body, 'version')
+    const hasPublishedAt = Object.prototype.hasOwnProperty.call(req.body, 'published_at')
+    const normalizedVersion = hasVersion ? normalizeRoadmapVersion(version) : null
+    const normalizedPublishedAt = hasPublishedAt ? normalizePublishedAt(published_at) : null
+    if (hasVersion && !normalizedVersion) return res.status(400).json({ error: 'invalid roadmap version' })
+    if (hasPublishedAt && !normalizedPublishedAt) return res.status(400).json({ error: 'invalid publication date' })
     const normalizedTopics = normalizeTopics(topics)
     if (normalizedTopics.length > 20) return res.status(400).json({ error: 'a roadmap can have at most 20 topics' })
     const result = await db.run(
       `UPDATE roadmaps SET title = ?, description = ?,
        duration = CASE WHEN ? = 1 THEN ? ELSE duration END,
        duration_weeks_min = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_min END,
-       duration_weeks_max = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_max END
+      duration_weeks_max = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_max END,
+      version = CASE WHEN ? = 1 THEN ? ELSE version END,
+      published_at = CASE WHEN ? = 1 THEN ? ELSE published_at END
        WHERE id = ?`,
       [
         title,
@@ -109,6 +118,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         durationRange.min,
         hasDuration || hasDurationRange ? 1 : 0,
         durationRange.max,
+        hasVersion ? 1 : 0,
+        normalizedVersion,
+        hasPublishedAt ? 1 : 0,
+        normalizedPublishedAt,
         id
       ]
     )

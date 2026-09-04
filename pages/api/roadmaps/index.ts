@@ -15,6 +15,7 @@ import {
   parseDurationWeeks,
   saveRoadmapMetadata
 } from '../../../lib/roadmapMetadata'
+import { normalizePublishedAt, normalizeRoadmapVersion } from '../../../lib/roadmapVersion'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -50,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, description, duration, category, topics, duration_weeks_min, duration_weeks_max } = req.body
+    const { title, description, duration, category, topics, duration_weeks_min, duration_weeks_max, version, published_at } = req.body
     if (!title) return res.status(400).json({ error: 'title required' })
     const hasManualDuration = duration_weeks_min !== undefined || duration_weeks_max !== undefined
     const durationRange = hasManualDuration
@@ -59,11 +60,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
     const normalizedTopics = normalizeTopics(topics)
     if (normalizedTopics.length > 20) return res.status(400).json({ error: 'a roadmap can have at most 20 topics' })
+    const normalizedVersion = normalizeRoadmapVersion(version)
+    const normalizedPublishedAt = normalizePublishedAt(published_at)
+    if (!normalizedVersion) return res.status(400).json({ error: 'invalid roadmap version' })
+    if (!normalizedPublishedAt) return res.status(400).json({ error: 'invalid publication date' })
     const result = await db.run(
       `INSERT INTO roadmaps (
-         title, description, duration, duration_weeks_min, duration_weeks_max
-       ) VALUES (?, ?, ?, ?, ?)`,
-      [title, description || null, duration || null, durationRange.min, durationRange.max]
+         title, description, duration, duration_weeks_min, duration_weeks_max, version, published_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [title, description || null, duration || null, durationRange.min, durationRange.max, normalizedVersion, normalizedPublishedAt]
     )
     const id = result.lastID
     if (!id) return res.status(500).json({ error: 'roadmap could not be created' })

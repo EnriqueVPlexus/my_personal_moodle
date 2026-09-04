@@ -12,7 +12,7 @@ async function apiDb() {
     CREATE TABLE roadmaps (
       id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE NOT NULL, description TEXT,
       duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, objectives TEXT,
-      methodology TEXT, evaluation_weights TEXT, category_id INTEGER
+      methodology TEXT, evaluation_weights TEXT, category_id INTEGER, version TEXT, published_at TEXT
     );
     CREATE TABLE modules (
       id INTEGER PRIMARY KEY AUTOINCREMENT, roadmap_id INTEGER, position INTEGER, title TEXT,

@@ -42,6 +42,8 @@ type RoadmapModule = LearningModule & {
 type RoadmapDetail = {
   id: number
   title: string
+  version?: string
+  published_at?: string
   duration?: string
   description?: string
   objectives?: unknown
@@ -129,6 +131,12 @@ function moduleLevelLabel(level: LearningModule['level']) {
   return 'Sin clasificar'
 }
 
+function formatPublishedAt(value?: string) {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString('es-ES')
+}
+
 export default function RoadmapDetailPage() {
   const router = useRouter()
   const { id } = router.query
@@ -188,6 +196,12 @@ export default function RoadmapDetailPage() {
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Roadmap</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{roadmap.title}</h1>
+              {(roadmap.version || roadmap.published_at) && (
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  {roadmap.version || 'v1.0.0'}
+                  {formatPublishedAt(roadmap.published_at) && ` · Publicado el ${formatPublishedAt(roadmap.published_at)}`}
+                </p>
+              )}
               {roadmap.description && <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{roadmap.description}</p>}
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-md bg-sky-100 px-2.5 py-1 font-semibold text-sky-800">

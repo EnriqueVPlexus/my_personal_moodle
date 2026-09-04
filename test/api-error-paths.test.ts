@@ -181,7 +181,7 @@ describe('content API edge cases', () => {
     expect(roadmapNoDescription.statusCode).toBe(201)
     expect(db.run).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO roadmaps'),
-      ['No desc', null, null, null, null]
+      ['No desc', null, null, null, null, 'v1.0.0', expect.any(String)]
     )
 
     const roadmap405 = createResponse()

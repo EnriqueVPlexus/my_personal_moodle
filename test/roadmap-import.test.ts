@@ -47,7 +47,7 @@ async function importDb() {
     CREATE TABLE roadmaps (
       id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE NOT NULL, description TEXT,
       duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, objectives TEXT,
-      methodology TEXT, evaluation_weights TEXT, category_id INTEGER
+      methodology TEXT, evaluation_weights TEXT, category_id INTEGER, version TEXT, published_at TEXT
     );
     CREATE TABLE modules (
       id INTEGER PRIMARY KEY AUTOINCREMENT, roadmap_id INTEGER, position INTEGER, title TEXT,
@@ -70,6 +70,7 @@ describe('roadmap JSON import validation', () => {
     expect(result.valid).toBe(true)
     expect(result.roadmap).toMatchObject({
       title: 'Plataforma Cloud',
+      version: 'v1.0.0',
       description: 'Ruta práctica',
       duration_weeks_min: 2,
       duration_weeks_max: 2,
@@ -134,6 +135,20 @@ describe('roadmap JSON import validation', () => {
       'modules[0].quiz[1].type',
       'modules[0].quiz[2].options'
     ]))
+  })
+
+  it('normalizes an explicit version and publication date', () => {
+    const result = validateRoadmapImport({
+      title: 'Versionada',
+      version: 'v2.3.4',
+      published_at: '2026-09-04T10:00:00.000Z',
+      modules: [{ title: 'Módulo' }]
+    })
+
+    expect(result.roadmap).toMatchObject({
+      version: 'v2.3.4',
+      published_at: '2026-09-04T10:00:00.000Z'
+    })
   })
 
   it('rejects a quiz bank that is not a list', () => {

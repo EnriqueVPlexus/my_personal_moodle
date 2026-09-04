@@ -8,6 +8,7 @@ import iaDevopsRoadmapSeed from './iaDevopsRoadmapSeed.json'
 import devopsRoadmapSeed from './devopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
 import { getSeedQuizForModule } from './roadmapQuizBanks'
+import { DEFAULT_ROADMAP_VERSION, normalizePublishedAt, normalizeRoadmapVersion } from './roadmapVersion'
 import {
   normalizeModuleLevel,
   parseDurationWeeks,
@@ -58,6 +59,8 @@ type RoadmapSeed = {
   objectives?: string[]
   methodology?: string[]
   evaluation_weights?: Record<string, string>
+  version?: string
+  published_at?: string
   modules: Array<{
     position?: number
     title: string
@@ -345,6 +348,10 @@ async function migrate(db: any) {
   await ensureColumn(db, 'roadmaps', 'category_id', 'INTEGER REFERENCES roadmap_categories(id) ON DELETE SET NULL')
   await ensureColumn(db, 'roadmaps', 'duration_weeks_min', 'REAL')
   await ensureColumn(db, 'roadmaps', 'duration_weeks_max', 'REAL')
+  await ensureColumn(db, 'roadmaps', 'version', 'TEXT')
+  await ensureColumn(db, 'roadmaps', 'published_at', 'TEXT')
+  await db.run("UPDATE roadmaps SET version = ? WHERE version IS NULL OR version = ''", [DEFAULT_ROADMAP_VERSION])
+  await db.run("UPDATE roadmaps SET published_at = CURRENT_TIMESTAMP WHERE published_at IS NULL OR published_at = ''")
 
   await ensureColumn(db, 'modules', 'position', 'INTEGER')
   await ensureColumn(db, 'modules', 'duration', 'TEXT')
@@ -465,14 +472,16 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
   }), { min: 0, max: 0 })
   const durationWeeksMin = parsedRoadmapDuration.min ?? (moduleDuration.min || null)
   const durationWeeksMax = parsedRoadmapDuration.max ?? (moduleDuration.max || null)
-  const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [seed.title])
+  const existing = await db.get('SELECT id, version, published_at FROM roadmaps WHERE title = ?', [seed.title])
   let roadmapId = existing?.id
+  const version = normalizeRoadmapVersion(seed.version) || existing?.version || DEFAULT_ROADMAP_VERSION
+  const publishedAt = normalizePublishedAt(seed.published_at) || existing?.published_at || new Date().toISOString()
 
   if (roadmapId) {
     await db.run(
       `UPDATE roadmaps
        SET description = ?, duration = ?, objectives = ?, methodology = ?, evaluation_weights = ?,
-           duration_weeks_min = ?, duration_weeks_max = ?
+           duration_weeks_min = ?, duration_weeks_max = ?, version = ?, published_at = ?
        WHERE id = ?`,
       [
         description,
@@ -482,6 +491,8 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
         JSON.stringify(evaluationWeights),
         durationWeeksMin,
         durationWeeksMax,
+        version,
+        publishedAt,
         roadmapId
       ]
     )
@@ -489,8 +500,8 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
     const result = await db.run(
       `INSERT INTO roadmaps (
          title, description, duration, objectives, methodology, evaluation_weights,
-         duration_weeks_min, duration_weeks_max
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         duration_weeks_min, duration_weeks_max, version, published_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         seed.title,
         description,
@@ -499,7 +510,9 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
         JSON.stringify(methodology),
         JSON.stringify(evaluationWeights),
         durationWeeksMin,
-        durationWeeksMax
+        durationWeeksMax,
+        version,
+        publishedAt
       ]
     )
     roadmapId = result.lastID
