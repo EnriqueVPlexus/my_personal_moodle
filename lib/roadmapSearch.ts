@@ -40,6 +40,44 @@ export const ROADMAP_CATALOG_SEARCH_SQL = `
   ORDER BY roadmaps.id DESC
 `
 
+export const POSTGRES_ROADMAP_CATALOG_SEARCH_SQL = `
+  WITH module_catalog AS (
+    SELECT
+      roadmap_id,
+      COUNT(*) AS module_count,
+      STRING_AGG(DISTINCT level, ',') AS module_levels,
+      STRING_AGG(
+        COALESCE(title, '') || ' ' ||
+        COALESCE(objective, '') || ' ' ||
+        COALESCE(contents, ''),
+        ' '
+      ) AS module_search_text
+    FROM modules
+    GROUP BY roadmap_id
+  ),
+  topic_catalog AS (
+    SELECT
+      roadmap_topics.roadmap_id,
+      STRING_AGG(DISTINCT topics.key || chr(31) || topics.label, ',') AS topics_metadata
+    FROM roadmap_topics
+    INNER JOIN topics ON topics.id = roadmap_topics.topic_id
+    GROUP BY roadmap_topics.roadmap_id
+  )
+  SELECT
+    roadmaps.*,
+    roadmap_categories.key AS category_key,
+    roadmap_categories.label AS category_label,
+    COALESCE(module_catalog.module_count, 0) AS module_count,
+    module_catalog.module_levels,
+    topic_catalog.topics_metadata,
+    COALESCE(module_catalog.module_search_text, '') AS module_search_text
+  FROM roadmaps
+  LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
+  LEFT JOIN module_catalog ON module_catalog.roadmap_id = roadmaps.id
+  LEFT JOIN topic_catalog ON topic_catalog.roadmap_id = roadmaps.id
+  ORDER BY roadmaps.id DESC
+`
+
 export type RoadmapSearchQuery = {
   query: string
   normalizedQuery: string

@@ -28,7 +28,9 @@ npm run dev
 
 1. Abre `http://localhost:3000`.
 
-La base local se crea automáticamente en `data/dev.db`.
+Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
+Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
+el proyecto de Supabase configurado en `.env.local`.
 
 ## Dominio Funcional
 
@@ -82,6 +84,43 @@ scripts/                    Utilidades de mantenimiento.
 ```
 
 ## Base De Datos
+
+`lib/db.ts` crea y migra estas tablas. El backend se selecciona así:
+
+- Desarrollo y tests: SQLite local cuando `DATABASE_URL` no existe.
+- Supabase/producción: PostgreSQL cuando `DATABASE_URL` existe.
+
+No se deben configurar ambos backends para compartir datos automáticamente:
+SQLite es una base local independiente y PostgreSQL es la fuente central del
+entorno remoto.
+
+Variables mínimas para PostgreSQL:
+
+```env
+DATABASE_URL=postgresql://postgres:CONTRASENA@db.PROJECT_REF.supabase.co:5432/postgres
+SUPABASE_URL=https://PROJECT_REF.supabase.co
+SUPABASE_PROJECT_REF=PROJECT_REF
+```
+
+La contraseña de la base de datos y cualquier clave privada deben permanecer
+en `.env.local` o en los secretos del proveedor de despliegue.
+
+Para copiar datos de una SQLite existente a PostgreSQL, usa primero la
+simulación:
+
+```bash
+npm run migrate:postgres
+```
+
+El comando no modifica PostgreSQL y omite las sesiones activas. Revisa los
+recuentos antes de aplicar la copia con:
+
+```bash
+npm run migrate:postgres -- --apply
+```
+
+No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
+comparar antes los IDs y recuentos de ambas bases.
 
 `lib/db.ts` crea y migra estas tablas:
 
