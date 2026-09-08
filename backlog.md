@@ -31,19 +31,227 @@ del producto poco a poco.
   concurrencia, validacion y recuperacion ante errores de red.
 - [x] Favicon propio de CanteraHub para la pestana del navegador.
 
-## Orden recomendado
+## Siguiente hoja de ruta tecnica
 
-1. Progreso por usuario.
-2. Buscador y filtros.
-3. Importador JSON para roadmaps.
-4. Evidencias y portfolio por modulo.
-5. Preparacion para despliegue.
-6. Quizzes reales.
-7. Versionado de roadmaps.
-8. Dashboard admin.
-9. Guia Google Skills badges.
+La base funcional principal ya esta implementada. Los siguientes pasos se
+centran en convertir la aplicacion en una plataforma web multiusuario con
+PostgreSQL central, manteniendo SQLite para desarrollo y tests.
+
+1. Capa de acceso SQL estructurada.
+2. Validacion de entradas y contratos con `zod`.
+3. Separacion de dominios: autenticacion, contenido, progreso,
+   administracion y persistencia.
+4. Migraciones formales de PostgreSQL.
+5. Tests de integracion contra PostgreSQL real.
+6. Gestion de conexiones y transacciones.
+7. Contratos API estables y documentados.
+8. Observabilidad, backups y recuperacion.
+9. Versionado completo de roadmaps.
+10. PWA con manifest y service worker.
+
+Cada punto debe mantener compatibilidad con SQLite local salvo que el propio
+objetivo requiera PostgreSQL. La migracion `feature/migration_2_postgresql`
+ya esta integrada en `main`; los detalles pendientes de esa integracion se
+mantienen en los bloques tecnicos de abajo.
+
+## Estrategia de ramas
+
+- Usar una rama tematica por cambio con impacto funcional o de infraestructura.
+- Nombrar las ramas como `feature/<tema>` o `chore/<tema>` cuando no haya
+  comportamiento de usuario.
+- Mantener `main` siempre integrable y fusionar solo despues de tests, lint y
+  build.
+- Agrupar en una misma rama las tareas pequeñas que forman una sola unidad
+  tecnica; no crear una rama por cada archivo o ajuste menor.
+- Ramas previstas: `feature/sql-access-layer`, `feature/input-validation-zod`,
+  `refactor/domain-separation`, `feature/postgres-migrations`,
+  `test/postgres-integration`, `chore/db-transactions`,
+  `feature/api-contracts`, `chore/observability-backups`,
+  `feature/roadmap-version-history` y `feature/pwa`.
 
 ## Prioridad alta
+
+### [ ] Capa de acceso SQL estructurada
+
+Estado: pendiente.
+
+Objetivo: sustituir gradualmente el acceso SQL disperso por una capa tipada
+que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
+
+Tareas:
+
+- Evaluar `Drizzle` y `Kysely` sobre el codigo actual.
+- Definir repositorios o consultas agrupadas por dominio.
+- Mantener una ruta de compatibilidad para los tests SQLite existentes.
+- Migrar primero una lectura y una escritura representativas.
+
+Rama sugerida: `feature/sql-access-layer`.
+
+Hecho cuando:
+
+- Las consultas nuevas pasan por la capa estructurada.
+- SQLite y PostgreSQL producen el mismo contrato observable.
+- Existen tests de regresion para ambos backends.
+
+### [ ] Validacion de entradas y contratos con Zod
+
+Estado: pendiente.
+
+Tareas:
+
+- Anadir `zod` como dependencia de runtime.
+- Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
+  progreso, quizzes e importaciones.
+- Devolver errores de validacion consistentes sin filtrar detalles internos.
+
+Rama sugerida: `feature/input-validation-zod`.
+
+Hecho cuando:
+
+- Las entradas de las APIs principales se validan antes de tocar la base de datos.
+- Los tests cubren payloads validos, invalidos y limites.
+
+### [ ] Separacion de dominios y persistencia
+
+Estado: pendiente.
+
+Tareas:
+
+- Separar autenticacion, contenido, progreso, administracion y persistencia.
+- Mover reglas de negocio fuera de los handlers HTTP.
+- Definir interfaces para que las APIs no dependan directamente del driver.
+
+Rama sugerida: `refactor/domain-separation`.
+
+Hecho cuando:
+
+- Cada dominio tiene servicios y tipos identificables.
+- Los handlers se limitan a autenticar, validar, invocar y responder.
+- Los tests de dominio no necesitan levantar Next.js.
+
+### [ ] Migraciones formales de PostgreSQL
+
+Estado: pendiente. La creacion inicial del esquema y el migrador SQLite ya
+existen, pero falta una historia formal de migraciones versionadas.
+
+Tareas:
+
+- Elegir herramienta compatible con la capa SQL seleccionada.
+- Crear migracion inicial reproducible para el esquema actual.
+- Separar migraciones de datos, seeds y cambios de estructura.
+- Documentar rollback y ejecucion segura en Supabase.
+
+Rama sugerida: `feature/postgres-migrations`.
+
+Hecho cuando:
+
+- Una base PostgreSQL vacia puede levantarse solo con las migraciones.
+- Las migraciones son idempotentes o tienen control de version.
+- Existe una prueba de bootstrap desde cero.
+
+### [ ] Tests de integracion contra PostgreSQL real
+
+Estado: pendiente.
+
+Tareas:
+
+- Preparar una base PostgreSQL de test aislada.
+- Ejecutar auth, contenido, progreso, quizzes e importacion contra PostgreSQL.
+- Mantener tests unitarios rapidos sobre SQLite cuando sea suficiente.
+
+Rama sugerida: `test/postgres-integration`.
+
+Hecho cuando:
+
+- El flujo critico pasa contra PostgreSQL sin depender de la base de produccion.
+- Las pruebas limpian sus datos y pueden repetirse localmente o en CI.
+
+### [ ] Gestion de conexiones y transacciones
+
+Estado: pendiente.
+
+Tareas:
+
+- Revisar ciclo de vida del pool PostgreSQL en desarrollo, tests y serverless.
+- Definir limites, timeouts y comportamiento ante desconexion.
+- Garantizar transacciones en importaciones y operaciones multi-tabla.
+- Evitar conexiones persistentes innecesarias durante tests.
+
+Rama sugerida: `chore/db-transactions`.
+
+Hecho cuando:
+
+- No hay fugas de conexiones bajo carga de tests.
+- Las operaciones parciales hacen rollback comprobable.
+- Los errores de base de datos llegan como respuestas controladas.
+
+### [ ] Contratos API estables
+
+Estado: pendiente.
+
+Tareas:
+
+- Documentar request, response y errores de cada API publica.
+- Definir versionado de API si un cambio rompe clientes.
+- Generar tipos compartidos para frontend y backend.
+- Mantener compatibilidad durante la migracion SQLite/PostgreSQL.
+
+Rama sugerida: `feature/api-contracts`.
+
+Hecho cuando:
+
+- Las APIs criticas tienen contrato documentado y tests de respuesta.
+- Los cambios incompatibles requieren una decision explicita.
+
+### [ ] Observabilidad, backups y recuperacion
+
+Estado: pendiente.
+
+Tareas:
+
+- Registrar errores de servidor, latencias y operaciones administrativas.
+- Configurar backups de PostgreSQL y comprobar una restauracion.
+- Documentar secretos, rotacion de credenciales y respuesta ante incidente.
+- Anadir health check sin exponer datos sensibles.
+
+Rama sugerida: `chore/observability-backups`.
+
+Hecho cuando:
+
+- Existe un procedimiento probado de backup y restauracion.
+- Los errores criticos se pueden diagnosticar sin acceder a contrasenas.
+
+### [ ] Versionado completo de roadmaps
+
+Estado: en curso. La fase 1 de metadatos ya esta hecha; quedan snapshots,
+migracion de progreso, changelog y diferencias visibles.
+
+Rama sugerida: `feature/roadmap-version-history`.
+
+Hecho cuando:
+
+- Un usuario puede conservar su version o aceptar una actualizacion.
+- El progreso no se pierde al publicar una nueva version.
+- El detalle muestra cambios y version vigente.
+
+### [ ] PWA con manifest y service worker
+
+Estado: pendiente.
+
+Tareas:
+
+- Crear manifest, iconos y metadatos instalables.
+- Definir cache de contenido publico y estrategia de actualizacion.
+- Mostrar estado offline sin permitir escrituras ambiguas.
+- Probar instalacion en movil y escritorio.
+
+Rama sugerida: `feature/pwa`.
+
+Hecho cuando:
+
+- La aplicacion se puede instalar desde un navegador compatible.
+- Las actualizaciones no dejan una version antigua bloqueada.
+- El modo offline no compromete progreso, auth ni datos administrativos.
 
 ### [x] Progreso por usuario
 
@@ -537,7 +745,7 @@ Tareas:
 - Ajustar de forma opcional por modulo una nota minima requerida (ej. 70% o 7/10) para marcar la evaluacion como superada.
 - Opcion para limitar el numero de intentos o aplicar un tiempo de espera entre reintentos fallidos.
 
-### [ ] Versionado de roadmaps
+### [ ] Versionado de roadmaps: detalle funcional
 
 Estado: en curso. La fase 1 ya está implementada; el historial de versiones
 y la migración de progreso requieren una estrategia de snapshots pendiente.
@@ -657,7 +865,8 @@ Valor: permitir que el alumno guarde un cuaderno de notas privado en Markdown as
 
 ### [ ] Modo Lectura Offline / PWA ligera
 
-Estado: idea.
+Estado: pospuesto. Se implementara dentro de `PWA con manifest y service worker`
+cuando la capa de persistencia, contratos y actualizaciones este estabilizada.
 
 Valor: cachear contenidos y lecciones mediante un Service Worker para poder consultar los roadmaps sin conexion a internet.
 
@@ -665,15 +874,18 @@ Valor: cachear contenidos y lecciones mediante un Service Worker para poder cons
 
 ### [ ] Preparacion para despliegue
 
-Estado: pendiente. Se abordara cuando el resto de funcionalidades este cerrado.
+Estado: en curso. La aplicacion ya puede usar PostgreSQL de Supabase y mantiene
+SQLite para desarrollo; faltan despliegue reproducible, secretos, backups y
+pruebas de recuperacion.
 
 Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
 
 Alcance inicial:
 
-- Sustituir SQLite local por una base de datos apta para hosting gestionado.
+- Usar PostgreSQL de Supabase como fuente central y SQLite solo en local/tests.
 - Endurecer credenciales y configuracion de produccion.
 - Documentar deploy automatizado con GitHub.
+- Configurar health checks, backups y recuperacion.
 
 Hecho cuando:
 
@@ -683,6 +895,9 @@ Hecho cuando:
 
 ## Notas de producto
 
+- Stack objetivo: React + Next.js + TypeScript, API Node/Next.js,
+  PostgreSQL, SQLite para desarrollo/tests, PWA y Capacitor como posible
+  cliente movil futuro.
 - La app esta evolucionando desde un catalogo de roadmaps hacia una
   herramienta de seguimiento formativo.
 - Conviene mantener el tono visual sobrio y utilitario actual,
