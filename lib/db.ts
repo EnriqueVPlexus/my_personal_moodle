@@ -9,6 +9,7 @@ import devopsRoadmapSeed from './devopsRoadmapSeed.json'
 import { hashPassword, normalizeEmail, validatePassword } from './password'
 import { getSeedQuizForModule } from './roadmapQuizBanks'
 import { DEFAULT_ROADMAP_VERSION, normalizePublishedAt, normalizeRoadmapVersion } from './roadmapVersion'
+import { PostgresDb } from './postgresDb'
 import {
   normalizeModuleLevel,
   parseDurationWeeks,
@@ -145,16 +146,33 @@ const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
 let initialized = false
 
-export async function openDb() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR)
+export async function openSqliteDb(filename = DB_FILE) {
+  const directory = path.dirname(filename)
+  if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true })
   const db = await open({
-    filename: DB_FILE,
+    filename,
     driver: sqlite3.Database
   })
   await db.exec('PRAGMA foreign_keys = ON')
+  await migrate(db)
+  return db
+}
+
+export async function openDb() {
+  if (process.env.DATABASE_URL) {
+    const db = new PostgresDb(process.env.DATABASE_URL)
+    if (!initialized) {
+      await db.migrate()
+      await seedRoadmaps(db)
+      await seedInitialAdmin(db)
+      initialized = true
+    }
+    return db
+  }
+
+  const db = await openSqliteDb()
 
   if (!initialized) {
-    await migrate(db)
     await seedRoadmaps(db)
     await seedInitialAdmin(db)
     initialized = true

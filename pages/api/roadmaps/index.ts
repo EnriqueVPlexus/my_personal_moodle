@@ -5,6 +5,7 @@ import { openDb } from '../../../lib/db'
 import {
   filterAndRankRoadmaps,
   parseRoadmapSearchQuery,
+  POSTGRES_ROADMAP_CATALOG_SEARCH_SQL,
   ROADMAP_CATALOG_SEARCH_SQL
 } from '../../../lib/roadmapSearch'
 import { parseRoadmapCatalogFilters } from '../../../lib/roadmapFilters'
@@ -28,7 +29,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (search.tooLong) {
       return res.status(400).json({ error: 'search query must be 100 characters or fewer' })
     }
-    const rows = await db.all(ROADMAP_CATALOG_SEARCH_SQL)
+    const rows = await db.all(
+      process.env.DATABASE_URL ? POSTGRES_ROADMAP_CATALOG_SEARCH_SQL : ROADMAP_CATALOG_SEARCH_SQL
+    )
     const visibleRows = scope.allRoadmaps
       ? rows
       : rows.filter((row: any) => scope.roadmapIds.includes(Number(row.id)))
