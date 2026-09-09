@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { findLessonById, findLessonsByModuleId, insertLesson } from '../../../lib/lessonRepository'
+import { findModuleById } from '../../../lib/moduleRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -11,9 +13,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!scope) return
     const { module_id } = req.query
     if (!module_id) return res.status(400).json({ error: 'module_id required' })
-    const moduleRow = await db.get('SELECT roadmap_id FROM modules WHERE id = ?', [module_id])
+    const moduleRow = await findModuleById(db, module_id as string)
     if (!moduleRow || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(200).json([])
-    const rows = await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [module_id])
+    const rows = await findLessonsByModuleId(db, module_id as string)
     return res.status(200).json(rows)
   }
 
@@ -22,15 +24,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!admin) return
     const { title, module_id } = req.body
     if (!title || !module_id) return res.status(400).json({ error: 'title and module_id required' })
-    const result = await db.run('INSERT INTO lessons (module_id, title, completed) VALUES (?, ?, ?)', [module_id, title, 0])
-    const row = await db.get('SELECT * FROM lessons WHERE id = ?', [result.lastID])
+    const newId = await insertLesson(db, { module_id, title })
+    const row = await findLessonById(db, newId)
     await writeAuditLog({
       db,
       req,
       user: admin,
       action: 'lesson.create',
       entityType: 'lesson',
-      entityId: result.lastID,
+      entityId: newId,
       details: { title, module_id }
     })
     return res.status(201).json(row)

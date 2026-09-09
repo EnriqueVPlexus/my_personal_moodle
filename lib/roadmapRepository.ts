@@ -1,50 +1,11 @@
-import { Kysely, PostgresDialect, Generated, Selectable, Updateable } from 'kysely'
-import type { Pool } from 'pg'
+import { Selectable, Updateable } from 'kysely'
 import type { DatabaseClient } from './database'
 import type { PostgresDb } from './postgresDb'
-
-export interface RoadmapsTable {
-  id: Generated<number>
-  title: string
-  description: string | null
-  duration: string | null
-  objectives: string | null
-  methodology: string | null
-  evaluation_weights: string | null
-  category_id: number | null
-  duration_weeks_min: number | null
-  duration_weeks_max: number | null
-  version: string
-  published_at: Date | string
-}
-
-export interface RoadmapCategoriesTable {
-  id: Generated<number>
-  key: string
-  label: string
-}
-
-export interface RoadmapQueryDatabase {
-  roadmaps: RoadmapsTable
-  roadmap_categories: RoadmapCategoriesTable
-}
+import { getQueryDatabase, RoadmapsTable } from './kyselyDatabase'
 
 export type RoadmapWithCategory = Selectable<RoadmapsTable> & {
   category_key: string | null
   category_label: string | null
-}
-
-const kyselyByPool = new WeakMap<Pool, Kysely<RoadmapQueryDatabase>>()
-
-function getRoadmapQueryDatabase(pool: Pool): Kysely<RoadmapQueryDatabase> {
-  let instance = kyselyByPool.get(pool)
-  if (!instance) {
-    instance = new Kysely<RoadmapQueryDatabase>({
-      dialect: new PostgresDialect({ pool })
-    })
-    kyselyByPool.set(pool, instance)
-  }
-  return instance
 }
 
 const SQLITE_ROADMAP_BY_ID = `
@@ -61,7 +22,7 @@ export async function findRoadmapById(db: DatabaseClient, id: number): Promise<R
   }
 
   const pool = (db as PostgresDb).getPool()
-  return getRoadmapQueryDatabase(pool)
+  return getQueryDatabase(pool)
     .selectFrom('roadmaps')
     .leftJoin('roadmap_categories', 'roadmap_categories.id', 'roadmaps.category_id')
     .select([
@@ -141,7 +102,7 @@ export async function updateRoadmapCore(db: DatabaseClient, id: number, patch: R
   if (hasPublishedAt) values.published_at = patch.publishedAt
 
   const pool = (db as PostgresDb).getPool()
-  const result = await getRoadmapQueryDatabase(pool)
+  const result = await getQueryDatabase(pool)
     .updateTable('roadmaps')
     .set(values)
     .where('id', '=', id)

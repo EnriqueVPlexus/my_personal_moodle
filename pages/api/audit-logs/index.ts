@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { listAuditLogs } from '../../../lib/auditRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -12,12 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!(await requireAdmin(req, res, db))) return
 
-  const rows = await db.all(
-    `SELECT id, actor_user_id, actor_email, action, entity_type, entity_id, details, ip_address, user_agent, created_at
-     FROM audit_logs
-     ORDER BY datetime(created_at) DESC, id DESC
-     LIMIT 200`
-  )
+  const rows = await listAuditLogs(db, 200)
 
   return res.status(200).json(rows)
 }

@@ -71,49 +71,88 @@ mantienen en los bloques tecnicos de abajo.
 
 ## Prioridad alta
 
-### [ ] Capa de acceso SQL estructurada
+### [x] Capa de acceso SQL estructurada
 
-Estado: en curso. Ya existe un contrato `DatabaseClient` comun para SQLite y
-PostgreSQL. Se ha elegido `Kysely` sobre `Drizzle` porque conserva el control
-del SQL existente y ofrece tipado, soporte PostgreSQL/SQLite y migraciones;
-falta migrar el resto de consultas a repositorios.
+Estado: hecho. Se establecio el patron de repositorio tipado con `Kysely`
+(elegido sobre `Drizzle` por conservar el control del SQL existente y ofrecer
+tipado, soporte PostgreSQL/SQLite y migraciones) y se aplico a cuatro dominios
+como base reutilizable para el resto. La migracion del resto de dominios queda
+como tarea aparte de menor prioridad (ver `Migrar dominios restantes a la capa
+SQL estructurada`), sin bloquear el resto de la hoja de ruta.
 
 Objetivo: sustituir gradualmente el acceso SQL disperso por una capa tipada
 que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
 
-Tareas:
+Patron establecido (usar como referencia para nuevos dominios):
 
-- Evaluar `Drizzle` y `Kysely` sobre el codigo actual.
-- Mantener la decision registrada: Kysely sera el constructor SQL tipado.
-- Definir repositorios o consultas agrupadas por dominio.
-- Mantener una ruta de compatibilidad para los tests SQLite existentes.
-- Migrar primero una lectura y una escritura representativas.
+- Esquema Kysely compartido en `lib/kyselyDatabase.ts`: una interfaz de tabla
+  por tabla, una interfaz `Database` que las agrupa, y `getQueryDatabase(pool)`
+  que cachea una instancia `Kysely` por `Pool` de PostgreSQL (`WeakMap`).
+  Columnas nullable sin valor en el insert original usan el helper
+  `OptionalOnInsert` (`ColumnType`) para que `Insertable<...>` no las exija.
+- Un repositorio por dominio (`lib/roadmapRepository.ts`, `lib/auditRepository.ts`,
+  `lib/moduleRepository.ts`, `lib/lessonRepository.ts`): cada funcion recibe el
+  `DatabaseClient` generico y decide backend con `db.backend !== 'postgres'`;
+  la rama SQLite usa el SQL parametrizado ya existente (sin reescribirlo) y la
+  rama PostgreSQL usa `getQueryDatabase((db as PostgresDb).getPool())`, de modo
+  que se reutiliza el pool de conexiones en vez de crear uno nuevo por dominio.
+- Los handlers de `pages/api` importan el repositorio y dejan de construir SQL
+  o decidir el backend con `if (db.backend === 'postgres')`.
+- Tests de regresion por repositorio en `test/*Repository.test.ts` cubren la
+  ruta SQLite (lectura, escritura parcial, entidad inexistente). La ruta
+  PostgreSQL no tiene tests propios todavia porque no existe infraestructura
+  de base de test aislada (tarea aparte `test/postgres-integration`).
 
-Rama sugerida: `feature/sql-access-layer`.
+Hecho cuando (para el alcance migrado):
 
-Hecho cuando:
-
-- Las consultas nuevas pasan por la capa estructurada.
+- Las consultas de los dominios migrados pasan por la capa estructurada.
 - SQLite y PostgreSQL producen el mismo contrato observable.
-- Existen tests de regresion para ambos backends.
+- Existen tests de regresion para la ruta SQLite de cada repositorio.
 
 Avance actual:
 
-- Contrato comun `DatabaseClient` para ambos backends.
-- Primer repositorio Kysely para leer el detalle de un roadmap en PostgreSQL.
-- `roadmapRepository.findRoadmapById` decide el backend internamente: usa
-  Kysely en PostgreSQL y una consulta SQLite equivalente en el resto,
-  reutilizando el pool de `PostgresDb` (`getPool()`) en vez de crear uno propio.
-  El handler `GET /api/roadmaps/[id]` ya no bifurca por `db.backend`.
-- `roadmapRepository.updateRoadmapCore` es la escritura representativa: aplica
-  el mismo patch condicional (titulo, descripcion, duracion, rango de semanas,
-  version, fecha de publicacion) via Kysely en PostgreSQL y SQL parametrizado
-  equivalente en SQLite. El PUT de `GET/PUT/DELETE /api/roadmaps/[id]` ya no
-  arma la sentencia `UPDATE ... CASE WHEN` a mano.
-- Tests de regresion en `test/roadmapRepository.test.ts` cubren la ruta SQLite
-  de lectura y escritura (patch parcial, roadmap inexistente).
-- Pendiente: extraer el resto de dominios y anadir tests de integracion
-  contra PostgreSQL real (ver tarea aparte `test/postgres-integration`).
+- `roadmapRepository`: lectura (`findRoadmapById`) y escritura representativa
+  (`updateRoadmapCore`) del detalle de roadmap.
+- `auditRepository`: `insertAuditLog` (usado por `writeAuditLog`) y
+  `listAuditLogs`.
+- `moduleRepository`: listados por roadmap/roadmaps/todos, lectura por id,
+  alta, actualizacion parcial y baja.
+- `lessonRepository`: listado por modulo, lectura por id (con y sin join a
+  `roadmap_id`), alta, actualizacion y baja.
+- Pendiente (movido a tarea aparte): usuarios, progreso, quizzes, evidencias,
+  admin, portfolio, import/export de roadmaps y tests de integracion contra
+  PostgreSQL real.
+
+### [ ] Migrar dominios restantes a la capa SQL estructurada
+
+Estado: pendiente.
+
+Valor: completa la sustitucion gradual del acceso SQL disperso iniciada en
+`Capa de acceso SQL estructurada`, siguiendo el patron ya validado en
+`lib/kyselyDatabase.ts` y los repositorios de roadmaps, auditoria, modulos y
+lecciones.
+
+Tareas:
+
+- Migrar usuarios (`pages/api/users/*`): dominio mas escrito-intensivo
+  (hash de contrasenas, invalidacion de sesiones, comprobaciones de carrera
+  sobre el numero de admins); requiere especial cuidado para no bloquear
+  cuentas.
+- Migrar progreso (`pages/api/progress/*`, `lib/progress.ts`): consultas mas
+  complejas (CTEs, funciones ventana, upserts `ON CONFLICT ... excluded`
+  especificos de SQLite); es el dominio de mayor riesgo de traduccion a
+  PostgreSQL.
+- Migrar quizzes, evidencias, admin dashboard, portfolio e import/export de
+  roadmaps.
+- Anadir tests de integracion contra PostgreSQL real para los dominios ya
+  migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
+  reutilizando la base de test aislada de `test/postgres-integration`.
+
+Hecho cuando:
+
+- Todos los dominios de `pages/api` acceden a la base de datos a traves de un
+  repositorio tipado, sin SQL disperso en los handlers.
+- Existen tests de regresion para SQLite y PostgreSQL en cada dominio migrado.
 
 ### [ ] Validacion de entradas y contratos con Zod
 

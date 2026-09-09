@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { deleteLesson, findLessonById, findLessonWithRoadmapId, updateLesson } from '../../../lib/lessonRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -10,12 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const lesson = await db.get(`
-      SELECT lessons.*, modules.roadmap_id
-      FROM lessons
-      INNER JOIN modules ON modules.id = lessons.module_id
-      WHERE lessons.id = ?
-    `, [id])
+    const lesson = await findLessonWithRoadmapId(db, id as string)
     if (!lesson) return res.status(404).json({ error: 'not found' })
     if (!scopeAllowsRoadmap(scope, lesson.roadmap_id)) return res.status(404).json({ error: 'not found' })
     const { roadmap_id: _roadmapId, ...lessonBody } = lesson
@@ -26,10 +22,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
     const { title, completed } = req.body
-    const result = await db.run('UPDATE lessons SET title = ?, completed = ? WHERE id = ?', [title, completed ? 1 : 0, id])
-    if (!result.changes) return res.status(404).json({ error: 'lesson not found' })
-    
-    const updated = await db.get('SELECT * FROM lessons WHERE id = ?', [id])
+    const changes = await updateLesson(db, id as string, { title, completed: Boolean(completed) })
+    if (!changes) return res.status(404).json({ error: 'lesson not found' })
+
+    const updated = await findLessonById(db, id as string)
     await writeAuditLog({
       db,
       req,
@@ -45,10 +41,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const lesson = await db.get('SELECT title, module_id FROM lessons WHERE id = ?', [id])
+    const lesson = await findLessonById(db, id as string)
     if (!lesson) return res.status(404).json({ error: 'lesson not found' })
-    
-    await db.run('DELETE FROM lessons WHERE id = ?', [id])
+
+    await deleteLesson(db, id as string)
     await writeAuditLog({
       db,
       req,

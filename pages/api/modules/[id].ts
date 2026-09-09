@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../lib/progress'
 import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
 import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
@@ -40,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [id])
+    const moduleRow = await findModuleById(db, id as string)
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
     if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(404).json({ error: 'not found' })
     const user = scope.user
@@ -99,29 +100,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? parseDurationWeeks(duration)
         : { min: null, max: null }
     if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
-    const result = await db.run(
-      `UPDATE modules SET title = ?,
-       level = CASE WHEN ? = 1 THEN ? ELSE level END,
-       duration = CASE WHEN ? = 1 THEN ? ELSE duration END,
-       duration_weeks_min = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_min END,
-       duration_weeks_max = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_max END
-       WHERE id = ?`,
-      [
-        title,
-        hasLevel ? 1 : 0,
-        normalizedLevel,
-        hasDuration ? 1 : 0,
-        duration || null,
-        hasDuration || hasDurationRange ? 1 : 0,
-        durationRange.min,
-        hasDuration || hasDurationRange ? 1 : 0,
-        durationRange.max,
-        id
-      ]
-    )
-    if (!result.changes) return res.status(404).json({ error: 'module not found' })
-    
-    const updated = await db.get('SELECT * FROM modules WHERE id = ?', [id])
+    const changes = await updateModuleCore(db, id as string, {
+      title,
+      ...(hasLevel ? { level: normalizedLevel } : {}),
+      ...(hasDuration ? { duration: duration || null } : {}),
+      ...(hasDuration || hasDurationRange
+        ? { durationWeeks: { min: durationRange.min, max: durationRange.max } }
+        : {})
+    })
+    if (!changes) return res.status(404).json({ error: 'module not found' })
+
+    const updated = await findModuleById(db, id as string)
     await writeAuditLog({
       db,
       req,
@@ -137,10 +126,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const moduleRow = await db.get('SELECT title, roadmap_id FROM modules WHERE id = ?', [id])
+    const moduleRow = await findModuleById(db, id as string)
     if (!moduleRow) return res.status(404).json({ error: 'module not found' })
-    
-    await db.run('DELETE FROM modules WHERE id = ?', [id])
+
+    await deleteModule(db, id as string)
     await writeAuditLog({
       db,
       req,

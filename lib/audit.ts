@@ -1,5 +1,6 @@
 import type { NextApiRequest } from 'next'
 import type { AuthUser } from './auth'
+import { insertAuditLog } from './auditRepository'
 
 type AuditInput = {
   db: any
@@ -22,20 +23,15 @@ function requestIp(req: NextApiRequest) {
 }
 
 export async function writeAuditLog({ db, req, user, action, entityType, entityId, details }: AuditInput) {
-  await db.run(
-    `INSERT INTO audit_logs (
-      actor_user_id, actor_email, action, entity_type, entity_id, details, ip_address, user_agent, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      user?.id || null,
-      user?.email || null,
-      action,
-      entityType,
-      entityId === undefined ? null : String(entityId),
-      details ? JSON.stringify(details) : null,
-      requestIp(req),
-      getHeaderValue(req.headers['user-agent']) || null,
-      new Date().toISOString()
-    ]
-  )
+  await insertAuditLog(db, {
+    actor_user_id: user?.id || null,
+    actor_email: user?.email || null,
+    action,
+    entity_type: entityType,
+    entity_id: entityId === undefined ? null : String(entityId),
+    details: details ? JSON.stringify(details) : null,
+    ip_address: requestIp(req),
+    user_agent: getHeaderValue(req.headers['user-agent']) || null,
+    created_at: new Date().toISOString()
+  })
 }

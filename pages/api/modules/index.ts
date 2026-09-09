@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { findAllModules, findModuleById, findModulesByRoadmapId, findModulesByRoadmapIds, insertModule } from '../../../lib/moduleRepository'
 import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -13,23 +14,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { roadmap_id } = req.query
     if (roadmap_id) {
       if (!scopeAllowsRoadmap(scope, roadmap_id)) return res.status(200).json([])
-      const rows = await db.all(
-        'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
-        [roadmap_id]
-      )
+      const rows = await findModulesByRoadmapId(db, roadmap_id as string)
       return res.status(200).json(rows)
     }
 
     if (!scope.allRoadmaps && scope.roadmapIds.length === 0) return res.status(200).json([])
     if (!scope.allRoadmaps) {
-      const rows = await db.all(
-        `SELECT * FROM modules WHERE roadmap_id IN (${scope.roadmapIds.map(() => '?').join(', ')}) ORDER BY id DESC`,
-        scope.roadmapIds
-      )
+      const rows = await findModulesByRoadmapIds(db, scope.roadmapIds)
       return res.status(200).json(rows)
     }
 
-    const rows = await db.all('SELECT * FROM modules ORDER BY id DESC')
+    const rows = await findAllModules(db)
     return res.status(200).json(rows)
   }
 
@@ -45,20 +40,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
       : parseDurationWeeks(duration)
     if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
-    const result = await db.run(
-      `INSERT INTO modules (
-         roadmap_id, title, level, duration, duration_weeks_min, duration_weeks_max
-       ) VALUES (?, ?, ?, ?, ?, ?)`,
-      [roadmap_id, title, normalizedLevel, duration || null, durationRange.min, durationRange.max]
-    )
-    const row = await db.get('SELECT * FROM modules WHERE id = ?', [result.lastID])
+    const newId = await insertModule(db, {
+      roadmap_id,
+      title,
+      level: normalizedLevel,
+      duration: duration || null,
+      duration_weeks_min: durationRange.min,
+      duration_weeks_max: durationRange.max
+    })
+    const row = await findModuleById(db, newId)
     await writeAuditLog({
       db,
       req,
       user: admin,
       action: 'module.create',
       entityType: 'module',
-      entityId: result.lastID,
+      entityId: newId,
       details: { title, roadmap_id, level: normalizedLevel }
     })
     return res.status(201).json(row)
