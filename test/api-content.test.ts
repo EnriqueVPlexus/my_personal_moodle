@@ -277,7 +277,7 @@ describe('content API handlers', () => {
     expect(res.statusCode).toBe(200)
     expect(db.run).toHaveBeenCalledWith(
       expect.stringContaining('duration_weeks_min = CASE'),
-      expect.arrayContaining([10, 12, '7'])
+      expect.arrayContaining([10, 12, 7])
     )
   })
 

@@ -101,7 +101,19 @@ Avance actual:
 
 - Contrato comun `DatabaseClient` para ambos backends.
 - Primer repositorio Kysely para leer el detalle de un roadmap en PostgreSQL.
-- Pendiente: reutilizar el pool PostgreSQL y extraer el resto de dominios.
+- `roadmapRepository.findRoadmapById` decide el backend internamente: usa
+  Kysely en PostgreSQL y una consulta SQLite equivalente en el resto,
+  reutilizando el pool de `PostgresDb` (`getPool()`) en vez de crear uno propio.
+  El handler `GET /api/roadmaps/[id]` ya no bifurca por `db.backend`.
+- `roadmapRepository.updateRoadmapCore` es la escritura representativa: aplica
+  el mismo patch condicional (titulo, descripcion, duracion, rango de semanas,
+  version, fecha de publicacion) via Kysely en PostgreSQL y SQL parametrizado
+  equivalente en SQLite. El PUT de `GET/PUT/DELETE /api/roadmaps/[id]` ya no
+  arma la sentencia `UPDATE ... CASE WHEN` a mano.
+- Tests de regresion en `test/roadmapRepository.test.ts` cubren la ruta SQLite
+  de lectura y escritura (patch parcial, roadmap inexistente).
+- Pendiente: extraer el resto de dominios y anadir tests de integracion
+  contra PostgreSQL real (ver tarea aparte `test/postgres-integration`).
 
 ### [ ] Validacion de entradas y contratos con Zod
 

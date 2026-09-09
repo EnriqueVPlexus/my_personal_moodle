@@ -11,7 +11,7 @@ import {
   saveRoadmapMetadata
 } from '../../../lib/roadmapMetadata'
 import { normalizePublishedAt, normalizeRoadmapVersion } from '../../../lib/roadmapVersion'
-import { findRoadmapById } from '../../../lib/roadmapRepository'
+import { findRoadmapById, updateRoadmapCore } from '../../../lib/roadmapRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -21,16 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
     if (!scopeAllowsRoadmap(scope, id)) return res.status(404).json({ error: 'not found' })
-    const roadmap = db.backend === 'postgres'
-      ? await findRoadmapById(Number(id))
-      : await db.get(
-        `SELECT roadmaps.*, roadmap_categories.key AS category_key,
-                roadmap_categories.label AS category_label
-         FROM roadmaps
-         LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
-         WHERE roadmaps.id = ?`,
-        [id]
-      )
+    const roadmap = await findRoadmapById(db, Number(id))
     if (!roadmap) return res.status(404).json({ error: 'not found' })
     const user = scope.user
 
@@ -104,31 +95,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (hasPublishedAt && !normalizedPublishedAt) return res.status(400).json({ error: 'invalid publication date' })
     const normalizedTopics = normalizeTopics(topics)
     if (normalizedTopics.length > 20) return res.status(400).json({ error: 'a roadmap can have at most 20 topics' })
-    const result = await db.run(
-      `UPDATE roadmaps SET title = ?, description = ?,
-       duration = CASE WHEN ? = 1 THEN ? ELSE duration END,
-       duration_weeks_min = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_min END,
-      duration_weeks_max = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_max END,
-      version = CASE WHEN ? = 1 THEN ? ELSE version END,
-      published_at = CASE WHEN ? = 1 THEN ? ELSE published_at END
-       WHERE id = ?`,
-      [
-        title,
-        description || null,
-        hasDuration ? 1 : 0,
-        duration || null,
-        hasDuration || hasDurationRange ? 1 : 0,
-        durationRange.min,
-        hasDuration || hasDurationRange ? 1 : 0,
-        durationRange.max,
-        hasVersion ? 1 : 0,
-        normalizedVersion,
-        hasPublishedAt ? 1 : 0,
-        normalizedPublishedAt,
-        id
-      ]
-    )
-    if (!result.changes) return res.status(404).json({ error: 'roadmap not found' })
+    const changes = await updateRoadmapCore(db, Number(id), {
+      title,
+      description: description || null,
+      ...(hasDuration ? { duration: duration || null } : {}),
+      ...(hasDuration || hasDurationRange
+        ? { durationWeeks: { min: durationRange.min, max: durationRange.max } }
+        : {}),
+      ...(hasVersion ? { version: normalizedVersion! } : {}),
+      ...(hasPublishedAt ? { publishedAt: normalizedPublishedAt! } : {})
+    })
+    if (!changes) return res.status(404).json({ error: 'roadmap not found' })
     if (hasCategory || hasTopics) {
       const currentCategory = hasCategory
         ? category

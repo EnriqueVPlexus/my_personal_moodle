@@ -225,6 +225,10 @@ export class PostgresDb implements DatabaseClient {
     await this.pool.query(POSTGRES_SCHEMA)
   }
 
+  getPool(): Pool {
+    return this.pool
+  }
+
   async get<T = any>(sql: string, params?: unknown[]): Promise<T> {
     const result = await this.query(sql, params)
     return result.rows[0] as T
