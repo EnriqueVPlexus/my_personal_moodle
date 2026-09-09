@@ -204,6 +204,7 @@ function translateSql(sql: string, params: unknown[] = []) {
 }
 
 export class PostgresDb implements DatabaseClient {
+  readonly backend = 'postgres' as const
   private readonly pool: Pool
   private transactionClient: PoolClient | null = null
 

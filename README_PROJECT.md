@@ -32,6 +32,10 @@ Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
 Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
 el proyecto de Supabase configurado en `.env.local`.
 
+La capa SQL estructurada usa Kysely para las nuevas consultas tipadas. Las
+consultas existentes se migran gradualmente por repositorios, manteniendo
+SQLite local y PostgreSQL remoto durante la transición.
+
 ## Dominio Funcional
 
 - **Roadmaps**: rutas formativas con descripción, objetivos, metodología y pesos de evaluación.

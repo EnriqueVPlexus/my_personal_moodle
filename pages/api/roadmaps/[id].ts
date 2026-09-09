@@ -11,6 +11,7 @@ import {
   saveRoadmapMetadata
 } from '../../../lib/roadmapMetadata'
 import { normalizePublishedAt, normalizeRoadmapVersion } from '../../../lib/roadmapVersion'
+import { findRoadmapById } from '../../../lib/roadmapRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -20,14 +21,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
     if (!scopeAllowsRoadmap(scope, id)) return res.status(404).json({ error: 'not found' })
-    const roadmap = await db.get(
-      `SELECT roadmaps.*, roadmap_categories.key AS category_key,
-              roadmap_categories.label AS category_label
-       FROM roadmaps
-       LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
-       WHERE roadmaps.id = ?`,
-      [id]
-    )
+    const roadmap = db.backend === 'postgres'
+      ? await findRoadmapById(Number(id))
+      : await db.get(
+        `SELECT roadmaps.*, roadmap_categories.key AS category_key,
+                roadmap_categories.label AS category_label
+         FROM roadmaps
+         LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
+         WHERE roadmaps.id = ?`,
+        [id]
+      )
     if (!roadmap) return res.status(404).json({ error: 'not found' })
     const user = scope.user
 

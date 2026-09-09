@@ -156,7 +156,7 @@ export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> 
   })
   await db.exec('PRAGMA foreign_keys = ON')
   await migrate(db)
-  return db as unknown as DatabaseClient
+  return Object.assign(db, { backend: 'sqlite' as const }) as unknown as DatabaseClient
 }
 
 export async function openDb(): Promise<DatabaseClient> {

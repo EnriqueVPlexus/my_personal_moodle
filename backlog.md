@@ -74,7 +74,9 @@ mantienen en los bloques tecnicos de abajo.
 ### [ ] Capa de acceso SQL estructurada
 
 Estado: en curso. Ya existe un contrato `DatabaseClient` comun para SQLite y
-PostgreSQL; falta migrar las consultas a repositorios o a Drizzle/Kysely.
+PostgreSQL. Se ha elegido `Kysely` sobre `Drizzle` porque conserva el control
+del SQL existente y ofrece tipado, soporte PostgreSQL/SQLite y migraciones;
+falta migrar el resto de consultas a repositorios.
 
 Objetivo: sustituir gradualmente el acceso SQL disperso por una capa tipada
 que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
@@ -82,6 +84,7 @@ que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
 Tareas:
 
 - Evaluar `Drizzle` y `Kysely` sobre el codigo actual.
+- Mantener la decision registrada: Kysely sera el constructor SQL tipado.
 - Definir repositorios o consultas agrupadas por dominio.
 - Mantener una ruta de compatibilidad para los tests SQLite existentes.
 - Migrar primero una lectura y una escritura representativas.
@@ -93,6 +96,12 @@ Hecho cuando:
 - Las consultas nuevas pasan por la capa estructurada.
 - SQLite y PostgreSQL producen el mismo contrato observable.
 - Existen tests de regresion para ambos backends.
+
+Avance actual:
+
+- Contrato comun `DatabaseClient` para ambos backends.
+- Primer repositorio Kysely para leer el detalle de un roadmap en PostgreSQL.
+- Pendiente: reutilizar el pool PostgreSQL y extraer el resto de dominios.
 
 ### [ ] Validacion de entradas y contratos con Zod
 
