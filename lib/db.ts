@@ -10,6 +10,7 @@ import { hashPassword, normalizeEmail, validatePassword } from './password'
 import { getSeedQuizForModule } from './roadmapQuizBanks'
 import { DEFAULT_ROADMAP_VERSION, normalizePublishedAt, normalizeRoadmapVersion } from './roadmapVersion'
 import { PostgresDb } from './postgresDb'
+import type { DatabaseClient } from './database'
 import {
   normalizeModuleLevel,
   parseDurationWeeks,
@@ -146,7 +147,7 @@ const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
 let initialized = false
 
-export async function openSqliteDb(filename = DB_FILE) {
+export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> {
   const directory = path.dirname(filename)
   if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true })
   const db = await open({
@@ -155,10 +156,10 @@ export async function openSqliteDb(filename = DB_FILE) {
   })
   await db.exec('PRAGMA foreign_keys = ON')
   await migrate(db)
-  return db
+  return db as unknown as DatabaseClient
 }
 
-export async function openDb() {
+export async function openDb(): Promise<DatabaseClient> {
   if (process.env.DATABASE_URL) {
     const db = new PostgresDb(process.env.DATABASE_URL)
     if (!initialized) {

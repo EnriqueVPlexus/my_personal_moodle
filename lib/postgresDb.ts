@@ -1,4 +1,5 @@
 import { Pool, PoolClient, QueryResult } from 'pg'
+import type { DatabaseClient, DatabaseRunResult } from './database'
 
 const ID_TABLES = new Set([
   'roadmaps', 'modules', 'lessons', 'users', 'sessions', 'audit_logs',
@@ -202,7 +203,7 @@ function translateSql(sql: string, params: unknown[] = []) {
   return translated
 }
 
-export class PostgresDb {
+export class PostgresDb implements DatabaseClient {
   private readonly pool: Pool
   private transactionClient: PoolClient | null = null
 
@@ -223,17 +224,17 @@ export class PostgresDb {
     await this.pool.query(POSTGRES_SCHEMA)
   }
 
-  async get(sql: string, params?: unknown[]) {
+  async get<T = any>(sql: string, params?: unknown[]): Promise<T> {
     const result = await this.query(sql, params)
-    return result.rows[0]
+    return result.rows[0] as T
   }
 
-  async all(sql: string, params?: unknown[]) {
+  async all<T = any>(sql: string, params?: unknown[]): Promise<T[]> {
     const result = await this.query(sql, params)
-    return result.rows
+    return result.rows as T[]
   }
 
-  async run(sql: string, params: unknown[] = []): Promise<{ changes: number; lastID?: number }> {
+  async run(sql: string, params: unknown[] = []): Promise<DatabaseRunResult> {
     const isInsert = /^\s*INSERT\s+INTO\s+([a-z_]+)/i.exec(sql)
     const table = isInsert?.[1]?.toLowerCase()
     const needsId = Boolean(table && ID_TABLES.has(table) && !/\bRETURNING\b/i.test(sql))

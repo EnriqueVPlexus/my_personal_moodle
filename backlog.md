@@ -73,7 +73,8 @@ mantienen en los bloques tecnicos de abajo.
 
 ### [ ] Capa de acceso SQL estructurada
 
-Estado: pendiente.
+Estado: en curso. Ya existe un contrato `DatabaseClient` comun para SQLite y
+PostgreSQL; falta migrar las consultas a repositorios o a Drizzle/Kysely.
 
 Objetivo: sustituir gradualmente el acceso SQL disperso por una capa tipada
 que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
