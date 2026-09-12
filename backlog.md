@@ -1,0 +1,968 @@
+# Backlog de CanteraHub
+
+Documento vivo para planificar, implementar y revisar la evolucion
+del producto poco a poco.
+
+## Como usar este backlog
+
+- Marca cada iniciativa principal cuando este realmente terminada.
+- Actualiza la seccion `Estado` de cada bloque cuando pase de idea
+  a trabajo en curso.
+- Usa `Hecho cuando` como criterio de cierre minimo antes de dar una
+  tarea por completada.
+- Si una iniciativa crece demasiado, crea una issue o documento
+  tecnico aparte y deja aqui solo el resumen.
+
+## Estado actual
+
+- [x] Login, sesiones y setup inicial.
+- [x] Roles `admin` y `user`.
+- [x] CRUD de roadmaps, modulos y lecciones.
+- [x] Gestion admin de usuarios.
+- [x] Auditoria de acciones sensibles.
+- [x] Seed inicial de roadmaps segmentados.
+- [x] Roadmap `IA para DevOps`.
+- [x] Suite de tests con cobertura automatizada.
+- [x] Progreso por usuario para roadmaps y lecciones: modelo, APIs,
+  vista `Mis roadmaps`, porcentaje y tiempo aproximado.
+- [x] Quizzes por modulo con intentos, notas y estadisticas por usuario.
+- [x] Estados de progreso `iniciado`, `en curso`, `pausado` y `completado`.
+- [x] Auditoria de robustez del progreso: calculos derivados, reanudacion,
+  concurrencia, validacion y recuperacion ante errores de red.
+- [x] Favicon propio de CanteraHub para la pestana del navegador.
+
+## Siguiente hoja de ruta tecnica
+
+La base funcional principal ya esta implementada. Los siguientes pasos se
+centran en convertir la aplicacion en una plataforma web multiusuario con
+PostgreSQL central, manteniendo SQLite para desarrollo y tests.
+
+1. Capa de acceso SQL estructurada.
+2. Validacion de entradas y contratos con `zod`.
+3. Separacion de dominios: autenticacion, contenido, progreso,
+   administracion y persistencia.
+4. Migraciones formales de PostgreSQL.
+5. Tests de integracion contra PostgreSQL real.
+6. Gestion de conexiones y transacciones.
+7. Contratos API estables y documentados.
+8. Observabilidad, backups y recuperacion.
+9. Versionado completo de roadmaps.
+10. PWA con manifest y service worker.
+
+Cada punto debe mantener compatibilidad con SQLite local salvo que el propio
+objetivo requiera PostgreSQL. La migracion `feature/migration_2_postgresql`
+ya esta integrada en `main`; los detalles pendientes de esa integracion se
+mantienen en los bloques tecnicos de abajo.
+
+## Estrategia de ramas
+
+- Usar una rama tematica por cambio con impacto funcional o de infraestructura.
+- Nombrar las ramas como `feature/<tema>` o `chore/<tema>` cuando no haya
+  comportamiento de usuario.
+- Mantener `main` siempre integrable y fusionar solo despues de tests, lint y
+  build.
+- Agrupar en una misma rama las tareas pequeñas que forman una sola unidad
+  tecnica; no crear una rama por cada archivo o ajuste menor.
+- Ramas previstas: `feature/sql-access-layer`, `feature/input-validation-zod`,
+  `refactor/domain-separation`, `feature/postgres-migrations`,
+  `test/postgres-integration`, `chore/db-transactions`,
+  `feature/api-contracts`, `chore/observability-backups`,
+  `feature/roadmap-version-history` y `feature/pwa`.
+
+## Prioridad alta
+
+### [x] Capa de acceso SQL estructurada
+
+Estado: hecho. Se establecio el patron de repositorio tipado con `Kysely`
+(elegido sobre `Drizzle` por conservar el control del SQL existente y ofrecer
+tipado, soporte PostgreSQL/SQLite y migraciones) y se aplico a cuatro dominios
+como base reutilizable para el resto. La migracion del resto de dominios queda
+como tarea aparte de menor prioridad (ver `Migrar dominios restantes a la capa
+SQL estructurada`), sin bloquear el resto de la hoja de ruta.
+
+Objetivo: sustituir gradualmente el acceso SQL disperso por una capa tipada
+que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
+
+Patron establecido (usar como referencia para nuevos dominios):
+
+- Esquema Kysely compartido en `lib/kyselyDatabase.ts`: una interfaz de tabla
+  por tabla, una interfaz `Database` que las agrupa, y `getQueryDatabase(pool)`
+  que cachea una instancia `Kysely` por `Pool` de PostgreSQL (`WeakMap`).
+  Columnas nullable sin valor en el insert original usan el helper
+  `OptionalOnInsert` (`ColumnType`) para que `Insertable<...>` no las exija.
+- Un repositorio por dominio (`lib/roadmapRepository.ts`, `lib/auditRepository.ts`,
+  `lib/moduleRepository.ts`, `lib/lessonRepository.ts`): cada funcion recibe el
+  `DatabaseClient` generico y decide backend con `db.backend !== 'postgres'`;
+  la rama SQLite usa el SQL parametrizado ya existente (sin reescribirlo) y la
+  rama PostgreSQL usa `getQueryDatabase((db as PostgresDb).getPool())`, de modo
+  que se reutiliza el pool de conexiones en vez de crear uno nuevo por dominio.
+- Los handlers de `pages/api` importan el repositorio y dejan de construir SQL
+  o decidir el backend con `if (db.backend === 'postgres')`.
+- Tests de regresion por repositorio en `test/*Repository.test.ts` cubren la
+  ruta SQLite (lectura, escritura parcial, entidad inexistente). La ruta
+  PostgreSQL no tiene tests propios todavia porque no existe infraestructura
+  de base de test aislada (tarea aparte `test/postgres-integration`).
+
+Hecho cuando (para el alcance migrado):
+
+- Las consultas de los dominios migrados pasan por la capa estructurada.
+- SQLite y PostgreSQL producen el mismo contrato observable.
+- Existen tests de regresion para la ruta SQLite de cada repositorio.
+
+Avance actual:
+
+- `roadmapRepository`: lectura (`findRoadmapById`) y escritura representativa
+  (`updateRoadmapCore`) del detalle de roadmap.
+- `auditRepository`: `insertAuditLog` (usado por `writeAuditLog`) y
+  `listAuditLogs`.
+- `moduleRepository`: listados por roadmap/roadmaps/todos, lectura por id,
+  alta, actualizacion parcial y baja.
+- `lessonRepository`: listado por modulo, lectura por id (con y sin join a
+  `roadmap_id`), alta, actualizacion y baja.
+- Pendiente (movido a tarea aparte): usuarios, progreso, quizzes, evidencias,
+  admin, portfolio, import/export de roadmaps y tests de integracion contra
+  PostgreSQL real.
+
+### [ ] Migrar dominios restantes a la capa SQL estructurada
+
+Estado: pendiente.
+
+Valor: completa la sustitucion gradual del acceso SQL disperso iniciada en
+`Capa de acceso SQL estructurada`, siguiendo el patron ya validado en
+`lib/kyselyDatabase.ts` y los repositorios de roadmaps, auditoria, modulos y
+lecciones.
+
+Tareas:
+
+- Migrar usuarios (`pages/api/users/*`): dominio mas escrito-intensivo
+  (hash de contrasenas, invalidacion de sesiones, comprobaciones de carrera
+  sobre el numero de admins); requiere especial cuidado para no bloquear
+  cuentas.
+- Migrar progreso (`pages/api/progress/*`, `lib/progress.ts`): consultas mas
+  complejas (CTEs, funciones ventana, upserts `ON CONFLICT ... excluded`
+  especificos de SQLite); es el dominio de mayor riesgo de traduccion a
+  PostgreSQL.
+- Migrar quizzes, evidencias, admin dashboard, portfolio e import/export de
+  roadmaps.
+- Anadir tests de integracion contra PostgreSQL real para los dominios ya
+  migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
+  reutilizando la base de test aislada de `test/postgres-integration`.
+
+Hecho cuando:
+
+- Todos los dominios de `pages/api` acceden a la base de datos a traves de un
+  repositorio tipado, sin SQL disperso en los handlers.
+- Existen tests de regresion para SQLite y PostgreSQL en cada dominio migrado.
+
+### [ ] Validacion de entradas y contratos con Zod
+
+Estado: pendiente.
+
+Tareas:
+
+- Anadir `zod` como dependencia de runtime.
+- Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
+  progreso, quizzes e importaciones.
+- Devolver errores de validacion consistentes sin filtrar detalles internos.
+
+Rama sugerida: `feature/input-validation-zod`.
+
+Hecho cuando:
+
+- Las entradas de las APIs principales se validan antes de tocar la base de datos.
+- Los tests cubren payloads validos, invalidos y limites.
+
+### [ ] Separacion de dominios y persistencia
+
+Estado: pendiente.
+
+Tareas:
+
+- Separar autenticacion, contenido, progreso, administracion y persistencia.
+- Mover reglas de negocio fuera de los handlers HTTP.
+- Definir interfaces para que las APIs no dependan directamente del driver.
+
+Rama sugerida: `refactor/domain-separation`.
+
+Hecho cuando:
+
+- Cada dominio tiene servicios y tipos identificables.
+- Los handlers se limitan a autenticar, validar, invocar y responder.
+- Los tests de dominio no necesitan levantar Next.js.
+
+### [ ] Migraciones formales de PostgreSQL
+
+Estado: pendiente. La creacion inicial del esquema y el migrador SQLite ya
+existen, pero falta una historia formal de migraciones versionadas.
+
+Tareas:
+
+- Elegir herramienta compatible con la capa SQL seleccionada.
+- Crear migracion inicial reproducible para el esquema actual.
+- Separar migraciones de datos, seeds y cambios de estructura.
+- Documentar rollback y ejecucion segura en Supabase.
+
+Rama sugerida: `feature/postgres-migrations`.
+
+Hecho cuando:
+
+- Una base PostgreSQL vacia puede levantarse solo con las migraciones.
+- Las migraciones son idempotentes o tienen control de version.
+- Existe una prueba de bootstrap desde cero.
+
+### [ ] Tests de integracion contra PostgreSQL real
+
+Estado: pendiente.
+
+Tareas:
+
+- Preparar una base PostgreSQL de test aislada.
+- Ejecutar auth, contenido, progreso, quizzes e importacion contra PostgreSQL.
+- Mantener tests unitarios rapidos sobre SQLite cuando sea suficiente.
+
+Rama sugerida: `test/postgres-integration`.
+
+Hecho cuando:
+
+- El flujo critico pasa contra PostgreSQL sin depender de la base de produccion.
+- Las pruebas limpian sus datos y pueden repetirse localmente o en CI.
+
+### [ ] Gestion de conexiones y transacciones
+
+Estado: pendiente.
+
+Tareas:
+
+- Revisar ciclo de vida del pool PostgreSQL en desarrollo, tests y serverless.
+- Definir limites, timeouts y comportamiento ante desconexion.
+- Garantizar transacciones en importaciones y operaciones multi-tabla.
+- Evitar conexiones persistentes innecesarias durante tests.
+
+Rama sugerida: `chore/db-transactions`.
+
+Hecho cuando:
+
+- No hay fugas de conexiones bajo carga de tests.
+- Las operaciones parciales hacen rollback comprobable.
+- Los errores de base de datos llegan como respuestas controladas.
+
+### [ ] Contratos API estables
+
+Estado: pendiente.
+
+Tareas:
+
+- Documentar request, response y errores de cada API publica.
+- Definir versionado de API si un cambio rompe clientes.
+- Generar tipos compartidos para frontend y backend.
+- Mantener compatibilidad durante la migracion SQLite/PostgreSQL.
+
+Rama sugerida: `feature/api-contracts`.
+
+Hecho cuando:
+
+- Las APIs criticas tienen contrato documentado y tests de respuesta.
+- Los cambios incompatibles requieren una decision explicita.
+
+### [ ] Observabilidad, backups y recuperacion
+
+Estado: pendiente.
+
+Tareas:
+
+- Registrar errores de servidor, latencias y operaciones administrativas.
+- Configurar backups de PostgreSQL y comprobar una restauracion.
+- Documentar secretos, rotacion de credenciales y respuesta ante incidente.
+- Anadir health check sin exponer datos sensibles.
+
+Rama sugerida: `chore/observability-backups`.
+
+Hecho cuando:
+
+- Existe un procedimiento probado de backup y restauracion.
+- Los errores criticos se pueden diagnosticar sin acceder a contrasenas.
+
+### [ ] Versionado completo de roadmaps
+
+Estado: en curso. La fase 1 de metadatos ya esta hecha; quedan snapshots,
+migracion de progreso, changelog y diferencias visibles.
+
+Rama sugerida: `feature/roadmap-version-history`.
+
+Hecho cuando:
+
+- Un usuario puede conservar su version o aceptar una actualizacion.
+- El progreso no se pierde al publicar una nueva version.
+- El detalle muestra cambios y version vigente.
+
+### [ ] PWA con manifest y service worker
+
+Estado: pendiente.
+
+Tareas:
+
+- Crear manifest, iconos y metadatos instalables.
+- Definir cache de contenido publico y estrategia de actualizacion.
+- Mostrar estado offline sin permitir escrituras ambiguas.
+- Probar instalacion en movil y escritorio.
+
+Rama sugerida: `feature/pwa`.
+
+Hecho cuando:
+
+- La aplicacion se puede instalar desde un navegador compatible.
+- Las actualizaciones no dejan una version antigua bloqueada.
+- El modo offline no compromete progreso, auth ni datos administrativos.
+
+### [x] Progreso por usuario
+
+Estado: hecho.
+
+Valor: convierte la app en una herramienta de seguimiento real, no
+solo en un catalogo de contenido.
+
+Objetivo de experiencia:
+
+- Cuando un usuario inicie sesion, debe ver rapidamente todos los
+  roadmaps empezados y en que punto va de cada uno.
+- Si tiene mas de un roadmap activo, la app debe dejar claro cual es
+  el siguiente paso recomendado en cada uno.
+
+Alcance funcional:
+
+- Guardar progreso por usuario y por leccion.
+- Mostrar porcentaje completado por roadmap.
+- Mostrar ultimo modulo visitado, ultima actividad y siguiente paso sugerido.
+- Registrar tiempo de estudio aproximado por roadmap y por modulo.
+- Guardar notas o puntuaciones de quiz por usuario.
+- Evitar que el progreso sea global para todos los usuarios.
+
+Desglose tecnico propuesto:
+
+#### [x] Fase 1. Modelo de datos de progreso
+
+Estado: hecho.
+
+Tareas:
+
+- Crear tabla de progreso por leccion y usuario.
+- Crear tabla resumen por roadmap y usuario si compensa para consultas rapidas.
+- Definir campos minimos: `started_at`, `last_activity_at`, `completed_at`, `time_spent_seconds`.
+- Preparar la base para guardar intentos y nota de quiz por usuario.
+
+Hecho cuando:
+
+- La base de datos soporta progreso individual sin ambiguedades.
+- Las migraciones son idempotentes.
+- Hay tests de bootstrap y persistencia.
+
+#### [x] Fase 2. Escritura de progreso
+
+Estado: hecho para acceso a roadmaps/modulos y avance de lecciones.
+La escritura de intentos de quiz queda en la fase 6.
+
+Tareas:
+
+- Marcar una leccion como completada por usuario, no como estado global.
+- Registrar inicio de roadmap al primer acceso o primera accion.
+- Actualizar `last_activity_at` al abrir modulo, completar leccion o enviar quiz.
+- Registrar tiempo de estudio con una aproximacion simple y robusta.
+
+Hecho cuando:
+
+- Dos usuarios pueden avanzar en el mismo roadmap sin interferirse.
+- El progreso sobrevive reinicios de sesion.
+- Hay tests de API para flujos de avance y reanudacion.
+
+#### [x] Fase 3. Resumen visible al iniciar sesion
+
+Estado: hecho.
+
+Tareas:
+
+- Crear una vista o dashboard ligero post-login para `Mis roadmaps`.
+- Mostrar solo roadmaps iniciados y opcionalmente sugerir otros disponibles.
+- Enseñar porcentaje, ultimo modulo visto, ultima actividad y boton de continuar.
+- Si hay varios roadmaps activos, ordenarlos por actividad reciente o prioridad.
+
+Hecho cuando:
+
+- Tras el login el usuario entiende en segundos por donde continuar.
+- El estado de cada roadmap se ve sin entrar en el detalle.
+- Hay tests de UI del dashboard de inicio.
+
+#### [x] Fase 4. Detalle de roadmap y modulo con progreso
+
+Estado: hecho.
+
+Tareas:
+
+- Mostrar barra o indicador de progreso por roadmap.
+- Marcar modulos completados, en curso o no iniciados.
+- Mostrar progreso por lecciones dentro del modulo.
+- Incluir un bloque de `siguiente paso recomendado`.
+
+Hecho cuando:
+
+- El detalle de roadmap y modulo refleja progreso persistente.
+- La lectura del contenido sigue siendo limpia y no se vuelve recargada.
+
+#### [x] Fase 5. Tiempo de estudio
+
+Estado: hecho con estimacion simple por interaccion al completar
+lecciones y acumulado visible en `Mis roadmaps`.
+
+Tareas:
+
+- Definir una estrategia simple de tracking, por ejemplo tiempo
+  estimado por interaccion o sesiones activas con timeout.
+- Acumular tiempo por modulo y por roadmap.
+- Mostrar tiempo total y tiempo reciente al usuario.
+
+Hecho cuando:
+
+- El tiempo mostrado es consistente aunque sea aproximado.
+- No depende de mantener la pestana abierta de forma perfecta.
+- Hay tests para acumulacion basica.
+
+#### [x] Fase 6. Quizzes y notas
+
+Estado: hecho. Los quizzes se generan desde contenidos, actividades,
+recursos y evidencias del modulo. Los intentos quedan persistidos por
+usuario y se muestran mejor nota, media y ultimo intento.
+
+Tareas:
+
+- Extraer o normalizar preguntas de quiz desde los roadmaps.
+- Guardar intentos, respuestas y puntuacion por usuario.
+- Mostrar nota mas alta, ultimo intento y fecha.
+- Decidir si el quiz puntua progreso o solo evaluacion.
+
+Hecho cuando:
+
+- Un usuario puede responder un quiz y recuperar su nota despues.
+- La nota aparece en el contexto del roadmap o modulo.
+- Hay tests de intento, correccion y consulta.
+
+#### [x] Fase 7. Estadisticas de aprendizaje
+
+Estado: hecho. `Mis roadmaps` muestra iniciados, completados,
+pausados, lecciones completadas, tiempo acumulado y media de quiz.
+
+Tareas:
+
+- Mostrar roadmaps iniciados, completados y pausados.
+- Mostrar lecciones completadas, tiempo acumulado y media de quiz.
+- Preparar base para futuras metricas admin sin duplicar logica.
+
+Hecho cuando:
+
+- El usuario ve un resumen util de su actividad.
+- Las metricas no requieren consultas fragiles ni lentas.
+
+#### [x] Fase 8. Reglas de negocio y experiencia
+
+Estado: hecho. `Iniciado` significa roadmap abierto sin avance real;
+`en curso`, actividad reciente con modulo o lecciones; `pausado`,
+roadmap sin completar con actividad anterior a 14 dias; `completado`,
+todas las lecciones cerradas. El quiz suma evaluacion y actividad,
+pero no bloquea el cierre del modulo.
+
+Tareas:
+
+- Definir que significa `iniciado`, `en curso`, `pausado` y `completado`.
+- Definir cuando un roadmap pasa a `iniciado`.
+- Definir si un quiz es obligatorio para cerrar modulo.
+- Revisar copy y estados vacios para que todo suene claro.
+
+Hecho cuando:
+
+- No hay dudas funcionales sobre el significado del progreso.
+- La experiencia es coherente en login, roadmap y modulo.
+
+Hecho cuando:
+
+- Cada usuario ve su propio progreso sin afectar al resto.
+- Al iniciar sesion se ven claramente los roadmaps empezados y el
+  punto actual de cada uno.
+- El listado de roadmaps muestra porcentaje o estado de avance.
+- El detalle de roadmap y modulo refleja progreso persistente.
+- Hay tiempo de estudio y notas de quiz por usuario.
+- Hay tests de API y UI para el flujo principal.
+
+#### [x] Fase 9. Auditoria de robustez y puntos de ruptura
+
+Estado: hecho.
+
+Hallazgos corregidos:
+
+- El dashboard confiaba en contadores y tiempo duplicados en la tabla resumen;
+  al borrar o anadir lecciones podian quedar obsoletos. Ahora se derivan del
+  progreso real por leccion en cada consulta.
+- Un roadmap podia seguir figurando como completado despues de anadir una
+  leccion nueva. La finalizacion ahora exige que todas las lecciones actuales
+  esten completadas.
+- `Continuar` podia recomendar la ultima leccion visitada aunque ya estuviera
+  terminada. Ahora busca la primera leccion pendiente segun el orden del roadmap.
+- Volver a guardar una leccion completada reemplazaba su fecha original. Se
+  conserva la primera finalizacion y se limpia correctamente al reabrirla.
+- Las escrituras de progreso usaban lectura seguida de escritura y eran
+  vulnerables a colisiones. Ahora usan `UPSERT` y el tiempo se acumula en SQL.
+- El cliente podia enviar cantidades de tiempo arbitrariamente altas. El API
+  valida el dato y limita cada incremento a 30 minutos.
+- IDs decimales y respuestas parciales o invalidas de quiz podian aceptarse.
+  Ahora se rechazan antes de persistir intentos o progreso.
+- La ausencia de intentos de quiz podia convertirse en `0%` y la media global
+  no tenia en cuenta cuantos intentos habia en cada roadmap. Ahora `sin nota`
+  sigue siendo nulo y la media se pondera por intentos reales.
+- Abrir un modulo autenticado podia mostrarlo como `no iniciado` en esa misma
+  respuesta. Ahora el estado visible es coherente con la actividad registrada.
+- Los fallos de carga o guardado podian parecer estados vacios o cargas
+  infinitas. Las pantallas de progreso ofrecen error explicito y reintento.
+
+Hecho cuando:
+
+- Cambios en el catalogo no dejan porcentajes ni estados obsoletos.
+- La reanudacion siempre apunta a contenido pendiente.
+- Repeticiones y peticiones concurrentes no pierden tiempo ni duplican filas.
+- Los limites de confianza se aplican en servidor y estan cubiertos por tests.
+
+### [x] Buscador y filtros
+
+Estado: hecho. Fases 1 a 5 completadas.
+
+Valor: prepara la aplicacion para crecer sin perder usabilidad.
+
+Situacion actual y decisiones:
+
+- El listado actual solo recibe titulo, descripcion y numero de modulos. La
+  busqueda sobre contenido de modulos debe resolverse en servidor, sin enviar
+  todo el contenido tecnico al navegador.
+- No existen campos normalizados de categoria o tags. No se deben inferir de
+  titulos porque produciria filtros inconsistentes al crecer el catalogo.
+- Algunos seeds incluyen `level`, pero el dato no se persiste en `modules`.
+  Las duraciones se guardan como texto libre y no permiten rangos fiables.
+- La URL sera la fuente de verdad de busqueda, filtros y orden para conservar
+  estado al recargar, navegar atras o compartir un resultado.
+- La busqueda sera insensible a mayusculas y acentos. Los caracteres especiales
+  de SQL se trataran como texto y todas las consultas seran parametrizadas.
+- Se aplicara `AND` entre familias de filtros y `OR` dentro de una misma familia;
+  por ejemplo: tema `AWS` o `DevOps`, con nivel `intermedio`.
+
+#### [x] Fase 1. Busqueda textual en API
+
+Estado: hecho.
+
+Tareas:
+
+- Ampliar `GET /api/roadmaps` con un parametro `q` opcional y retrocompatible.
+- Buscar por titulo, descripcion, objetivos y metodologia del roadmap, y por
+  titulo, objetivo y contenidos de sus modulos mediante una unica consulta
+  agregada, evitando duplicados y N+1.
+- Normalizar espacios, mayusculas y acentos, limitar la longitud de la consulta
+  y escapar comodines de `LIKE` como texto literal.
+- Definir un orden estable: coincidencia en titulo, coincidencia en descripcion,
+  coincidencia en modulo y, como desempate, titulo o id.
+- Mantener la respuesta actual cuando no se envia `q`.
+- Eliminar el texto agregado de modulos antes de construir la respuesta publica.
+
+Hecho cuando:
+
+- La API encuentra coincidencias de roadmap y modulo sin exponer contenido extra.
+- Consultas vacias, con acentos o caracteres especiales son predecibles y seguras.
+- Hay tests de API para coincidencias, ausencia de resultados y compatibilidad.
+
+#### [x] Fase 2. Experiencia de busqueda en el catalogo
+
+Estado: hecho. El catalogo sincroniza la busqueda con la URL, aplica debounce,
+cancela peticiones obsoletas y diferencia los estados de carga, error y vacio.
+
+Tareas:
+
+- Incorporar un campo de busqueda accesible, boton de limpiar y contador de
+  resultados en `/roadmaps`.
+- Sincronizar `q` con la URL y restaurarlo al recargar o navegar atras.
+- Aplicar un debounce corto y cancelar peticiones anteriores para impedir que
+  una respuesta lenta sobrescriba una busqueda mas reciente.
+- Diferenciar claramente carga inicial, error con reintento, catalogo vacio y
+  busqueda sin coincidencias.
+- Mantener visible y funcional el formulario admin sin que los filtros lo oculten.
+
+Hecho cuando:
+
+- Buscar, limpiar y usar atras/adelante conserva un estado coherente.
+- La UI no parpadea ni muestra resultados antiguos durante escritura rapida.
+- Teclado y lectores de pantalla pueden identificar busqueda, estado y resultados.
+
+#### [x] Fase 3. Metadatos fiables para filtros
+
+Estado: hecho. Los roadmaps tienen categoria y topics normalizados, los modulos
+usan niveles estables y tanto modulos como roadmaps guardan limites de duracion
+en semanas. La API publica las facetas disponibles desde los datos persistidos.
+
+Tareas:
+
+- Definir una categoria principal y topics normalizados para cada roadmap,
+  preferiblemente con una tabla relacional para evitar tags duplicados.
+- Persistir `level` en modulos y acordar los valores permitidos en espanol o
+  mediante claves estables (`beginner`, `intermediate`, `advanced`, `capstone`).
+- Guardar limites de duracion comparables en semanas en vez de filtrar el texto
+  mostrado; conservar el texto original para presentacion.
+- Actualizar migraciones, seeds, tipos, altas/ediciones admin y tests de
+  idempotencia sin perder roadmaps existentes.
+- Generar las opciones disponibles desde los datos de la API, no desde listas
+  duplicadas en React.
+
+Hecho cuando:
+
+- Todos los roadmaps sembrados tienen metadatos explicitos o un estado visible
+  de `sin clasificar`.
+- Nivel y duracion se pueden consultar sin parsear textos en el navegador.
+- Las migraciones sobreviven bases existentes y ejecuciones repetidas.
+
+#### [x] Fase 4. Filtros combinables y ordenacion
+
+Estado: hecho. El catalogo combina categoria, topics, nivel y rangos de
+duracion con busqueda textual, muestra chips eliminables y permite ordenar por
+relevancia, titulo o duracion. Todo el estado se conserva en una URL canonica.
+
+Tareas:
+
+- Filtrar por categoria o topic, nivel y rangos de duracion.
+- Permitir combinar filtros con `q` y mostrar cada filtro activo como chip
+  eliminable, junto con una accion unica `Limpiar todo`.
+- Incorporar ordenacion minima por relevancia, titulo y duracion.
+- Incluir filtros y orden en la URL con valores validados y canonicos.
+- Devolver las facetas y cantidades necesarias sin ejecutar una consulta por
+  tarjeta ni ocultar opciones por el orden accidental de las respuestas.
+
+Hecho cuando:
+
+- Las combinaciones siguen las reglas `AND`/`OR` documentadas.
+- Quitar un chip solo elimina ese criterio y `Limpiar todo` restaura el catalogo.
+- URLs invalidas se normalizan sin romper la pagina ni la API.
+
+#### [x] Fase 5. Calidad, rendimiento y cierre
+
+Estado: hecho. La consulta agregada evita el producto cartesiano entre modulos
+y topics, usa indices por roadmap y queda medida con 300 roadmaps, 2.400 modulos
+y 900 relaciones de topics. Se reforzaron URL canonica, facetas de duracion,
+layout con opciones largas, foco visible, regiones vivas y cobertura API/UI.
+
+Tareas:
+
+- Cubrir busqueda, combinacion de filtros, orden, URL, borrado, errores y estados
+  vacios con tests de API y UI.
+- Verificar que el layout funciona en movil, con nombres largos y muchas opciones.
+- Medir consultas con el volumen esperado e incorporar indices utiles.
+- Mantener la consulta agregada y el filtrado en servidor mientras el catalogo
+  sea pequeno; valorar SQLite FTS5 solo si las medidas muestran que aporta valor
+  y encapsularlo para el futuro cambio de base de datos previsto en despliegue.
+- Revisar copy, foco, regiones `aria-live` y contraste antes de cerrar la tarea.
+
+Hecho cuando:
+
+- El usuario puede localizar un roadmap concreto en pocos segundos.
+- Puede combinar y compartir filtros sin perder el contexto de navegacion.
+- Los filtros no rompen el layout ni la creacion admin actual.
+- La busqueda no expone SQL, no devuelve duplicados y evita respuestas fuera de orden.
+- Hay cobertura para estados vacios, errores, combinaciones, URL y borrado.
+- El rendimiento esta medido y es suficiente para el volumen objetivo.
+
+#### [x] Filtro por estado de progreso del usuario
+
+Estado: hecho.
+
+Valor: permite al usuario filtrar en el catalogo o en su dashboard entre roadmaps "Sin empezar", "En curso" y "Completados".
+
+Tareas:
+
+- Anadir faceta de estado personal (`not_started`, `in_progress`, `completed`) en la busqueda y catalogo.
+- Sincronizar con la URL como el resto de filtros.
+
+### [x] Importador JSON de roadmaps
+
+Estado: completado.
+
+Valor: evita meter nuevos roadmaps a mano en codigo cada vez.
+
+Alcance inicial:
+
+- Pantalla admin para subir o pegar un JSON.
+- Validacion del esquema antes de guardar.
+- Vista previa antes de publicar.
+- Insercion o actualizacion controlada del roadmap.
+
+Hecho cuando:
+
+- Un admin puede importar un roadmap sin tocar archivos del repo.
+- Los errores de formato son legibles y accionables.
+- El roadmap importado respeta el formato visual actual.
+- Hay tests de validacion y del flujo feliz.
+
+Notas de implementacion:
+
+- La importacion requiere rol admin, admite archivo o contenido pegado y limita el JSON a 1 MB.
+- La vista previa muestra errores asociados a su ruta dentro del JSON antes de guardar.
+- La actualizacion busca el roadmap por titulo y los modulos por posicion o titulo.
+- Actualizar no elimina modulos omitidos ni su progreso asociado.
+
+#### [x] Exportador y Backup JSON de roadmaps
+
+Estado: completado.
+
+Valor: permite a los administradores descargar cualquier roadmap existente en formato JSON estandarizado para backups, migraciones entre entornos o edicion externa.
+
+Tareas:
+
+- Crear endpoint `GET /api/roadmaps/:id/export` que devuelva el JSON completo del roadmap con modulos, lecciones y metadatos.
+- Boton de "Exportar JSON" en la vista admin y en el detalle del roadmap.
+
+### [x] Evidencias y portfolio por modulo
+
+Estado: completado.
+
+Valor: conecta el aprendizaje con entregables reales y empleabilidad.
+
+Alcance inicial:
+
+- Permitir adjuntar enlace a GitHub, demo, documento o nota.
+- Guardar evidencias por usuario y por modulo.
+- Mostrar estado de entrega y fecha de actualizacion.
+
+Hecho cuando:
+
+- Cada usuario puede registrar una evidencia por modulo.
+- El admin puede revisar o al menos consultar evidencias.
+- El roadmap refleja si un modulo esta completado solo por lectura o
+  con evidencia real.
+
+Notas de implementacion:
+
+- Cada usuario dispone de una unica evidencia actualizable por modulo.
+- Se admiten enlaces de GitHub, demo o documento, y entregas basadas en nota.
+- El detalle del roadmap distingue `Solo lectura` y `Con evidencia`.
+- El panel admin permite consultar la evidencia con su usuario, roadmap,
+  modulo y fecha de actualizacion.
+
+#### [x] Feedback y revision de evidencias por el admin (Mentoria)
+
+Estado: completado.
+
+Valor: transforma el registro de evidencias en un canal de revision interactiva y mentoria entre admins/formadores y alumnos.
+
+Tareas:
+
+- Permitir al admin escribir comentarios de retroalimentacion y asignar estado de revision (`pendiente`, `aprobado`, `requiere_cambios`) a una evidencia.
+- Notificacion o indicador visual para el usuario cuando su evidencia reciba comentarios.
+- Posibilidad de reentregar evidencia con correcciones.
+
+#### [x] Portfolio publico / exportable del usuario
+
+Estado: completado.
+
+Valor: permite al estudiante generar una pagina o documento Markdown/PDF descargable con todas sus evidencias y proyectos completados para compartir en su CV o perfil profesional.
+
+Tareas:
+
+- Vista o exportacion de "Mi Portfolio de Evidencias".
+- Generacion de resumen con links a GitHub, demos y notas de modulos superados.
+
+## Prioridad media
+
+### [x] Quizzes reales por modulo
+
+Estado: hecho. Los roadmaps iniciales cargan bancos explícitos por módulo,
+con opciones, respuesta correcta, tipo y explicación. El importador JSON
+permite ampliar o sustituir el banco de cada módulo.
+
+Valor: reutiliza los datos ya presentes en los roadmaps y aporta evaluacion ligera con aprendizaje activo.
+
+#### [x] Fase 1. Tipos de pregunta enriquecidos y feedback explicativo
+
+Estado: pendiente.
+
+Tareas:
+
+- Soportar preguntas de opcion multiple, respuesta unica, verdadero/falso y fragmentos de codigo/comandos.
+- Incluir un campo `explicacion` o `feedback` que se muestre tras responder para argumentar por que la opcion elegida es correcta o incorrecta.
+- Tests de API y UI para la renderizacion y correccion de respuestas.
+
+#### [x] Fase 2. Banco de preguntas y aleatorizacion
+
+Estado: pendiente.
+
+Tareas:
+
+- Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
+- Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
+
+#### [x] Fase 3. Nota minima exigible y modo evaluativo
+
+Estado: pendiente.
+
+Tareas:
+
+- Ajustar de forma opcional por modulo una nota minima requerida (ej. 70% o 7/10) para marcar la evaluacion como superada.
+- Opcion para limitar el numero de intentos o aplicar un tiempo de espera entre reintentos fallidos.
+
+### [ ] Versionado de roadmaps: detalle funcional
+
+Estado: en curso. La fase 1 ya está implementada; el historial de versiones
+y la migración de progreso requieren una estrategia de snapshots pendiente.
+
+Valor: permite evolucionar contenido sin perder el historico de progreso ni romper el aprendizaje de alumnos existentes.
+
+#### [x] Fase 1. Modelo de datos con etiquetado de version
+
+Estado: hecho. Cada roadmap tiene versión semántica y fecha de publicación,
+con migración idempotente desde bases legacy y soporte en seeds, APIs e
+importación/exportación JSON.
+
+Tareas:
+
+- Anadir campo `version` (ej. `v1.0.0`, `v2.0.0`) a la entidad `roadmap`.
+- Registrar la fecha de publicacion de cada version.
+
+#### [ ] Fase 2. Estrategia de migracion de progreso
+
+Estado: pendiente.
+
+Tareas:
+
+- Definir que ocurre con el progreso de un usuario cuando un modulo anade lecciones en una nueva version.
+- Permitir al usuario mantener su version en curso o actualizar a la ultima version con un aviso claro de cambios (`changelog`).
+
+#### [ ] Fase 3. Historial y diferencias visibles en UI
+
+Estado: pendiente.
+
+Tareas:
+
+- Selector de version en el detalle del roadmap.
+- Indicador visual si el usuario esta cursando una version anterior a la vigente.
+
+### [x] Dashboard admin
+
+Estado: completado.
+
+Valor: da visibilidad del uso real y ayuda a priorizar mejoras.
+
+Alcance inicial:
+
+- Usuarios activos.
+- Roadmaps mas usados.
+- Modulos mas completados.
+- Usuarios atascados o sin actividad reciente.
+
+Hecho cuando:
+
+- El panel muestra datos utiles de un vistazo.
+- No depende de consultas fragiles o lentas.
+
+Notas de implementacion:
+
+- El resumen muestra usuarios activos en 30 dias, roadmaps iniciados y
+  completados, evidencias y usuarios sin actividad.
+- La finalizacion se recalcula contra las lecciones actuales para evitar
+  estadisticas obsoletas cuando cambia el contenido.
+- Los rankings muestran roadmaps mas usados y modulos mas completados.
+- El seguimiento identifica roadmaps incompletos sin actividad durante
+  14 dias o mas.
+
+#### [ ] Ficha individual de estudiante y exportacion de metricas
+
+Estado: pendiente.
+
+Valor: permite a los mentores/admins hacer un seguimiento individualizado de un alumno y exportar reportes de uso para informes de formacion.
+
+Tareas:
+
+- Crear vista de detalle por usuario en el panel admin: roadmaps activos, porcentaje global, evidencias entregadas e historial de quizzes.
+- Anadir boton de exportacion de metricas generales y por usuario en CSV/JSON.
+
+### [ ] Guia de Google Skills badges
+
+Estado: pendiente.
+
+Valor: aprovecha el contenido ya preparado en el roadmap de IA y da mas profundidad al producto vinculandolo con certificaciones oficiales.
+
+Tareas:
+
+- Crear vista dedicada `/skills-badges` con listado de insignias oficiales de Google Cloud Skills Boost vinculadas a DevOps e IA.
+- Mapear cada badge con sus modulos correspondientes dentro del roadmap `IA para DevOps`.
+- Permitir a los usuarios marcar badges como completadas o adjuntar el enlace a su perfil publico de Credly / Google Cloud Skills Boost.
+- Incluir acceso directo desde la cabecera y desde el detalle del roadmap `IA para DevOps`.
+
+## Ideas a revisar mas adelante
+
+### [ ] Asignacion de roadmaps a usuarios
+
+Estado: idea.
+
+Valor: permitiria uso mas cercano a formacion interna o mentoring donde un tutor asigna itinerarios especificos a cada integrante del equipo.
+
+### [ ] Feedback y revision de evidencias por el admin (Mentoria)
+
+Estado: en planificacion (ver subtarea en Evidencias y Portfolio).
+
+### [ ] Notificaciones o recordatorios
+
+Estado: idea.
+
+Valor: enviar alertas por email o avisos in-app tras N dias de inactividad para fomentar la continuidad.
+
+### [ ] Certificado y Badge digital de finalizacion
+
+Estado: idea.
+
+Valor: generar un diploma en PDF o insignia SVG verificable con un identificador unico al completar el 100% de un roadmap y sus evaluaciones.
+
+### [ ] Apuntes y notas personales Markdown por leccion
+
+Estado: idea.
+
+Valor: permitir que el alumno guarde un cuaderno de notas privado en Markdown asociado a cada leccion para consulta posterior.
+
+### [ ] Modo Lectura Offline / PWA ligera
+
+Estado: pospuesto. Se implementara dentro de `PWA con manifest y service worker`
+cuando la capa de persistencia, contratos y actualizaciones este estabilizada.
+
+Valor: cachear contenidos y lecciones mediante un Service Worker para poder consultar los roadmaps sin conexion a internet.
+
+## Ultimo paso: preparacion para despliegue
+
+### [ ] Preparacion para despliegue
+
+Estado: en curso. La aplicacion ya puede usar PostgreSQL de Supabase y mantiene
+SQLite para desarrollo; faltan despliegue reproducible, secretos, backups y
+pruebas de recuperacion.
+
+Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
+
+Alcance inicial:
+
+- Usar PostgreSQL de Supabase como fuente central y SQLite solo en local/tests.
+- Endurecer credenciales y configuracion de produccion.
+- Documentar deploy automatizado con GitHub.
+- Configurar health checks, backups y recuperacion.
+
+Hecho cuando:
+
+- La app se puede desplegar fuera de local sin perder datos.
+- Existe una guia de despliegue reproducible.
+- La contraseña admin por defecto deja de ser un riesgo.
+
+## Notas de producto
+
+- Stack objetivo: React + Next.js + TypeScript, API Node/Next.js,
+  PostgreSQL, SQLite para desarrollo/tests, PWA y Capacitor como posible
+  cliente movil futuro.
+- La app esta evolucionando desde un catalogo de roadmaps hacia una
+  herramienta de seguimiento formativo.
+- Conviene mantener el tono visual sobrio y utilitario actual,
+  evitando convertir la interfaz en una landing o en un LMS
+  recargado.
+- Cada funcionalidad nueva deberia llegar con tests y sin degradar
+  la experiencia de lectura de los roadmaps ya existentes.

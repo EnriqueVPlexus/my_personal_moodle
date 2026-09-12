@@ -1,26 +1,144 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { writeAuditLog } from '../../../lib/audit'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'
+import { touchRoadmapProgress } from '../../../lib/progress'
+import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
+import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
+
+function buildModuleProgress(lessons: any[], opened: boolean) {
+  const totalLessons = lessons.length
+  const completedLessonsCount = lessons.filter(lesson => Number(lesson.completed) === 1).length
+  const progressPercentage = totalLessons > 0
+    ? Math.min(100, Math.round((completedLessonsCount / totalLessons) * 100))
+    : 0
+  const nextLesson = lessons.find(lesson => Number(lesson.completed) !== 1)
+  const timeSpentSeconds = lessons.reduce((sum, lesson) => (
+    sum + Number(lesson.progress_time_spent_seconds || 0)
+  ), 0)
+  const status = totalLessons > 0 && completedLessonsCount >= totalLessons
+    ? 'completed'
+    : completedLessonsCount > 0 || opened
+      ? 'in_progress'
+      : 'not_started'
+
+  return {
+    total_lessons: totalLessons,
+    completed_lessons_count: completedLessonsCount,
+    progress_percentage: progressPercentage,
+    status,
+    next_lesson_id: nextLesson?.id ?? null,
+    next_lesson_title: nextLesson?.title ?? null,
+    time_spent_seconds: timeSpentSeconds
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { id } = req.query
 
   if (req.method === 'GET') {
-    const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [id])
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) return
+    const moduleRow = await findModuleById(db, id as string)
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
-    const lessons = await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [id])
-    return res.status(200).json({ ...moduleRow, lessons })
+    if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(404).json({ error: 'not found' })
+    const user = scope.user
+
+    if (user) {
+      await touchRoadmapProgress(db, {
+        userId: user.id,
+        roadmapId: moduleRow.roadmap_id,
+        moduleId: moduleRow.id
+      })
+    }
+
+    const lessons = user
+      ? await db.all(
+        `SELECT lessons.*,
+                CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END AS completed,
+                user_lesson_progress.started_at AS progress_started_at,
+                user_lesson_progress.last_activity_at AS progress_last_activity_at,
+                user_lesson_progress.completed_at AS progress_completed_at,
+                COALESCE(user_lesson_progress.time_spent_seconds, 0) AS progress_time_spent_seconds
+         FROM lessons
+         LEFT JOIN user_lesson_progress
+           ON user_lesson_progress.lesson_id = lessons.id
+          AND user_lesson_progress.user_id = ?
+         WHERE lessons.module_id = ?
+         ORDER BY lessons.id`,
+        [user.id, id]
+      )
+      : await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [id])
+    const quiz = buildModuleQuiz(moduleRow)
+    const quizSummary = user ? await getModuleQuizSummary(db, user.id, moduleRow.id) : null
+
+    return res.status(200).json({
+      ...moduleRow,
+      lessons,
+      progress: user ? buildModuleProgress(lessons, true) : null,
+      quiz: toPublicModuleQuiz(quiz),
+      quiz_summary: quizSummary
+    })
   }
 
   if (req.method === 'PUT') {
-    const { title } = req.body
-    await db.run('UPDATE modules SET title = ? WHERE id = ?', [title, id])
-    const updated = await db.get('SELECT * FROM modules WHERE id = ?', [id])
+    const admin = await requireAdmin(req, res, db)
+    if (!admin) return
+    const { title, level, duration, duration_weeks_min, duration_weeks_max } = req.body
+    if (!title) return res.status(400).json({ error: 'title required' })
+    const hasLevel = Object.prototype.hasOwnProperty.call(req.body, 'level')
+    const hasDuration = Object.prototype.hasOwnProperty.call(req.body, 'duration')
+    const hasDurationRange = Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_min') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_max')
+    const normalizedLevel = normalizeModuleLevel(level)
+    if (level && !normalizedLevel) return res.status(400).json({ error: 'invalid module level' })
+    const durationRange = hasDurationRange
+      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
+      : hasDuration
+        ? parseDurationWeeks(duration)
+        : { min: null, max: null }
+    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
+    const changes = await updateModuleCore(db, id as string, {
+      title,
+      ...(hasLevel ? { level: normalizedLevel } : {}),
+      ...(hasDuration ? { duration: duration || null } : {}),
+      ...(hasDuration || hasDurationRange
+        ? { durationWeeks: { min: durationRange.min, max: durationRange.max } }
+        : {})
+    })
+    if (!changes) return res.status(404).json({ error: 'module not found' })
+
+    const updated = await findModuleById(db, id as string)
+    await writeAuditLog({
+      db,
+      req,
+      user: admin,
+      action: 'module.update',
+      entityType: 'module',
+      entityId: String(id),
+      details: { title, level: normalizedLevel }
+    })
     return res.status(200).json(updated)
   }
 
   if (req.method === 'DELETE') {
-    await db.run('DELETE FROM modules WHERE id = ?', [id])
+    const admin = await requireAdmin(req, res, db)
+    if (!admin) return
+    const moduleRow = await findModuleById(db, id as string)
+    if (!moduleRow) return res.status(404).json({ error: 'module not found' })
+
+    await deleteModule(db, id as string)
+    await writeAuditLog({
+      db,
+      req,
+      user: admin,
+      action: 'module.delete',
+      entityType: 'module',
+      entityId: String(id),
+      details: { title: moduleRow?.title || null, roadmap_id: moduleRow?.roadmap_id || null }
+    })
     return res.status(204).end()
   }
 

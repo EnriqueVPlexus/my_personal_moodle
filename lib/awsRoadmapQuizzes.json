@@ -1,0 +1,1540 @@
+{
+  "roadmapId": "aws-junior-devops-v2",
+  "quizConfig": {
+    "defaultQuestionType": "single_choice",
+    "defaultPointsPerQuestion": 1,
+    "passingScorePercentage": 70,
+    "showExplanationsAfterSubmit": true
+  },
+  "quizzes": [
+    {
+      "moduleId": "module-0",
+      "moduleTitle": "Fundamentos cloud",
+      "quizId": "quiz-module-0-cloud-fundamentals",
+      "title": "Quiz — Fundamentos cloud",
+      "description": "Evaluación básica sobre conceptos iniciales de cloud computing y AWS.",
+      "questions": [
+        {
+          "id": "m0-q1",
+          "type": "single_choice",
+          "question": "¿Qué describe mejor el concepto de cloud computing?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Comprar servidores físicos para instalarlos en un CPD propio"
+            },
+            {
+              "id": "b",
+              "text": "Usar recursos tecnológicos bajo demanda a través de Internet"
+            },
+            {
+              "id": "c",
+              "text": "Instalar aplicaciones únicamente en equipos locales"
+            },
+            {
+              "id": "d",
+              "text": "Sustituir todos los sistemas por aplicaciones móviles"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "Cloud computing permite consumir recursos como cómputo, almacenamiento o red bajo demanda, normalmente pagando por uso.",
+          "points": 1
+        },
+        {
+          "id": "m0-q2",
+          "type": "single_choice",
+          "question": "¿Cuál de estas opciones es un ejemplo de IaaS?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una máquina virtual que el cliente administra"
+            },
+            {
+              "id": "b",
+              "text": "Una aplicación web completamente gestionada por un proveedor"
+            },
+            {
+              "id": "c",
+              "text": "Un correo electrónico tipo SaaS"
+            },
+            {
+              "id": "d",
+              "text": "Un CRM ya preparado para usuarios finales"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "IaaS proporciona infraestructura como máquinas virtuales, redes o almacenamiento, pero el cliente sigue administrando parte del sistema.",
+          "points": 1
+        },
+        {
+          "id": "m0-q3",
+          "type": "single_choice",
+          "question": "¿Qué diferencia hay entre una región y una Availability Zone en AWS?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una región es una cuenta de AWS y una Availability Zone es un usuario"
+            },
+            {
+              "id": "b",
+              "text": "Una región es un área geográfica y una Availability Zone es una ubicación aislada dentro de esa región"
+            },
+            {
+              "id": "c",
+              "text": "Una región es un servicio de almacenamiento y una Availability Zone es un servicio de red"
+            },
+            {
+              "id": "d",
+              "text": "No hay diferencia, son términos equivalentes"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "AWS organiza su infraestructura en regiones geográficas, y cada región suele tener varias zonas de disponibilidad aisladas entre sí.",
+          "points": 1
+        },
+        {
+          "id": "m0-q4",
+          "type": "single_choice",
+          "question": "¿Qué significa elasticidad en cloud?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Poder aumentar o reducir recursos según la demanda"
+            },
+            {
+              "id": "b",
+              "text": "Usar siempre el mismo tamaño de servidor"
+            },
+            {
+              "id": "c",
+              "text": "Tener los servidores apagados permanentemente"
+            },
+            {
+              "id": "d",
+              "text": "Comprar hardware con más memoria RAM"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "La elasticidad permite adaptar los recursos a la carga real, reduciendo desperdicio y mejorando disponibilidad.",
+          "points": 1
+        },
+        {
+          "id": "m0-q5",
+          "type": "single_choice",
+          "question": "En el modelo de responsabilidad compartida, ¿qué suele ser responsabilidad del cliente?",
+          "options": [
+            {
+              "id": "a",
+              "text": "La seguridad física de los centros de datos de AWS"
+            },
+            {
+              "id": "b",
+              "text": "La configuración de permisos, datos y recursos dentro de su cuenta"
+            },
+            {
+              "id": "c",
+              "text": "El mantenimiento eléctrico de los CPD de AWS"
+            },
+            {
+              "id": "d",
+              "text": "La sustitución de hardware físico en AWS"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "AWS protege la infraestructura de la nube, pero el cliente debe configurar correctamente accesos, datos, redes y servicios que usa.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-1",
+      "moduleTitle": "Cuenta AWS, Free Tier, seguridad inicial y control de costes",
+      "quizId": "quiz-module-1-aws-account-cost-security",
+      "title": "Quiz — Cuenta AWS, costes y seguridad inicial",
+      "description": "Evaluación básica sobre Free Tier, presupuestos, MFA y buenas prácticas iniciales.",
+      "questions": [
+        {
+          "id": "m1-q1",
+          "type": "single_choice",
+          "question": "¿Por qué es importante configurar alertas de presupuesto al empezar con AWS?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Porque impiden aprender servicios nuevos"
+            },
+            {
+              "id": "b",
+              "text": "Porque ayudan a detectar gastos inesperados"
+            },
+            {
+              "id": "c",
+              "text": "Porque eliminan automáticamente todos los recursos"
+            },
+            {
+              "id": "d",
+              "text": "Porque sustituyen a IAM"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "AWS Budgets permite crear alertas para controlar costes y evitar sorpresas de facturación.",
+          "points": 1
+        },
+        {
+          "id": "m1-q2",
+          "type": "single_choice",
+          "question": "¿Qué significa activar MFA en una cuenta AWS?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Añadir un segundo factor de autenticación para mejorar la seguridad"
+            },
+            {
+              "id": "b",
+              "text": "Duplicar automáticamente todos los recursos"
+            },
+            {
+              "id": "c",
+              "text": "Crear una VPC privada"
+            },
+            {
+              "id": "d",
+              "text": "Desactivar la facturación"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "MFA añade una capa adicional de seguridad, normalmente mediante una app o dispositivo de autenticación.",
+          "points": 1
+        },
+        {
+          "id": "m1-q3",
+          "type": "single_choice",
+          "question": "¿Cuál es una buena práctica al finalizar una práctica en AWS?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Dejar todos los recursos encendidos por si se necesitan algún día"
+            },
+            {
+              "id": "b",
+              "text": "Eliminar o apagar los recursos que ya no sean necesarios"
+            },
+            {
+              "id": "c",
+              "text": "Compartir las claves de acceso con el resto de alumnos"
+            },
+            {
+              "id": "d",
+              "text": "Desactivar todas las alertas de coste"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "Limpiar recursos evita costes innecesarios y fomenta buenas prácticas operativas.",
+          "points": 1
+        },
+        {
+          "id": "m1-q4",
+          "type": "single_choice",
+          "question": "¿Para qué sirve AWS Pricing Calculator?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para estimar costes de servicios antes de desplegarlos"
+            },
+            {
+              "id": "b",
+              "text": "Para crear usuarios IAM automáticamente"
+            },
+            {
+              "id": "c",
+              "text": "Para conectarse por SSH a EC2"
+            },
+            {
+              "id": "d",
+              "text": "Para crear contenedores Docker"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "AWS Pricing Calculator permite estimar costes aproximados de uso de servicios.",
+          "points": 1
+        },
+        {
+          "id": "m1-q5",
+          "type": "single_choice",
+          "question": "¿Cuál es el mayor riesgo de usar una cuenta AWS sin control de costes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Que no se puedan crear usuarios"
+            },
+            {
+              "id": "b",
+              "text": "Que se generen cargos inesperados"
+            },
+            {
+              "id": "c",
+              "text": "Que S3 deje de funcionar"
+            },
+            {
+              "id": "d",
+              "text": "Que no se pueda usar GitHub"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "Algunos recursos pueden generar coste si se dejan activos o se usan fuera de los límites gratuitos.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-2",
+      "moduleTitle": "Amazon EC2",
+      "quizId": "quiz-module-2-ec2",
+      "title": "Quiz — Amazon EC2",
+      "description": "Evaluación básica sobre instancias EC2, acceso, seguridad y ciclo de vida.",
+      "questions": [
+        {
+          "id": "m2-q1",
+          "type": "single_choice",
+          "question": "¿Qué es Amazon EC2?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un servicio de máquinas virtuales en la nube"
+            },
+            {
+              "id": "b",
+              "text": "Un servicio exclusivo de bases de datos relacionales"
+            },
+            {
+              "id": "c",
+              "text": "Una herramienta para editar código"
+            },
+            {
+              "id": "d",
+              "text": "Un sistema de correo electrónico"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "EC2 permite crear y administrar instancias de cómputo, equivalentes a servidores virtuales.",
+          "points": 1
+        },
+        {
+          "id": "m2-q2",
+          "type": "single_choice",
+          "question": "¿Para qué sirve una AMI en EC2?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para definir la imagen base desde la que se lanza una instancia"
+            },
+            {
+              "id": "b",
+              "text": "Para abrir puertos de red"
+            },
+            {
+              "id": "c",
+              "text": "Para crear buckets S3"
+            },
+            {
+              "id": "d",
+              "text": "Para configurar alarmas de coste"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Una AMI contiene el sistema operativo y configuración base para lanzar una instancia EC2.",
+          "points": 1
+        },
+        {
+          "id": "m2-q3",
+          "type": "single_choice",
+          "question": "¿Qué función cumple un Security Group asociado a una EC2?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Controlar el tráfico permitido hacia y desde la instancia"
+            },
+            {
+              "id": "b",
+              "text": "Aumentar automáticamente la CPU de la instancia"
+            },
+            {
+              "id": "c",
+              "text": "Guardar copias de seguridad de S3"
+            },
+            {
+              "id": "d",
+              "text": "Crear usuarios del sistema operativo"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Los Security Groups actúan como firewall virtual para controlar tráfico entrante y saliente.",
+          "points": 1
+        },
+        {
+          "id": "m2-q4",
+          "type": "single_choice",
+          "question": "¿Para qué se usa normalmente una key pair en EC2 Linux?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para conectarse de forma segura por SSH"
+            },
+            {
+              "id": "b",
+              "text": "Para crear un bucket"
+            },
+            {
+              "id": "c",
+              "text": "Para activar CloudWatch"
+            },
+            {
+              "id": "d",
+              "text": "Para borrar una VPC"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "La key pair permite autenticarse en la instancia Linux mediante SSH.",
+          "points": 1
+        },
+        {
+          "id": "m2-q5",
+          "type": "single_choice",
+          "question": "¿Qué diferencia general hay entre detener y terminar una instancia EC2?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Detener la apaga temporalmente; terminarla la elimina"
+            },
+            {
+              "id": "b",
+              "text": "Detenerla borra siempre todos los datos de S3"
+            },
+            {
+              "id": "c",
+              "text": "Terminarla solo reinicia el sistema operativo"
+            },
+            {
+              "id": "d",
+              "text": "No hay ninguna diferencia"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Detener una instancia la apaga, mientras que terminarla implica eliminarla como recurso EC2.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-3",
+      "moduleTitle": "Amazon S3",
+      "quizId": "quiz-module-3-s3",
+      "title": "Quiz — Amazon S3",
+      "description": "Evaluación básica sobre buckets, objetos, permisos y versionado.",
+      "questions": [
+        {
+          "id": "m3-q1",
+          "type": "single_choice",
+          "question": "¿Qué tipo de almacenamiento ofrece principalmente Amazon S3?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Almacenamiento de objetos"
+            },
+            {
+              "id": "b",
+              "text": "Máquinas virtuales"
+            },
+            {
+              "id": "c",
+              "text": "Bases de datos relacionales"
+            },
+            {
+              "id": "d",
+              "text": "Balanceadores de carga"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "S3 es un servicio de almacenamiento de objetos, organizado en buckets y objetos.",
+          "points": 1
+        },
+        {
+          "id": "m3-q2",
+          "type": "single_choice",
+          "question": "¿Qué es un bucket en S3?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un contenedor lógico donde se almacenan objetos"
+            },
+            {
+              "id": "b",
+              "text": "Una máquina virtual Linux"
+            },
+            {
+              "id": "c",
+              "text": "Una tabla de base de datos"
+            },
+            {
+              "id": "d",
+              "text": "Un usuario IAM"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Los buckets son contenedores donde se almacenan objetos en S3.",
+          "points": 1
+        },
+        {
+          "id": "m3-q3",
+          "type": "single_choice",
+          "question": "¿Para qué sirve el versionado en S3?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para conservar versiones anteriores de los objetos"
+            },
+            {
+              "id": "b",
+              "text": "Para aumentar la CPU de una EC2"
+            },
+            {
+              "id": "c",
+              "text": "Para crear una VPC privada"
+            },
+            {
+              "id": "d",
+              "text": "Para instalar Docker"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "El versionado permite mantener varias versiones de un objeto y facilita recuperación ante cambios o borrados accidentales.",
+          "points": 1
+        },
+        {
+          "id": "m3-q4",
+          "type": "single_choice",
+          "question": "¿Cuál es una buena práctica general con buckets S3?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Hacerlos públicos siempre"
+            },
+            {
+              "id": "b",
+              "text": "Mantenerlos privados salvo que exista una necesidad clara de acceso público"
+            },
+            {
+              "id": "c",
+              "text": "Guardar claves de acceso dentro de los objetos"
+            },
+            {
+              "id": "d",
+              "text": "Eliminar todas las políticas de seguridad"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "Por seguridad, los buckets deben mantenerse privados salvo casos justificados como hosting estático público.",
+          "points": 1
+        },
+        {
+          "id": "m3-q5",
+          "type": "single_choice",
+          "question": "¿Qué se necesita para alojar una web estática en S3?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un bucket configurado para hosting estático y archivos como index.html"
+            },
+            {
+              "id": "b",
+              "text": "Una instancia EC2 obligatoriamente"
+            },
+            {
+              "id": "c",
+              "text": "Un clúster Kubernetes"
+            },
+            {
+              "id": "d",
+              "text": "Una base de datos RDS"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "S3 puede servir sitios web estáticos si el bucket está configurado para ello y contiene los archivos necesarios.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-4",
+      "moduleTitle": "AWS IAM y seguridad básica",
+      "quizId": "quiz-module-4-iam",
+      "title": "Quiz — AWS IAM",
+      "description": "Evaluación sobre usuarios, grupos, políticas, roles y mínimo privilegio.",
+      "questions": [
+        {
+          "id": "m4-q1",
+          "type": "single_choice",
+          "question": "¿Qué permite gestionar AWS IAM?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Identidades y permisos de acceso a recursos AWS"
+            },
+            {
+              "id": "b",
+              "text": "Únicamente máquinas virtuales"
+            },
+            {
+              "id": "c",
+              "text": "Solo almacenamiento de objetos"
+            },
+            {
+              "id": "d",
+              "text": "La temperatura de los centros de datos"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "IAM permite administrar usuarios, grupos, roles y políticas de permisos.",
+          "points": 1
+        },
+        {
+          "id": "m4-q2",
+          "type": "single_choice",
+          "question": "¿Qué es una política IAM?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un documento que define permisos permitidos o denegados"
+            },
+            {
+              "id": "b",
+              "text": "Una instancia EC2"
+            },
+            {
+              "id": "c",
+              "text": "Una subred privada"
+            },
+            {
+              "id": "d",
+              "text": "Un bucket de S3"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Las políticas IAM describen acciones permitidas o denegadas sobre recursos.",
+          "points": 1
+        },
+        {
+          "id": "m4-q3",
+          "type": "single_choice",
+          "question": "¿Qué significa principio de mínimo privilegio?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Dar solo los permisos necesarios para realizar una tarea"
+            },
+            {
+              "id": "b",
+              "text": "Dar siempre permisos de administrador"
+            },
+            {
+              "id": "c",
+              "text": "No usar ningún usuario"
+            },
+            {
+              "id": "d",
+              "text": "Abrir todos los puertos"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "El mínimo privilegio reduce riesgos dando a cada identidad únicamente los permisos necesarios.",
+          "points": 1
+        },
+        {
+          "id": "m4-q4",
+          "type": "single_choice",
+          "question": "¿Qué ventaja tiene usar un rol IAM frente a credenciales permanentes en muchos escenarios?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Permite usar permisos temporales y más controlados"
+            },
+            {
+              "id": "b",
+              "text": "Evita tener que configurar red"
+            },
+            {
+              "id": "c",
+              "text": "Convierte una EC2 en un bucket"
+            },
+            {
+              "id": "d",
+              "text": "Desactiva CloudWatch"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Los roles permiten delegar permisos sin exponer claves permanentes en muchos casos.",
+          "points": 1
+        },
+        {
+          "id": "m4-q5",
+          "type": "single_choice",
+          "question": "¿Cuál de estas prácticas es más segura?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Compartir una misma clave de acceso entre todo el equipo"
+            },
+            {
+              "id": "b",
+              "text": "Crear permisos específicos según necesidad y evitar claves compartidas"
+            },
+            {
+              "id": "c",
+              "text": "Usar siempre el usuario root para todo"
+            },
+            {
+              "id": "d",
+              "text": "Publicar claves en el README"
+            }
+          ],
+          "correctOptionId": "b",
+          "explanation": "Cada usuario o servicio debe tener permisos adecuados y trazabilidad propia.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-5",
+      "moduleTitle": "Amazon VPC y red en AWS",
+      "quizId": "quiz-module-5-vpc",
+      "title": "Quiz — Amazon VPC y red",
+      "description": "Evaluación básica sobre red, subredes, rutas y seguridad de red en AWS.",
+      "questions": [
+        {
+          "id": "m5-q1",
+          "type": "single_choice",
+          "question": "¿Qué es una VPC en AWS?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una red virtual aislada donde desplegar recursos"
+            },
+            {
+              "id": "b",
+              "text": "Un servicio de almacenamiento de objetos"
+            },
+            {
+              "id": "c",
+              "text": "Un usuario administrador"
+            },
+            {
+              "id": "d",
+              "text": "Una imagen Docker"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Una VPC permite definir una red virtual propia dentro de AWS.",
+          "points": 1
+        },
+        {
+          "id": "m5-q2",
+          "type": "single_choice",
+          "question": "¿Qué suele necesitar una subred pública para tener salida directa a Internet?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una ruta hacia un Internet Gateway"
+            },
+            {
+              "id": "b",
+              "text": "Un bucket S3"
+            },
+            {
+              "id": "c",
+              "text": "Un repositorio GitHub"
+            },
+            {
+              "id": "d",
+              "text": "Un workflow de GitHub Actions"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Una subred pública suele tener una tabla de rutas que envía tráfico de Internet hacia un Internet Gateway.",
+          "points": 1
+        },
+        {
+          "id": "m5-q3",
+          "type": "single_choice",
+          "question": "¿Qué es una route table?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una tabla que define hacia dónde se dirige el tráfico de red"
+            },
+            {
+              "id": "b",
+              "text": "Una tabla SQL en una base de datos"
+            },
+            {
+              "id": "c",
+              "text": "Un listado de usuarios IAM"
+            },
+            {
+              "id": "d",
+              "text": "Una lista de contenedores Docker"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Las route tables determinan cómo se enruta el tráfico dentro de una VPC.",
+          "points": 1
+        },
+        {
+          "id": "m5-q4",
+          "type": "single_choice",
+          "question": "¿Qué diferencia general hay entre Security Group y NACL?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El Security Group se asocia normalmente a recursos como instancias; la NACL se aplica a nivel de subred"
+            },
+            {
+              "id": "b",
+              "text": "Ambos son exactamente iguales"
+            },
+            {
+              "id": "c",
+              "text": "La NACL sirve para crear usuarios"
+            },
+            {
+              "id": "d",
+              "text": "El Security Group sirve para almacenar objetos"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Security Groups y NACLs controlan tráfico a distintos niveles dentro de la arquitectura de red.",
+          "points": 1
+        },
+        {
+          "id": "m5-q5",
+          "type": "single_choice",
+          "question": "¿Qué significa CIDR en el contexto de una VPC?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un rango de direcciones IP asignado a una red o subred"
+            },
+            {
+              "id": "b",
+              "text": "Un tipo de instancia EC2"
+            },
+            {
+              "id": "c",
+              "text": "Un servicio de monitorización"
+            },
+            {
+              "id": "d",
+              "text": "Un sistema de autenticación MFA"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "CIDR se usa para definir rangos de direcciones IP en redes y subredes.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-6",
+      "moduleTitle": "Amazon CloudWatch y observabilidad",
+      "quizId": "quiz-module-6-cloudwatch",
+      "title": "Quiz — Amazon CloudWatch y observabilidad",
+      "description": "Evaluación sobre métricas, logs, alarmas y operación básica.",
+      "questions": [
+        {
+          "id": "m6-q1",
+          "type": "single_choice",
+          "question": "¿Para qué sirve principalmente Amazon CloudWatch?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para monitorizar recursos, métricas, logs y alarmas"
+            },
+            {
+              "id": "b",
+              "text": "Para crear imágenes Docker"
+            },
+            {
+              "id": "c",
+              "text": "Para almacenar objetos estáticos"
+            },
+            {
+              "id": "d",
+              "text": "Para editar código fuente"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "CloudWatch es el servicio de observabilidad y monitorización de AWS.",
+          "points": 1
+        },
+        {
+          "id": "m6-q2",
+          "type": "single_choice",
+          "question": "¿Qué es una métrica?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un dato numérico medido a lo largo del tiempo"
+            },
+            {
+              "id": "b",
+              "text": "Un usuario IAM"
+            },
+            {
+              "id": "c",
+              "text": "Un archivo HTML"
+            },
+            {
+              "id": "d",
+              "text": "Una clave SSH"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Una métrica representa mediciones como CPU, memoria, latencia o número de errores.",
+          "points": 1
+        },
+        {
+          "id": "m6-q3",
+          "type": "single_choice",
+          "question": "¿Para qué sirve una alarma en CloudWatch?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para reaccionar cuando una métrica supera o baja de un umbral"
+            },
+            {
+              "id": "b",
+              "text": "Para crear una nueva cuenta AWS"
+            },
+            {
+              "id": "c",
+              "text": "Para modificar automáticamente el código fuente"
+            },
+            {
+              "id": "d",
+              "text": "Para convertir un bucket en una EC2"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Las alarmas permiten detectar condiciones anómalas y notificar o activar acciones.",
+          "points": 1
+        },
+        {
+          "id": "m6-q4",
+          "type": "single_choice",
+          "question": "¿Cuál es un ejemplo típico de alarma básica en una EC2?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Alarma cuando la CPU supera cierto porcentaje durante varios minutos"
+            },
+            {
+              "id": "b",
+              "text": "Alarma cuando se crea un README"
+            },
+            {
+              "id": "c",
+              "text": "Alarma cuando Docker compila una imagen"
+            },
+            {
+              "id": "d",
+              "text": "Alarma cuando se abre un editor de texto"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Monitorizar la CPU es una práctica sencilla para introducir observabilidad básica.",
+          "points": 1
+        },
+        {
+          "id": "m6-q5",
+          "type": "single_choice",
+          "question": "¿Qué diferencia general hay entre logs y métricas?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Los logs son registros de eventos; las métricas son valores medidos en el tiempo"
+            },
+            {
+              "id": "b",
+              "text": "Los logs son usuarios y las métricas son roles"
+            },
+            {
+              "id": "c",
+              "text": "No hay diferencia"
+            },
+            {
+              "id": "d",
+              "text": "Las métricas solo existen en Docker"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Logs y métricas son complementarios: los logs ayudan a entender qué pasó y las métricas muestran tendencias o estado.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-7",
+      "moduleTitle": "AWS CLI",
+      "quizId": "quiz-module-7-aws-cli",
+      "title": "Quiz — AWS CLI",
+      "description": "Evaluación sobre uso básico de AWS CLI, perfiles y credenciales.",
+      "questions": [
+        {
+          "id": "m7-q1",
+          "type": "single_choice",
+          "question": "¿Qué es AWS CLI?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una herramienta de línea de comandos para interactuar con servicios AWS"
+            },
+            {
+              "id": "b",
+              "text": "Un servicio exclusivo para crear dashboards"
+            },
+            {
+              "id": "c",
+              "text": "Una base de datos"
+            },
+            {
+              "id": "d",
+              "text": "Una distribución Linux"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "AWS CLI permite ejecutar operaciones sobre servicios AWS desde terminal.",
+          "points": 1
+        },
+        {
+          "id": "m7-q2",
+          "type": "single_choice",
+          "question": "¿Qué comando se usa habitualmente para configurar credenciales básicas en AWS CLI?",
+          "options": [
+            {
+              "id": "a",
+              "text": "aws configure"
+            },
+            {
+              "id": "b",
+              "text": "aws install docker"
+            },
+            {
+              "id": "c",
+              "text": "terraform apply"
+            },
+            {
+              "id": "d",
+              "text": "git commit"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "El comando aws configure permite introducir access key, secret key, región y formato de salida.",
+          "points": 1
+        },
+        {
+          "id": "m7-q3",
+          "type": "single_choice",
+          "question": "¿Para qué sirven los perfiles en AWS CLI?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para gestionar distintas configuraciones o cuentas de AWS"
+            },
+            {
+              "id": "b",
+              "text": "Para crear automáticamente una VPC"
+            },
+            {
+              "id": "c",
+              "text": "Para subir código a GitHub"
+            },
+            {
+              "id": "d",
+              "text": "Para instalar Nginx en local"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Los perfiles permiten trabajar con diferentes cuentas, usuarios o configuraciones de región.",
+          "points": 1
+        },
+        {
+          "id": "m7-q4",
+          "type": "single_choice",
+          "question": "¿Cuál de estos comandos podría listar buckets S3?",
+          "options": [
+            {
+              "id": "a",
+              "text": "aws s3 ls"
+            },
+            {
+              "id": "b",
+              "text": "docker ps"
+            },
+            {
+              "id": "c",
+              "text": "terraform init"
+            },
+            {
+              "id": "d",
+              "text": "git branch"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "aws s3 ls se usa para listar buckets o contenido de S3, según cómo se ejecute.",
+          "points": 1
+        },
+        {
+          "id": "m7-q5",
+          "type": "single_choice",
+          "question": "¿Cuál es una buena práctica con claves de acceso usadas por AWS CLI?",
+          "options": [
+            {
+              "id": "a",
+              "text": "No compartirlas y aplicar mínimo privilegio"
+            },
+            {
+              "id": "b",
+              "text": "Publicarlas en GitHub para facilitar el trabajo"
+            },
+            {
+              "id": "c",
+              "text": "Usarlas siempre con permisos de administrador"
+            },
+            {
+              "id": "d",
+              "text": "Mandarlas por correo a todo el equipo"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Las claves deben protegerse, rotarse cuando proceda y tener permisos mínimos.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-9",
+      "moduleTitle": "Terraform",
+      "quizId": "quiz-module-9-terraform",
+      "title": "Quiz — Terraform",
+      "description": "Evaluación sobre conceptos básicos de Infraestructura como Código y Terraform.",
+      "questions": [
+        {
+          "id": "m9-q1",
+          "type": "single_choice",
+          "question": "¿Qué es Terraform?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una herramienta de Infraestructura como Código"
+            },
+            {
+              "id": "b",
+              "text": "Un servicio de correo electrónico"
+            },
+            {
+              "id": "c",
+              "text": "Un sistema operativo"
+            },
+            {
+              "id": "d",
+              "text": "Un editor de vídeo"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Terraform permite definir y gestionar infraestructura mediante archivos declarativos.",
+          "points": 1
+        },
+        {
+          "id": "m9-q2",
+          "type": "single_choice",
+          "question": "¿Para qué sirve terraform init?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para inicializar el directorio de trabajo y descargar providers necesarios"
+            },
+            {
+              "id": "b",
+              "text": "Para borrar todos los recursos directamente"
+            },
+            {
+              "id": "c",
+              "text": "Para crear una imagen Docker"
+            },
+            {
+              "id": "d",
+              "text": "Para hacer commit en GitHub"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "terraform init prepara el proyecto y descarga los providers requeridos.",
+          "points": 1
+        },
+        {
+          "id": "m9-q3",
+          "type": "single_choice",
+          "question": "¿Qué muestra terraform plan?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Los cambios que Terraform propone aplicar"
+            },
+            {
+              "id": "b",
+              "text": "Los logs de una instancia EC2"
+            },
+            {
+              "id": "c",
+              "text": "Los usuarios conectados por SSH"
+            },
+            {
+              "id": "d",
+              "text": "El contenido de un contenedor Docker"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "terraform plan permite revisar qué cambios se aplicarán antes de ejecutarlos.",
+          "points": 1
+        },
+        {
+          "id": "m9-q4",
+          "type": "single_choice",
+          "question": "¿Para qué sirve terraform apply?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para aplicar los cambios definidos en la configuración"
+            },
+            {
+              "id": "b",
+              "text": "Para abrir una pull request"
+            },
+            {
+              "id": "c",
+              "text": "Para listar contenedores"
+            },
+            {
+              "id": "d",
+              "text": "Para configurar MFA"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "terraform apply ejecuta los cambios necesarios para que la infraestructura coincida con el código.",
+          "points": 1
+        },
+        {
+          "id": "m9-q5",
+          "type": "single_choice",
+          "question": "¿Por qué es útil versionar código Terraform en Git?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Porque permite revisar cambios, colaborar y mantener histórico de la infraestructura"
+            },
+            {
+              "id": "b",
+              "text": "Porque evita pagar cualquier recurso de AWS"
+            },
+            {
+              "id": "c",
+              "text": "Porque sustituye todos los servicios de AWS"
+            },
+            {
+              "id": "d",
+              "text": "Porque convierte automáticamente una app en contenedor"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "La infraestructura como código debe tratarse como código: revisable, versionable y colaborativa.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-10",
+      "moduleTitle": "Docker",
+      "quizId": "quiz-module-10-docker",
+      "title": "Quiz — Docker",
+      "description": "Evaluación básica sobre imágenes, contenedores, Dockerfile y ejecución local.",
+      "questions": [
+        {
+          "id": "m10-q1",
+          "type": "single_choice",
+          "question": "¿Qué es una imagen Docker?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una plantilla inmutable para crear contenedores"
+            },
+            {
+              "id": "b",
+              "text": "Una máquina física"
+            },
+            {
+              "id": "c",
+              "text": "Una alarma de CloudWatch"
+            },
+            {
+              "id": "d",
+              "text": "Una política IAM"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Una imagen contiene la aplicación y sus dependencias, y sirve para crear contenedores.",
+          "points": 1
+        },
+        {
+          "id": "m10-q2",
+          "type": "single_choice",
+          "question": "¿Qué es un contenedor Docker?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una instancia en ejecución de una imagen"
+            },
+            {
+              "id": "b",
+              "text": "Un bucket S3"
+            },
+            {
+              "id": "c",
+              "text": "Una VPC"
+            },
+            {
+              "id": "d",
+              "text": "Una key pair de EC2"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Un contenedor es una ejecución aislada basada en una imagen Docker.",
+          "points": 1
+        },
+        {
+          "id": "m10-q3",
+          "type": "single_choice",
+          "question": "¿Para qué sirve un Dockerfile?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para definir cómo construir una imagen Docker"
+            },
+            {
+              "id": "b",
+              "text": "Para crear usuarios IAM"
+            },
+            {
+              "id": "c",
+              "text": "Para configurar AWS Budgets"
+            },
+            {
+              "id": "d",
+              "text": "Para modificar tablas de rutas"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "El Dockerfile contiene las instrucciones necesarias para construir una imagen.",
+          "points": 1
+        },
+        {
+          "id": "m10-q4",
+          "type": "single_choice",
+          "question": "¿Qué comando se usa habitualmente para construir una imagen Docker?",
+          "options": [
+            {
+              "id": "a",
+              "text": "docker build"
+            },
+            {
+              "id": "b",
+              "text": "aws configure"
+            },
+            {
+              "id": "c",
+              "text": "terraform plan"
+            },
+            {
+              "id": "d",
+              "text": "git pull-request"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "docker build construye una imagen a partir de un Dockerfile y un contexto.",
+          "points": 1
+        },
+        {
+          "id": "m10-q5",
+          "type": "single_choice",
+          "question": "¿Para qué sirve mapear puertos al ejecutar un contenedor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para permitir acceder desde fuera al servicio que corre dentro del contenedor"
+            },
+            {
+              "id": "b",
+              "text": "Para borrar una imagen"
+            },
+            {
+              "id": "c",
+              "text": "Para crear un usuario AWS"
+            },
+            {
+              "id": "d",
+              "text": "Para activar MFA"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "El mapeo de puertos permite exponer servicios internos del contenedor hacia el host.",
+          "points": 1
+        }
+      ]
+    },
+    {
+      "moduleId": "module-11",
+      "moduleTitle": "GitHub Actions y CI/CD",
+      "quizId": "quiz-module-11-github-actions",
+      "title": "Quiz — GitHub Actions y CI/CD",
+      "description": "Evaluación sobre conceptos básicos de workflows, jobs, triggers y secrets.",
+      "questions": [
+        {
+          "id": "m11-q1",
+          "type": "single_choice",
+          "question": "¿Qué es GitHub Actions?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Una plataforma para automatizar workflows de CI/CD dentro de GitHub"
+            },
+            {
+              "id": "b",
+              "text": "Un servicio de almacenamiento de objetos"
+            },
+            {
+              "id": "c",
+              "text": "Un tipo de instancia EC2"
+            },
+            {
+              "id": "d",
+              "text": "Una herramienta para crear VPCs manualmente"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "GitHub Actions permite automatizar tareas como validación, build, test y despliegue.",
+          "points": 1
+        },
+        {
+          "id": "m11-q2",
+          "type": "single_choice",
+          "question": "¿Qué es un workflow en GitHub Actions?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Un proceso automatizado definido normalmente en un archivo YAML"
+            },
+            {
+              "id": "b",
+              "text": "Un usuario IAM"
+            },
+            {
+              "id": "c",
+              "text": "Una imagen AMI"
+            },
+            {
+              "id": "d",
+              "text": "Una tabla de rutas"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Un workflow define qué acciones se ejecutan, cuándo y bajo qué condiciones.",
+          "points": 1
+        },
+        {
+          "id": "m11-q3",
+          "type": "single_choice",
+          "question": "¿Qué es un trigger en GitHub Actions?",
+          "options": [
+            {
+              "id": "a",
+              "text": "El evento que dispara la ejecución de un workflow"
+            },
+            {
+              "id": "b",
+              "text": "Una clave SSH de EC2"
+            },
+            {
+              "id": "c",
+              "text": "Un tipo de bucket"
+            },
+            {
+              "id": "d",
+              "text": "Un contenedor en ejecución"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Un trigger puede ser, por ejemplo, un push, una pull request o una ejecución manual.",
+          "points": 1
+        },
+        {
+          "id": "m11-q4",
+          "type": "single_choice",
+          "question": "¿Para qué sirven los secrets en GitHub Actions?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Para almacenar valores sensibles de forma segura, como tokens o claves"
+            },
+            {
+              "id": "b",
+              "text": "Para hacer público el código fuente"
+            },
+            {
+              "id": "c",
+              "text": "Para crear un bucket automáticamente sin permisos"
+            },
+            {
+              "id": "d",
+              "text": "Para borrar los logs del workflow"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "Los secrets permiten usar valores sensibles sin escribirlos directamente en el código del repositorio.",
+          "points": 1
+        },
+        {
+          "id": "m11-q5",
+          "type": "single_choice",
+          "question": "¿Cuál sería un ejemplo sencillo de CI?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ejecutar automáticamente validaciones o tests cuando se hace push"
+            },
+            {
+              "id": "b",
+              "text": "Crear manualmente una instancia cada mañana"
+            },
+            {
+              "id": "c",
+              "text": "Apagar el router local"
+            },
+            {
+              "id": "d",
+              "text": "Subir claves privadas al repositorio"
+            }
+          ],
+          "correctOptionId": "a",
+          "explanation": "La integración continua busca validar cambios de código de forma automática y repetible.",
+          "points": 1
+        }
+      ]
+    }
+  ]
+}
