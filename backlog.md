@@ -1,4 +1,4 @@
-# Backlog de CanteraHub
+# Backlog de Plexus Academy
 
 Documento vivo para planificar, implementar y revisar la evolucion
 del producto poco a poco.
@@ -29,7 +29,9 @@ del producto poco a poco.
 - [x] Estados de progreso `iniciado`, `en curso`, `pausado` y `completado`.
 - [x] Auditoria de robustez del progreso: calculos derivados, reanudacion,
   concurrencia, validacion y recuperacion ante errores de red.
-- [x] Favicon propio de CanteraHub para la pestana del navegador.
+- [x] Favicon propio de Plexus Academy para la pestana del navegador.
+- [x] UI Redesign: header compacto, admin dropdown, branding actualizado.
+- [x] Reset de contraseña admin en SQLite local.
 
 ## Siguiente hoja de ruta tecnica
 
@@ -767,6 +769,31 @@ Tareas:
 
 - Vista o exportacion de "Mi Portfolio de Evidencias".
 - Generacion de resumen con links a GitHub, demos y notas de modulos superados.
+
+## UI y Branding
+
+### [x] UI Redesign: Header compacto y admin dropdown
+
+Estado: completado.
+
+Valor: mejora la experiencia visual y la densidad de información sin sacrificar usabilidad.
+
+Cambios implementados:
+
+- Header compactado: reducir altura con `py-0` y gap mínimo.
+- Logo redimensionado de 40px a 50px manteniendo proporción.
+- Admin links agrupados en dropdown (`Admin ▼`) para ahorrar espacio horizontal.
+- Usuario simplificado: mostrar solo username (parte antes del @) con link "Log out" en lugar de botón.
+- Eliminar subtítulo "Plexus Tech" para mantener limpieza visual.
+- Branding actualizado: `CanteraHub` → `Plexus Academy`, `Tu empresa` → `Plexus Tech` (en `.env.local`).
+
+Hecho cuando:
+
+- Header cabe en una sola línea en viewport estándar (>= 768px).
+- Admin dropdown funciona con click-outside detection.
+- Logo y textos mantienen legibilidad.
+
+Rama: `feature/ui-redesign` (mergeada a `chore/audit-fix-force`).
 
 ## Prioridad media
 

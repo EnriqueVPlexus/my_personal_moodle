@@ -1,6 +1,6 @@
 # Documentación Técnica Del Proyecto
 
-Este repositorio contiene **CanteraHub**, una aplicación Next.js + TypeScript para gestionar roadmaps de aprendizaje, módulos, lecciones, usuarios, roles y auditoría.
+Este repositorio contiene **Plexus Academy**, una aplicación Next.js + TypeScript para gestionar roadmaps de aprendizaje, módulos, lecciones, usuarios, roles y auditoría.
 
 ## Estado Del Producto
 
@@ -59,6 +59,24 @@ SQLite local y PostgreSQL remoto durante la transición.
 - `/admin/users` gestiona usuarios y contraseñas.
 - `/admin/audit` muestra los últimos 200 eventos sensibles.
 
+### Resetear Contraseña De Admin
+
+Si pierdes acceso al usuario admin (ej. SQLite en desarrollo):
+
+1. **En SQLite local** (`data/dev.db`):
+   - Genera el hash con `npx tsx` y `hashPassword()` de `lib/password.ts`.
+   - Ejecuta SQL directamente:
+     ```bash
+     sqlite3 ./data/dev.db "UPDATE users SET password_hash = '<HASH>', updated_at = datetime('now') WHERE role = 'admin';"
+     ```
+
+2. **En PostgreSQL/Supabase**:
+   - Abre el SQL Editor de Supabase.
+   - Ejecuta el mismo UPDATE en la tabla `users`.
+   - Asegúrate de que `AUTH_PASSWORD_PEPPER` en `.env.local` sea el mismo que en producción.
+
+La contraseña debe tener al menos 12 caracteres; el validador en `lib/password.ts` lo comprueba.
+
 ## Estructura Principal
 
 ```text
@@ -86,6 +104,14 @@ styles/                     Tailwind y estilos globales.
 public/brand/               Assets de marca por defecto.
 scripts/                    Utilidades de mantenimiento.
 ```
+
+## UI y Branding
+
+- Header compacto con logo 50px, sin padding vertical.
+- Nombres de la app: `NEXT_PUBLIC_PRODUCT_NAME` (ej. "Plexus Academy") y `NEXT_PUBLIC_COMPANY_NAME` (ej. "Plexus Tech") en `.env.local`.
+- Admin links agrupados en dropdown con componente `AdminDropdown` que cierra al hacer click fuera.
+- Usuario simplificado: muestra solo username (antes del @) con link "Log out".
+- Brand assets en `public/brand/`: logo PNG/SVG, favicon.
 
 ## Base De Datos
 
