@@ -411,6 +411,33 @@ describe('auth helper', () => {
     }), forwardedHost)).toBe(true)
   })
 
+  it('honors an explicit ALLOWED_ORIGIN allowlist over request headers', async () => {
+    process.env.ALLOWED_ORIGIN = 'app.example.com, other.example.com'
+    const { requireSameOrigin } = await import('../lib/auth')
+
+    const allowed = createResponse()
+    expect(requireSameOrigin(createRequest({
+      method: 'POST',
+      // host header disagrees with origin, but origin is in the allowlist
+      headers: { origin: 'https://app.example.com', host: 'internal:3000' }
+    }), allowed)).toBe(true)
+
+    const spoofed = createResponse()
+    expect(requireSameOrigin(createRequest({
+      method: 'POST',
+      // an attacker-controlled x-forwarded-host would have passed the
+      // legacy header-only check; the allowlist rejects it
+      headers: {
+        origin: 'https://evil.example',
+        host: 'internal:3000',
+        'x-forwarded-host': 'evil.example'
+      }
+    }), spoofed)).toBe(false)
+    expect(spoofed.body.error).toBe('origin not allowed')
+
+    delete process.env.ALLOWED_ORIGIN
+  })
+
   it('supports setup token and private-read mode', async () => {
     process.env.AUTH_SETUP_TOKEN = 'secret-token'
     process.env.REQUIRE_AUTH_FOR_READS = 'true'

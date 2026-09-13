@@ -199,15 +199,17 @@ describe('auth provider and header', () => {
       </AuthProvider>
     )
 
-    expect(await screen.findByText(/admin@example.com/)).toBeInTheDocument()
+    expect(await screen.findByText(/admin/)).toBeInTheDocument()
     expect(screen.getByText('Mi progreso')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admin ▼' }))
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Usuarios')).toBeInTheDocument()
     expect(screen.getByText('Evidencias')).toBeInTheDocument()
     expect(screen.getByText('Importar JSON')).toBeInTheDocument()
     expect(screen.getByText('Auditoría')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Salir' }))
+    fireEvent.click(screen.getByText('Log out'))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
   })
 

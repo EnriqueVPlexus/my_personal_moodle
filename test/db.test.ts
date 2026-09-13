@@ -252,4 +252,30 @@ describe('SQLite database bootstrap', () => {
 
     await secondDb.close()
   })
+
+  it('does not revert an admin edit to a seeded roadmap on the next process start', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-reseed-'))
+    process.chdir(tmp)
+
+    const firstImport = await import('../lib/db')
+    const firstDb = await firstImport.openDb()
+
+    const seeded = await firstDb.get(
+      'SELECT id, description FROM roadmaps WHERE title = ?',
+      ['Roadmap AWS gratuito para cantera junior DevOps']
+    )
+    const editedDescription = 'Descripción editada manualmente por un admin'
+    await firstDb.run('UPDATE roadmaps SET description = ? WHERE id = ?', [editedDescription, seeded.id])
+    await firstDb.close()
+
+    // Simulate a process restart (new cold start / new server instance)
+    vi.resetModules()
+    const secondImport = await import('../lib/db')
+    const secondDb = await secondImport.openDb()
+
+    const afterRestart = await secondDb.get('SELECT description FROM roadmaps WHERE id = ?', [seeded.id])
+    expect(afterRestart.description).toBe(editedDescription)
+
+    await secondDb.close()
+  })
 })
