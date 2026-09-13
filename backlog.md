@@ -964,13 +964,53 @@ Valor: cachear contenidos y lecciones mediante un Service Worker para poder cons
 
 Estado: en curso. La aplicacion ya puede usar PostgreSQL de Supabase y mantiene
 SQLite para desarrollo; faltan despliegue reproducible, secretos, backups y
-pruebas de recuperacion.
+pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
+alojamiento interno de la empresa o uno externo gratuito/bajo coste).
 
 Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
 
-Alcance inicial:
+Auditoria de deployment-readiness (completada): se reviso el codigo para
+detectar bloqueantes de publicar en un hosting real. Resultado y arreglos:
 
-- Usar PostgreSQL de Supabase como fuente central y SQLite solo en local/tests.
+- [x] Rate limiting en memoria (bloqueante): `lib/rateLimit.ts` guardaba los
+  intentos en un objeto en memoria del proceso, lo que no funciona con multiples
+  instancias/funciones serverless (cada una con su propio contador). Ahora usa
+  una tabla `rate_limits` en la base de datos compartida (SQLite o Postgres),
+  con buckets independientes por `scope` (`login`, `setup`).
+- [x] Seeds sobrescribian ediciones de admin en cada arranque (riesgo alto):
+  `seedRoadmaps` en `lib/db.ts` se ejecutaba en cada arranque de proceso y
+  sobrescribia `description`, `objectives`, etc. de los roadmaps semilla por
+  titulo, revirtiendo cualquier edicion manual de un admin. Ahora solo siembra
+  cuando la tabla `roadmaps` esta completamente vacia (bootstrap unico).
+- [x] `requireSameOrigin` confiaba solo en `x-forwarded-host`/`Host` sin lista
+  blanca: se anadio `ALLOWED_ORIGIN` (opcional, coma-separado) para validar el
+  origen contra una lista explicita cuando la app esta detras de un proxy/CDN.
+- [x] `sqlite3` (binding nativo) se instalaba siempre aunque en produccion con
+  `DATABASE_URL` nunca se usa: se movio a `optionalDependencies` y el import se
+  hizo perezoso (dentro de `openSqliteDb`) para que un fallo de compilacion o
+  una instalacion sin dependencias opcionales no rompa el arranque en Postgres.
+- [x] Documentacion de variables de entorno de produccion: `.env.example` y
+  `README_PROJECT.md` aclaran que `AUTH_SETUP_TOKEN` es obligatorio en
+  produccion para poder crear el primer admin, y documentan `ALLOWED_ORIGIN`.
+- [x] Cobertura de tests: el gate de 80% en branches llevaba tiempo roto
+  (73%, oculto por un test desactualizado tras el rediseno del header, que ya
+  se corrigio). Se anadieron tests para los huecos mas relevantes: rama
+  Postgres de `roadmapRepository`, `moduleRepository`, `lessonRepository` y
+  `auditRepository` (antes sin ningun test, usando un pool `pg` simulado),
+  rutas API sin cobertura (`evidences`, `portfolio`, `audit-logs`,
+  `roadmaps/[id]/export`, `roadmaps/metadata`) y paginas admin sin tests
+  (`portfolio.tsx`, `admin/evidences.tsx`, `admin/users.tsx`,
+  `admin/import-roadmap.tsx`). Cobertura de branches final: 81.96%.
+- [x] Al mover `sqlite3` a import perezoso se detecto una condicion de carrera
+  intermitente bajo el pool de workers de Vitest (llamadas concurrentes a
+  `import('sqlite3')` sin cachear). Se corrigio cacheando la promesa de import
+  en una unica variable de modulo; verificado estable en 5 ejecuciones
+  repetidas del escenario que fallaba y 3 ejecuciones completas de la suite.
+
+Alcance restante:
+
+- Decidir hosting definitivo y adaptar esta lista a sus particularidades
+  (variables de entorno, procesos persistentes vs serverless, etc.).
 - Endurecer credenciales y configuracion de produccion.
 - Documentar deploy automatizado con GitHub.
 - Configurar health checks, backups y recuperacion.
