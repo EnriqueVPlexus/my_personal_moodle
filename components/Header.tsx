@@ -49,7 +49,7 @@ function AdminDropdown({ isAdmin }: { isAdmin: boolean }) {
         Admin ▼
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-48 rounded-md bg-white border border-slate-200 shadow-lg z-50">
+        <div className="absolute right-0 mt-1 w-56 rounded-md bg-white border border-slate-200 shadow-lg z-50 flex flex-col">
           <NavLink href="/admin">Dashboard</NavLink>
           <NavLink href="/admin/users">Usuarios</NavLink>
           <NavLink href="/admin/evidences">Evidencias</NavLink>
