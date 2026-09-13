@@ -11,8 +11,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end('Method Not Allowed')
   }
 
+  const db = await openDb()
+
   // Apply rate limiting to prevent brute force attacks on setup
-  if (!rateLimit(req, res, { maxAttempts: 3, windowMs: 60 * 1000 })) return
+  if (!(await rateLimit(db, req, res, { maxAttempts: 3, windowMs: 60 * 1000, scope: 'setup' }))) return
 
   // Validate setup token first before checking origin (fail faster on auth errors)
   const { email, name, password, setupToken } = req.body || {}
@@ -22,7 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!requireSameOrigin(req, res)) return
 
-  const db = await openDb()
   const row = await db.get('SELECT COUNT(*) AS count FROM users')
   if (Number(row.count) > 0) return res.status(409).json({ error: 'setup already completed' })
 
@@ -50,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!userId) return res.status(500).json({ error: 'user creation failed' })
 
   await createSession(res, userId, db)
-  clearRateLimit(req)
+  await clearRateLimit(db, req, 'setup')
   
   await writeAuditLog({
     db,

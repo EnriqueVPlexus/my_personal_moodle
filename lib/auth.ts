@@ -102,12 +102,37 @@ export async function getUserFromRequest(req: NextApiRequest, db?: any): Promise
   return user
 }
 
+function getAllowedOriginHosts(): string[] | null {
+  const raw = process.env.ALLOWED_ORIGIN
+  if (!raw) return null
+  const hosts = raw.split(',').map(value => value.trim()).filter(Boolean)
+  return hosts.length ? hosts : null
+}
+
 export function requireSameOrigin(req: NextApiRequest, res: NextApiResponse) {
   const method = req.method || 'GET'
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return true
 
   const origin = getHeaderValue(req.headers.origin)
   if (!origin) return true
+
+  let originHost: string
+  try {
+    originHost = new URL(origin).host
+  } catch {
+    res.status(403).json({ error: 'invalid origin' })
+    return false
+  }
+
+  // When ALLOWED_ORIGIN is configured, trust it over request headers: behind
+  // a proxy/CDN, x-forwarded-host/host can be attacker-controlled if the
+  // proxy doesn't overwrite them before reaching this process.
+  const allowedHosts = getAllowedOriginHosts()
+  if (allowedHosts) {
+    if (allowedHosts.includes(originHost)) return true
+    res.status(403).json({ error: 'origin not allowed' })
+    return false
+  }
 
   const forwardedHost = getHeaderValue(req.headers['x-forwarded-host'])
   const host = forwardedHost || getHeaderValue(req.headers.host)
@@ -116,12 +141,7 @@ export function requireSameOrigin(req: NextApiRequest, res: NextApiResponse) {
     return false
   }
 
-  try {
-    if (new URL(origin).host === host) return true
-  } catch {
-    res.status(403).json({ error: 'invalid origin' })
-    return false
-  }
+  if (originHost === host) return true
 
   res.status(403).json({ error: 'origin not allowed' })
   return false

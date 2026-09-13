@@ -1,18 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import type { DatabaseClient } from './database'
 
 /**
- * Simple in-memory rate limiter for protecting sensitive endpoints
- * Tracks attempts per IP address
+ * Rate limiter backed by the shared database (SQLite locally, PostgreSQL in
+ * production). Storing state in the database instead of process memory keeps
+ * the limit effective across multiple server instances/serverless invocations,
+ * which an in-memory store cannot do.
  */
-
-interface RateLimitStore {
-  [key: string]: {
-    count: number
-    resetTime: number
-  }
-}
-
-const store: RateLimitStore = {}
 
 function getClientIp(req: NextApiRequest): string {
   const forwarded = req.headers['x-forwarded-for']
@@ -23,43 +17,52 @@ function getClientIp(req: NextApiRequest): string {
 }
 
 /**
- * Rate limit middleware for login and setup endpoints
- * @param req NextApiRequest
- * @param res NextApiResponse
- * @param options Configuration for rate limiting
- * @returns true if request is allowed, false if rate limited
+ * Rate limit middleware for login and setup endpoints.
+ * @param scope distinguishes independent buckets (e.g. "login", "setup") so
+ *   attempts on one endpoint don't consume the limit of another.
+ * @returns true if request is allowed, false if rate limited (response already sent)
  */
-export function rateLimit(
+export async function rateLimit(
+  db: DatabaseClient,
   req: NextApiRequest,
   res: NextApiResponse,
   options: {
     maxAttempts?: number
     windowMs?: number
+    scope?: string
   } = {}
-) {
+): Promise<boolean> {
   // Disable rate limiting in test environment
   if (process.env.NODE_ENV === 'test') return true
 
-  const { maxAttempts = 5, windowMs = 60 * 1000 } = options // 5 attempts per 60 seconds
-  const ip = getClientIp(req)
+  const { maxAttempts = 5, windowMs = 60 * 1000, scope = 'default' } = options
+  const key = `${scope}:${getClientIp(req)}`
   const now = Date.now()
 
-  // Clean up old entries
-  if (!store[ip]) {
-    store[ip] = { count: 0, resetTime: now + windowMs }
+  const existing = await db.get<{ attempt_count: number; reset_at: string }>(
+    'SELECT attempt_count, reset_at FROM rate_limits WHERE rate_key = ?',
+    [key]
+  )
+
+  const isExpired = !existing || new Date(existing.reset_at).getTime() <= now
+  const nextCount = isExpired ? 1 : Number(existing.attempt_count) + 1
+  const nextResetAt = isExpired ? new Date(now + windowMs).toISOString() : existing.reset_at
+
+  if (existing) {
+    await db.run('UPDATE rate_limits SET attempt_count = ?, reset_at = ? WHERE rate_key = ?', [
+      nextCount,
+      nextResetAt,
+      key
+    ])
+  } else {
+    await db.run('INSERT INTO rate_limits (rate_key, attempt_count, reset_at) VALUES (?, ?, ?)', [
+      key,
+      nextCount,
+      nextResetAt
+    ])
   }
 
-  const entry = store[ip]
-
-  // Reset if window has passed
-  if (now > entry.resetTime) {
-    entry.count = 0
-    entry.resetTime = now + windowMs
-  }
-
-  entry.count++
-
-  if (entry.count > maxAttempts) {
+  if (nextCount > maxAttempts) {
     res.status(429).json({ error: 'too many attempts, please try again later' })
     return false
   }
@@ -68,9 +71,8 @@ export function rateLimit(
 }
 
 /**
- * Clear rate limit entry for an IP (call after successful authentication)
+ * Clear rate limit entry for an IP within a scope (call after successful authentication).
  */
-export function clearRateLimit(req: NextApiRequest) {
-  const ip = getClientIp(req)
-  delete store[ip]
+export async function clearRateLimit(db: DatabaseClient, req: NextApiRequest, scope = 'default') {
+  await db.run('DELETE FROM rate_limits WHERE rate_key = ?', [`${scope}:${getClientIp(req)}`])
 }

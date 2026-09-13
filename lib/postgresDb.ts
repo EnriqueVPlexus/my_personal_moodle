@@ -182,6 +182,11 @@ CREATE INDEX IF NOT EXISTS idx_roadmaps_duration_weeks ON roadmaps(duration_week
 CREATE INDEX IF NOT EXISTS idx_modules_level ON modules(level);
 CREATE INDEX IF NOT EXISTS idx_modules_roadmap_id ON modules(roadmap_id);
 CREATE INDEX IF NOT EXISTS idx_modules_duration_weeks ON modules(duration_weeks_min, duration_weeks_max);
+CREATE TABLE IF NOT EXISTS rate_limits (
+  rate_key TEXT PRIMARY KEY,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  reset_at TIMESTAMPTZ NOT NULL
+);
 `
 
 function translateSql(sql: string, params: unknown[] = []) {

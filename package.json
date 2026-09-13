@@ -18,7 +18,9 @@
     "pg": "^8.23.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "sqlite": "5.1.1",
+    "sqlite": "5.1.1"
+  },
+  "optionalDependencies": {
     "sqlite3": "^6.0.1"
   },
   "devDependencies": {

@@ -1,4 +1,3 @@
-import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 import path from 'path'
 import fs from 'fs'
@@ -147,9 +146,28 @@ const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
 let initialized = false
 
+// Imported lazily and cached in a single module-level promise: sqlite3 is an
+// optionalDependency (native binding, only needed for local/dev SQLite) so a
+// production install with DATABASE_URL set must not fail or crash just
+// because this module got imported. Caching the promise (instead of calling
+// import() again on every openSqliteDb() invocation) also avoids issuing
+// several concurrent first-time import() calls for the same native addon,
+// which can race under concurrent callers.
+// TS types `sqlite3` as a CJS `export =` module with no `.default`, but the
+// dynamic import() runtime interop (Next.js/esbuild/Node) does wrap it with
+// one, matching how the static `import sqlite3 from 'sqlite3'` used to work.
+let sqlite3ModulePromise: Promise<{ default: typeof import('sqlite3') }> | null = null
+function loadSqlite3() {
+  if (!sqlite3ModulePromise) {
+    sqlite3ModulePromise = import('sqlite3') as unknown as Promise<{ default: typeof import('sqlite3') }>
+  }
+  return sqlite3ModulePromise
+}
+
 export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> {
   const directory = path.dirname(filename)
   if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true })
+  const { default: sqlite3 } = await loadSqlite3()
   const db = await open({
     filename,
     driver: sqlite3.Database
@@ -412,6 +430,12 @@ async function migrate(db: any) {
     CREATE INDEX IF NOT EXISTS idx_modules_roadmap_id ON modules(roadmap_id);
     CREATE INDEX IF NOT EXISTS idx_modules_duration_weeks ON modules(duration_weeks_min, duration_weeks_max);
     CREATE INDEX IF NOT EXISTS idx_roadmap_topics_topic_id ON roadmap_topics(topic_id);
+
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      rate_key TEXT PRIMARY KEY,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      reset_at TEXT NOT NULL
+    );
   `)
 
   await ensureColumn(db, 'users', 'is_active', 'INTEGER NOT NULL DEFAULT 1')
@@ -461,6 +485,13 @@ async function ensureColumn(db: any, table: string, column: string, definition: 
 }
 
 async function seedRoadmaps(db: any) {
+  // Only bootstrap the catalog when the table is completely empty. Once any
+  // roadmap exists (seeded or admin-created), never touch it again on
+  // startup: otherwise every process restart/cold start would overwrite
+  // fields an admin edited through the UI, reverting their changes.
+  const { count } = await db.get('SELECT COUNT(*) AS count FROM roadmaps')
+  if (Number(count) > 0) return
+
   for (const seed of roadmapSeeds) {
     await seedRoadmap(db, seed)
   }

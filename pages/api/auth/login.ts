@@ -10,8 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end('Method Not Allowed')
   }
 
+  const db = await openDb()
+
   // Apply rate limiting to prevent brute force attacks
-  if (!rateLimit(req, res, { maxAttempts: 5, windowMs: 60 * 1000 })) return
+  if (!(await rateLimit(db, req, res, { maxAttempts: 5, windowMs: 60 * 1000, scope: 'login' }))) return
 
   if (!requireSameOrigin(req, res)) return
 
@@ -20,7 +22,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'email and password required' })
   }
 
-  const db = await openDb()
   const user = await db.get(
     'SELECT id, email, name, role, password_hash FROM users WHERE email = ? AND is_active = 1',
     [normalizeEmail(email)]
@@ -31,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Clear rate limit after successful login
-  clearRateLimit(req)
+  await clearRateLimit(db, req, 'login')
   
   await createSession(res, user.id, db)
   return res.status(200).json({
