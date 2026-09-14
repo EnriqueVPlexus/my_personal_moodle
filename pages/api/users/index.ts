@@ -2,13 +2,19 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { isValidRole, requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import type { DatabaseClient } from '../../../lib/database'
 import { hashPassword, normalizeEmail, validatePassword } from '../../../lib/password'
+import {
+  DuplicateEmailError,
+  findAllUserRoadmapAccess,
+  findAllUsers,
+  findUserById,
+  insertUser
+} from '../../../lib/userRepository'
 
-async function usersWithRoadmapAccess(db: any) {
-  const users = await db.all(
-    'SELECT id, email, name, role, is_active, can_view_all_roadmaps, created_at, updated_at FROM users ORDER BY created_at DESC'
-  )
-  const accessRows = await db.all('SELECT user_id, roadmap_id FROM user_roadmap_access ORDER BY roadmap_id')
+async function usersWithRoadmapAccess(db: DatabaseClient) {
+  const users = await findAllUsers(db)
+  const accessRows = await findAllUserRoadmapAccess(db)
   const accessByUser = accessRows.reduce((acc: Record<number, number[]>, row: any) => {
     const userId = Number(row.user_id)
     if (!acc[userId]) acc[userId] = []
@@ -46,36 +52,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const now = new Date().toISOString()
     try {
-      const result = await db.run(
-        `INSERT INTO users (email, name, role, password_hash, is_active, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 1, ?, ?)`,
-        [
-          normalizeEmail(email),
-          typeof name === 'string' && name.trim() ? name.trim() : null,
-          selectedRole,
-          await hashPassword(password),
-          now,
-          now
-        ]
-      )
-      if (!result.lastID) return res.status(500).json({ error: 'user creation failed' })
+      const userId = await insertUser(db, {
+        email: normalizeEmail(email),
+        name: typeof name === 'string' && name.trim() ? name.trim() : null,
+        role: selectedRole,
+        password_hash: await hashPassword(password),
+        created_at: now,
+        updated_at: now
+      })
+      if (!userId) return res.status(500).json({ error: 'user creation failed' })
 
-      const user = await db.get(
-        'SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?',
-        [result.lastID]
-      )
+      const user = await findUserById(db, userId)
       await writeAuditLog({
         db,
         req,
         user: admin,
         action: 'user.create',
         entityType: 'user',
-        entityId: result.lastID,
+        entityId: userId,
         details: { email: normalizeEmail(email), role: selectedRole }
       })
       return res.status(201).json(user)
-    } catch (error: any) {
-      if (error?.code === 'SQLITE_CONSTRAINT') {
+    } catch (error) {
+      if (error instanceof DuplicateEmailError) {
         return res.status(409).json({ error: 'email already exists' })
       }
       throw error

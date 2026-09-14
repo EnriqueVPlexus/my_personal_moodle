@@ -132,4 +132,31 @@ describe('roadmapRepository (postgres backend)', () => {
       expect(client.query).toHaveBeenCalled()
     })
   })
+
+  describe('findExistingRoadmapIds', () => {
+    it('selects only the matching ids via Kysely', async () => {
+      const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+
+      const { pool, client } = createFakePool(async sql => {
+        expect(sql).toContain('select "id"')
+        expect(sql).toContain('in (')
+        return { command: 'SELECT', rowCount: 2, rows: [{ id: 1 }, { id: 2 }] }
+      })
+
+      const found = await findExistingRoadmapIds(fakeDb(pool), [1, 2, 999])
+
+      expect(found).toEqual([1, 2])
+      expect(client.query).toHaveBeenCalled()
+    })
+
+    it('returns an empty array without querying for an empty input', async () => {
+      const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+      const { pool, client } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
+
+      const found = await findExistingRoadmapIds(fakeDb(pool), [])
+
+      expect(found).toEqual([])
+      expect(client.query).not.toHaveBeenCalled()
+    })
+  })
 })

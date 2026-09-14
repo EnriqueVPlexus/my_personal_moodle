@@ -2,7 +2,20 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import type { DatabaseClient } from '../../../lib/database'
 import { hashPassword, validatePassword } from '../../../lib/password'
+import { findExistingRoadmapIds } from '../../../lib/roadmapRepository'
+import {
+  countActiveAdmins,
+  deleteSessionsByUserId,
+  deleteUserRoadmapAccess,
+  findUserById,
+  findUserRoadmapAccessIds,
+  insertUserRoadmapAccessMany,
+  updateUserActive,
+  updateUserPassword,
+  updateUserRoadmapAccessFlag
+} from '../../../lib/userRepository'
 
 function normalizeRoadmapIds(value: unknown) {
   if (!Array.isArray(value)) return []
@@ -11,22 +24,16 @@ function normalizeRoadmapIds(value: unknown) {
   return Array.from(new Set(ids))
 }
 
-async function userWithRoadmapAccess(db: any, userId: number) {
-  const user = await db.get(
-    'SELECT id, email, name, role, is_active, can_view_all_roadmaps, created_at, updated_at FROM users WHERE id = ?',
-    [userId]
-  )
+async function userWithRoadmapAccess(db: DatabaseClient, userId: number) {
+  const user = await findUserById(db, userId)
   if (!user) return null
 
-  const accessRows = await db.all(
-    'SELECT roadmap_id FROM user_roadmap_access WHERE user_id = ? ORDER BY roadmap_id',
-    [userId]
-  )
+  const roadmapAccessIds = await findUserRoadmapAccessIds(db, userId)
 
   return {
     ...user,
     can_view_all_roadmaps: user.role === 'admin' ? 1 : Number(user.can_view_all_roadmaps) === 0 ? 0 : 1,
-    roadmap_access_ids: accessRows.map((row: any) => Number(row.roadmap_id))
+    roadmap_access_ids: roadmapAccessIds
   }
 }
 
@@ -45,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = Number(Array.isArray(id) ? id[0] : id)
   if (!Number.isInteger(userId)) return res.status(400).json({ error: 'invalid user id' })
 
-  const target = await db.get('SELECT id, email, role, is_active FROM users WHERE id = ?', [userId])
+  const target = await findUserById(db, userId)
   if (!target) return res.status(404).json({ error: 'user not found' })
 
   const { action } = req.body || {}
@@ -58,35 +65,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!isActive && target.role === 'admin') {
-      const row = await db.get(
-        'SELECT COUNT(*) AS count FROM users WHERE role = ? AND is_active = 1 AND id != ?',
-        ['admin', userId]
-      )
-      if (Number(row.count) === 0) {
+      const count = await countActiveAdmins(db, userId)
+      if (count === 0) {
         return res.status(400).json({ error: 'cannot deactivate the last active admin' })
       }
     }
 
     // Double-check before update to prevent race condition where last admin gets deactivated
     if (!isActive && target.role === 'admin') {
-      const adminCountCheck = await db.get(
-        'SELECT COUNT(*) AS count FROM users WHERE role = ? AND is_active = 1 AND id != ?',
-        ['admin', userId]
-      )
-      if (Number(adminCountCheck.count) === 0) {
+      const count = await countActiveAdmins(db, userId)
+      if (count === 0) {
         return res.status(400).json({ error: 'cannot deactivate the last active admin' })
       }
     }
 
-    const result = await db.run('UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?', [isActive ? 1 : 0, new Date().toISOString(), userId])
-    if (!result.changes) return res.status(404).json({ error: 'user not found' })
-    
-    if (!isActive) await db.run('DELETE FROM sessions WHERE user_id = ?', [userId])
+    const changes = await updateUserActive(db, userId, isActive, new Date().toISOString())
+    if (!changes) return res.status(404).json({ error: 'user not found' })
 
-    const updated = await db.get(
-      'SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?',
-      [userId]
-    )
+    if (!isActive) await deleteSessionsByUserId(db, userId)
+
+    const updated = await findUserById(db, userId)
 
     await writeAuditLog({
       db,
@@ -108,18 +106,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const validationError = validatePassword(password)
     if (validationError) return res.status(400).json({ error: validationError })
 
-    const result = await db.run(
-      'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
-      [await hashPassword(password), new Date().toISOString(), userId]
-    )
-    if (!result.changes) return res.status(404).json({ error: 'user not found' })
-    
-    await db.run('DELETE FROM sessions WHERE user_id = ?', [userId])
+    const changes = await updateUserPassword(db, userId, await hashPassword(password), new Date().toISOString())
+    if (!changes) return res.status(404).json({ error: 'user not found' })
 
-    const updated = await db.get(
-      'SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?',
-      [userId]
-    )
+    await deleteSessionsByUserId(db, userId)
+
+    const updated = await findUserById(db, userId)
 
     await writeAuditLog({
       db,
@@ -144,28 +136,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!roadmapIds) return res.status(400).json({ error: 'invalid roadmap ids' })
 
     if (roadmapIds.length > 0) {
-      const existingRows = await db.all(
-        `SELECT id FROM roadmaps WHERE id IN (${roadmapIds.map(() => '?').join(', ')})`,
-        roadmapIds
-      )
-      if (existingRows.length !== roadmapIds.length) {
+      const existingIds = await findExistingRoadmapIds(db, roadmapIds)
+      if (existingIds.length !== roadmapIds.length) {
         return res.status(400).json({ error: 'invalid roadmap ids' })
       }
     }
 
     const now = new Date().toISOString()
-    await db.run(
-      'UPDATE users SET can_view_all_roadmaps = ?, updated_at = ? WHERE id = ?',
-      [canViewAllRoadmaps ? 1 : 0, now, userId]
-    )
-    await db.run('DELETE FROM user_roadmap_access WHERE user_id = ?', [userId])
-
-    for (const roadmapId of roadmapIds) {
-      await db.run(
-        'INSERT OR IGNORE INTO user_roadmap_access (user_id, roadmap_id, created_at) VALUES (?, ?, ?)',
-        [userId, roadmapId, now]
-      )
-    }
+    await updateUserRoadmapAccessFlag(db, userId, canViewAllRoadmaps, now)
+    await deleteUserRoadmapAccess(db, userId)
+    await insertUserRoadmapAccessMany(db, userId, roadmapIds, now)
 
     const updated = await userWithRoadmapAccess(db, userId)
     await writeAuditLog({

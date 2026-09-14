@@ -67,12 +67,42 @@ export interface AuditLogsTable {
   created_at: Date | string
 }
 
+export interface UsersTable {
+  id: Generated<number>
+  email: string
+  name: string | null
+  role: OptionalOnInsert<string>
+  password_hash: string
+  can_view_all_roadmaps: OptionalOnInsert<number>
+  is_active: OptionalOnInsert<number>
+  created_at: Date | string
+  updated_at: Date | string
+}
+
+export interface SessionsTable {
+  id: Generated<number>
+  user_id: number
+  token_hash: string
+  expires_at: Date | string
+  created_at: Date | string
+  last_seen_at: Date | string
+}
+
+export interface UserRoadmapAccessTable {
+  user_id: number
+  roadmap_id: number
+  created_at: OptionalOnInsert<Date | string>
+}
+
 export interface Database {
   roadmaps: RoadmapsTable
   roadmap_categories: RoadmapCategoriesTable
   modules: ModulesTable
   lessons: LessonsTable
   audit_logs: AuditLogsTable
+  users: UsersTable
+  sessions: SessionsTable
+  user_roadmap_access: UserRoadmapAccessTable
 }
 
 const kyselyByPool = new WeakMap<Pool, Kysely<Database>>()

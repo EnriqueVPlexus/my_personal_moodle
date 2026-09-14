@@ -8,6 +8,25 @@ export type RoadmapWithCategory = Selectable<RoadmapsTable> & {
   category_label: string | null
 }
 
+export async function findExistingRoadmapIds(db: DatabaseClient, ids: number[]): Promise<number[]> {
+  if (ids.length === 0) return []
+
+  if (db.backend !== 'postgres') {
+    const rows = await db.all<{ id: number }>(
+      `SELECT id FROM roadmaps WHERE id IN (${ids.map(() => '?').join(', ')})`,
+      ids
+    )
+    return rows.map(row => Number(row.id))
+  }
+
+  const rows = await getQueryDatabase((db as PostgresDb).getPool())
+    .selectFrom('roadmaps')
+    .select('id')
+    .where('id', 'in', ids)
+    .execute()
+  return rows.map(row => Number(row.id))
+}
+
 const SQLITE_ROADMAP_BY_ID = `
   SELECT roadmaps.*, roadmap_categories.key AS category_key,
          roadmap_categories.label AS category_label

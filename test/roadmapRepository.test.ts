@@ -102,3 +102,36 @@ describe('updateRoadmapCore', () => {
     await db.close()
   })
 })
+
+describe('findExistingRoadmapIds', () => {
+  it('returns only the ids that exist, filtering out the rest', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-existing-ids-'))
+    process.chdir(tmp)
+
+    const { openDb } = await import('../lib/db')
+    const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+    const db = await openDb()
+
+    const rows = await db.all<{ id: number }>('SELECT id FROM roadmaps LIMIT 2')
+    const existingIds = rows.map(row => row.id)
+
+    const found = await findExistingRoadmapIds(db, [...existingIds, 999999])
+
+    expect(found.sort()).toEqual(existingIds.sort())
+
+    await db.close()
+  })
+
+  it('returns an empty array for an empty input', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-existing-ids-empty-'))
+    process.chdir(tmp)
+
+    const { openDb } = await import('../lib/db')
+    const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+    const db = await openDb()
+
+    expect(await findExistingRoadmapIds(db, [])).toEqual([])
+
+    await db.close()
+  })
+})
