@@ -1,0 +1,12 @@
+#!/bin/sh
+# Exports new Engram memories to .engram/ and commits them before pushing.
+command -v engram >/dev/null 2>&1 || exit 0
+
+engram sync >/dev/null 2>&1
+
+if [ -n "$(git status --porcelain -- .engram 2>/dev/null)" ]; then
+  git add .engram
+  git commit -m "chore(engram): sync memory" --no-verify >/dev/null
+fi
+
+exit 0
