@@ -121,13 +121,18 @@ Avance actual:
   alta, actualizacion parcial y baja.
 - `lessonRepository`: listado por modulo, lectura por id (con y sin join a
   `roadmap_id`), alta, actualizacion y baja.
-- Pendiente (movido a tarea aparte): usuarios, progreso, quizzes, evidencias,
-  admin, portfolio, import/export de roadmaps y tests de integracion contra
+- `userRepository`: listado, lectura por id, alta (con deteccion de email
+  duplicado), activar/desactivar, resetear contrasena, marcar acceso a todos
+  los roadmaps, contar admins activos, gestion de `user_roadmap_access` y
+  borrado de sesiones por usuario.
+- Pendiente (movido a tarea aparte): progreso, quizzes, evidencias, admin,
+  portfolio, import/export de roadmaps y tests de integracion contra
   PostgreSQL real.
 
 ### [ ] Migrar dominios restantes a la capa SQL estructurada
 
-Estado: pendiente.
+Estado: en curso. Usuarios ya migrado (ver detalle abajo); quedan progreso,
+quizzes, evidencias, admin dashboard, portfolio e import/export de roadmaps.
 
 Valor: completa la sustitucion gradual del acceso SQL disperso iniciada en
 `Capa de acceso SQL estructurada`, siguiendo el patron ya validado en
@@ -136,10 +141,24 @@ lecciones.
 
 Tareas:
 
-- Migrar usuarios (`pages/api/users/*`): dominio mas escrito-intensivo
+- [x] Migrar usuarios (`pages/api/users/*`): dominio mas escrito-intensivo
   (hash de contrasenas, invalidacion de sesiones, comprobaciones de carrera
   sobre el numero de admins); requiere especial cuidado para no bloquear
-  cuentas.
+  cuentas. Se creo `lib/userRepository.ts` siguiendo el patron establecido
+  (rama SQLite con SQL parametrizado existente, rama Postgres con Kysely),
+  anadiendo `UsersTable`, `SessionsTable` y `UserRoadmapAccessTable` a
+  `lib/kyselyDatabase.ts`. Tambien se anadio `findExistingRoadmapIds` a
+  `roadmapRepository.ts` (validacion de ids usada por `set_roadmap_access`).
+  `pages/api/users/index.ts` y `pages/api/users/[id].ts` ya no construyen SQL
+  ni deciden el backend directamente. Se preservo el comportamiento exacto
+  (incluida la doble comprobacion redundante de admins activos al desactivar,
+  y el error `DuplicateEmailError` para violaciones de unicidad de email en
+  ambos backends: `SQLITE_CONSTRAINT` y `23505` de Postgres). Sesiones/login
+  (`lib/auth.ts`) quedan fuera de alcance: pertenecen a la migracion de
+  autenticacion, no a este dominio de gestion de usuarios. Tests nuevos:
+  `test/userRepository.test.ts` (SQLite real) y
+  `test/userRepository.postgres.test.ts` (pool `pg` simulado), mas cobertura
+  de `findExistingRoadmapIds` en los tests existentes de `roadmapRepository`.
 - Migrar progreso (`pages/api/progress/*`, `lib/progress.ts`): consultas mas
   complejas (CTEs, funciones ventana, upserts `ON CONFLICT ... excluded`
   especificos de SQLite); es el dominio de mayor riesgo de traduccion a
