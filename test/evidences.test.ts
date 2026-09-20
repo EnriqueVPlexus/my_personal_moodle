@@ -94,7 +94,7 @@ describe('evidence API handlers', () => {
       requireAdmin: vi.fn().mockResolvedValue(admin),
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))
-    vi.doMock('../lib/progress', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
+    vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
   }
 
   it('returns and upserts the signed-in user evidence', async () => {

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
-import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progress'
+import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progressRepository'
 import {
   getRoadmapTopics,
   normalizeDurationRange,

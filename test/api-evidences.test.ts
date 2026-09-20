@@ -45,7 +45,7 @@ async function mockModuleIdApi(
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(options.scopeAllows ?? true)
   }))
-  vi.doMock('../lib/progress', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
 }
 
 async function mockReviewApi(db: any, options: { admin?: any } = {}) {

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
-import { touchRoadmapProgress } from '../../../../lib/progress'
+import { touchRoadmapProgress } from '../../../../lib/progressRepository'
 import {
   buildModuleQuiz,
   checkAttemptEligibility,

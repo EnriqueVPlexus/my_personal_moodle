@@ -3,7 +3,7 @@ import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'
-import { touchRoadmapProgress } from '../../../lib/progress'
+import { touchRoadmapProgress } from '../../../lib/progressRepository'
 import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
 import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
 

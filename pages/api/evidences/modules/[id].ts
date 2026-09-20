@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { getRoadmapReadScope, requireUser, scopeAllowsRoadmap } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
 import { getModuleEvidence, saveModuleEvidence, validateEvidenceInput } from '../../../../lib/evidences'
-import { touchRoadmapProgress } from '../../../../lib/progress'
+import { touchRoadmapProgress } from '../../../../lib/progressRepository'
 
 function getId(value: string | string[] | undefined) {
   const id = Number(Array.isArray(value) ? value[0] : value)

@@ -159,10 +159,25 @@ Tareas:
   `test/userRepository.test.ts` (SQLite real) y
   `test/userRepository.postgres.test.ts` (pool `pg` simulado), mas cobertura
   de `findExistingRoadmapIds` en los tests existentes de `roadmapRepository`.
-- Migrar progreso (`pages/api/progress/*`, `lib/progress.ts`): consultas mas
+- [x] Migrar progreso (`pages/api/progress/*`, `lib/progress.ts`): consultas mas
   complejas (CTEs, funciones ventana, upserts `ON CONFLICT ... excluded`
   especificos de SQLite); es el dominio de mayor riesgo de traduccion a
-  PostgreSQL.
+  PostgreSQL. Se creo `lib/progressRepository.ts` (reemplaza `lib/progress.ts`)
+  siguiendo el patron establecido, con `UserLessonProgressTable`,
+  `UserRoadmapProgressTable` y `UserQuizAttemptsTable` anadidas a
+  `lib/kyselyDatabase.ts`. El CTE con `ROW_NUMBER() OVER (PARTITION BY ...)` de
+  `listUserRoadmapProgress` y los dos upserts `ON CONFLICT ... excluded`
+  (`touchRoadmapProgress`, `setLessonProgress`) se tradujeron a mano para
+  Postgres via el template `sql` de Kysely en lugar del query builder, dado que
+  el acumulador y el `CASE` autorreferencial de `setLessonProgress` no se
+  pueden expresar limpiamente con `.onConflict().doUpdateSet()`. Se elimino el
+  wrapper `datetime()` en la rama Postgres porque esos timestamps son
+  `TIMESTAMPTZ` nativos alli (en SQLite se guardan como TEXT ISO). Tests
+  nuevos: `test/progressRepository.test.ts` (SQLite real) y
+  `test/progressRepository.postgres.test.ts` (pool `pg` simulado).
+  `getRoadmapProgressSnapshot` y `getLessonContext` quedaron como SQL crudo via
+  `sql` tag (no builder) por presupuesto de esfuerzo; pendiente de
+  homogeneizar si se quiere consistencia total con el query builder.
 - Migrar quizzes, evidencias, admin dashboard, portfolio e import/export de
   roadmaps.
 - Anadir tests de integracion contra PostgreSQL real para los dominios ya

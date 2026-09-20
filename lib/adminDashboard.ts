@@ -1,4 +1,4 @@
-import { ROADMAP_PAUSED_AFTER_DAYS } from './progress'
+import { ROADMAP_PAUSED_AFTER_DAYS } from './progressRepository'
 
 type DbHandle = {
   get: (sql: string, params?: any[]) => Promise<any>
