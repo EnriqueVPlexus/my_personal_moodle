@@ -1,14 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
+import { findModuleById } from '../../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../../lib/progressRepository'
-import {
-  buildModuleQuiz,
-  checkAttemptEligibility,
-  getModuleQuizSummary,
-  saveModuleQuizAttempt,
-  toPublicModuleQuiz
-} from '../../../../lib/quizzes'
+import { checkAttemptEligibility, getModuleQuizSummary, saveModuleQuizAttempt } from '../../../../lib/quizRepository'
+import { buildModuleQuiz, toPublicModuleQuiz } from '../../../../lib/quizzes'
 
 function getId(queryId: string | string[] | undefined) {
   const value = Number(Array.isArray(queryId) ? queryId[0] : queryId)
@@ -32,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     if (!(await requireReadAccess(req, res, db))) return
-    const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [moduleId])
+    const moduleRow = await findModuleById(db, moduleId)
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
 
     const user = await getUserFromRequest(req, db)
@@ -51,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireUser(req, res, db)
     if (!user) return
 
-    const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [moduleId])
+    const moduleRow = await findModuleById(db, moduleId)
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
 
     // Fase 3: comprobar elegibilidad antes de procesar el intento

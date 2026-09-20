@@ -178,8 +178,21 @@ Tareas:
   `getRoadmapProgressSnapshot` y `getLessonContext` quedaron como SQL crudo via
   `sql` tag (no builder) por presupuesto de esfuerzo; pendiente de
   homogeneizar si se quiere consistencia total con el query builder.
-- Migrar quizzes, evidencias, admin dashboard, portfolio e import/export de
-  roadmaps.
+- [x] Migrar quizzes (intentos): se creo `lib/quizRepository.ts` con
+  `saveModuleQuizAttempt`, `getModuleQuizSummary` y `checkAttemptEligibility`
+  sobre `DatabaseClient` (antes usaban un `DbHandle` a mano); `lib/quizzes.ts`
+  queda solo con las funciones puras de construccion/calificacion de quizzes.
+  El `ORDER BY datetime(submitted_at)` se resolvio igual que en progreso: rama
+  SQLite conserva `datetime()`, rama Postgres ordena por el timestamptz
+  nativo. De paso, `pages/api/quizzes/modules/[id].ts` dejo de hacer
+  `SELECT * FROM modules WHERE id = ?` a mano y usa `findModuleById` de
+  `moduleRepository`. Se verifico (sin reescribirlas) que las subconsultas de
+  estadisticas de quiz ya embebidas en `listUserRoadmapProgress` (progreso)
+  ya tenian bien resuelto el mismo problema de `datetime()`; quedan sin
+  consolidar con `quizRepository` a proposito por tener granularidad distinta
+  (por roadmap vs. por modulo). Tests nuevos: `test/quizRepository.test.ts` y
+  `test/quizRepository.postgres.test.ts`.
+- Migrar evidencias, admin dashboard, portfolio e import/export de roadmaps.
 - Anadir tests de integracion contra PostgreSQL real para los dominios ya
   migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
   reutilizando la base de test aislada de `test/postgres-integration`.

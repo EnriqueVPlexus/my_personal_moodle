@@ -35,11 +35,12 @@ el proyecto de Supabase configurado en `.env.local`.
 La capa SQL estructurada usa Kysely para las nuevas consultas tipadas. Las
 consultas existentes se migran gradualmente por repositorios, manteniendo
 SQLite local y PostgreSQL remoto durante la transición. Dominios ya migrados:
-roadmaps, módulos, lecciones, auditoría, usuarios y progreso (`lib/progressRepository.ts`,
-incluyendo el CTE con función ventana de `listUserRoadmapProgress` y los upsert
-`ON CONFLICT` de progreso de roadmap/lección, traducidos a Postgres vía SQL
-crudo con Kysely). Pendientes: quizzes, evidencias, admin dashboard, portfolio
-e import/export de roadmaps — ver `backlog.md` para el detalle y el estado de
+roadmaps, módulos, lecciones, auditoría, usuarios, progreso
+(`lib/progressRepository.ts`, incluyendo el CTE con función ventana de
+`listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
+roadmap/lección) y quizzes (`lib/quizRepository.ts`, intentos y estadísticas
+por módulo). Pendientes: evidencias, admin dashboard, portfolio e
+import/export de roadmaps — ver `backlog.md` para el detalle y el estado de
 cada dominio.
 
 ## Dominio Funcional

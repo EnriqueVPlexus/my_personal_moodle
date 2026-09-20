@@ -4,7 +4,8 @@ import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../
 import { openDb } from '../../../lib/db'
 import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../lib/progressRepository'
-import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
+import { getModuleQuizSummary } from '../../../lib/quizRepository'
+import { buildModuleQuiz, toPublicModuleQuiz } from '../../../lib/quizzes'
 import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
 
 function buildModuleProgress(lessons: any[], opened: boolean) {
