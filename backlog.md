@@ -192,7 +192,24 @@ Tareas:
   consolidar con `quizRepository` a proposito por tener granularidad distinta
   (por roadmap vs. por modulo). Tests nuevos: `test/quizRepository.test.ts` y
   `test/quizRepository.postgres.test.ts`.
-- Migrar evidencias, admin dashboard, portfolio e import/export de roadmaps.
+- [x] Migrar evidencias: se creo `lib/evidenceRepository.ts` con
+  `getModuleEvidence`, `saveModuleEvidence` (upsert), `reviewModuleEvidence`,
+  `getEvidenceById`, `deleteModuleEvidence` y `listEvidences` (el listado admin
+  con filtros dinamicos, antes SQL inline en el handler) sobre
+  `DatabaseClient`; `lib/evidences.ts` queda solo con constantes/tipos y
+  `validateEvidenceInput`. El upsert `ON CONFLICT(user_id, module_id)` se
+  tradujo con el query builder de Kysely (`.onConflict().doUpdateSet()`), sin
+  necesidad de SQL crudo porque no hay acumulador autorreferencial como en
+  quizzes/progreso. De paso, `pages/api/evidences/modules/[id].ts` sustituyo
+  el `SELECT id, roadmap_id FROM modules` a mano por `findModuleById` de
+  `moduleRepository`. Se anadio auditoria a la revision admin de evidencias
+  (`pages/api/evidences/[id]/review.ts`), accion `evidence.review`, con estado
+  anterior y posterior en el detalle — gap detectado durante la migracion,
+  cerrado a peticion expresa. Tests nuevos: `test/evidenceRepository.test.ts`
+  y `test/evidenceRepository.postgres.test.ts`. Portfolio y admin dashboard
+  quedan fuera de alcance (leen `user_module_evidences` pero son tareas
+  aparte).
+- Migrar admin dashboard, portfolio e import/export de roadmaps.
 - Anadir tests de integracion contra PostgreSQL real para los dominios ya
   migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
   reutilizando la base de test aislada de `test/postgres-integration`.

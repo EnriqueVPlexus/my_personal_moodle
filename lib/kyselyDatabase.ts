@@ -135,6 +135,21 @@ export interface UserQuizAttemptsTable {
   updated_at: OptionalOnInsert<Date | string>
 }
 
+export interface UserModuleEvidencesTable {
+  id: Generated<number>
+  user_id: number
+  module_id: number
+  evidence_type: string
+  url: string | null
+  note: string | null
+  review_status: OptionalOnInsert<string>
+  admin_comment: string | null
+  reviewed_at: string | Date | null
+  reviewed_by_user_id: number | null
+  created_at: OptionalOnInsert<Date | string>
+  updated_at: OptionalOnInsert<Date | string>
+}
+
 export interface Database {
   roadmaps: RoadmapsTable
   roadmap_categories: RoadmapCategoriesTable
@@ -147,6 +162,7 @@ export interface Database {
   user_lesson_progress: UserLessonProgressTable
   user_roadmap_progress: UserRoadmapProgressTable
   user_quiz_attempts: UserQuizAttemptsTable
+  user_module_evidences: UserModuleEvidencesTable
 }
 
 const kyselyByPool = new WeakMap<Pool, Kysely<Database>>()

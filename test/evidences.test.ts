@@ -1,12 +1,5 @@
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  getModuleEvidence,
-  reviewModuleEvidence,
-  saveModuleEvidence,
-  validateEvidenceInput
-} from '../lib/evidences'
+import { validateEvidenceInput } from '../lib/evidences'
 import { createRequest, createResponse } from './helpers/api'
 
 const user = { id: 2, email: 'user@example.com', role: 'user' as const }
@@ -31,53 +24,6 @@ describe('evidence helpers', () => {
     })
     expect(validateEvidenceInput({ evidence_type: 'note', note: '   ' })).toEqual({ error: 'url or note required' })
   })
-
-  it('creates, updates and reviews evidence with status reset on resubmission', async () => {
-    const db = await open({ filename: ':memory:', driver: sqlite3.Database })
-    await db.exec(`
-      CREATE TABLE user_module_evidences (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        module_id INTEGER NOT NULL,
-        evidence_type TEXT NOT NULL,
-        url TEXT,
-        note TEXT,
-        review_status TEXT NOT NULL DEFAULT 'pendiente',
-        admin_comment TEXT,
-        reviewed_at TEXT,
-        reviewed_by_user_id INTEGER,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE (user_id, module_id)
-      )
-    `)
-
-    const created = await saveModuleEvidence(db, 2, 7, {
-      evidenceType: 'github',
-      url: 'https://github.com/example/project',
-      note: null
-    })
-    expect(created).toMatchObject({ user_id: 2, module_id: 7, evidence_type: 'github', review_status: 'pendiente' })
-
-    const reviewed = await reviewModuleEvidence(db, created.id, 1, {
-      reviewStatus: 'requiere_cambios',
-      adminComment: 'Falta añadir el README con instrucciones'
-    })
-    expect(reviewed).toMatchObject({
-      review_status: 'requiere_cambios',
-      admin_comment: 'Falta añadir el README con instrucciones',
-      reviewed_by_user_id: 1
-    })
-
-    const resubmitted = await saveModuleEvidence(db, 2, 7, {
-      evidenceType: 'github',
-      url: 'https://github.com/example/project-v2',
-      note: 'README añadido'
-    })
-    expect(resubmitted.review_status).toBe('pendiente')
-
-    await db.close()
-  })
 })
 
 describe('evidence API handlers', () => {
@@ -95,6 +41,7 @@ describe('evidence API handlers', () => {
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))
     vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
+    vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   }
 
   it('returns and upserts the signed-in user evidence', async () => {
@@ -131,10 +78,8 @@ describe('evidence API handlers', () => {
       body: { evidence_type: 'github', url: evidence.url }
     }), putRes)
     expect(putRes.statusCode).toBe(200)
-    expect(db.run).toHaveBeenCalledWith(
-      expect.stringContaining('ON CONFLICT(user_id, module_id) DO UPDATE'),
-      [2, 7, 'github', evidence.url, null, expect.any(String), expect.any(String)]
-    )
+    expect(putRes.body.evidence).toEqual(evidence)
+    expect(db.run).toHaveBeenCalled()
   })
 
   it('allows admins to review evidences via PUT /api/evidences/[id]/review', async () => {
