@@ -209,7 +209,22 @@ Tareas:
   y `test/evidenceRepository.postgres.test.ts`. Portfolio y admin dashboard
   quedan fuera de alcance (leen `user_module_evidences` pero son tareas
   aparte).
-- Migrar admin dashboard, portfolio e import/export de roadmaps.
+- [x] Migrar admin dashboard: `lib/adminDashboard.ts` paso de un `DbHandle` a
+  mano a `DatabaseClient`, separando `getAdminDashboardRowsSqlite` (SQL
+  original sin cambios) de `getAdminDashboardRowsPostgres` (las 4 consultas
+  agregadas, incluidas las 3 CTEs, traducidas a mano via el template `sql` de
+  Kysely, no el query builder, por el mismo motivo que en progreso/quizzes).
+  `is_active = 1` se mantuvo igual en ambos backends (la columna es
+  `INTEGER`, no booleana, en los dos esquemas — verificado contra el uso ya
+  existente en `userRepository.ts`/`auth.ts`, no era un problema real pese a
+  la sospecha inicial). `julianday(a) - julianday(b)` se tradujo a
+  `FLOOR(EXTRACT(EPOCH FROM (a::timestamptz - b)) / 86400)::INTEGER`, validado
+  contra la fixture existente (33 dias) pero **sin verificar en Postgres
+  real** casos de borde con fracciones de dia cerca de un limite — pendiente
+  de contrastar cuando se aborde el punto de tests de integracion contra
+  PostgreSQL real (mas abajo). Tests nuevos:
+  `test/admin-dashboard.postgres.test.ts`.
+- Migrar portfolio e import/export de roadmaps.
 - Anadir tests de integracion contra PostgreSQL real para los dominios ya
   migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
   reutilizando la base de test aislada de `test/postgres-integration`.
@@ -285,6 +300,10 @@ Tareas:
 - Preparar una base PostgreSQL de test aislada.
 - Ejecutar auth, contenido, progreso, quizzes e importacion contra PostgreSQL.
 - Mantener tests unitarios rapidos sobre SQLite cuando sea suficiente.
+- Prioridad: verificar el calculo de `inactivity_days` en admin dashboard
+  (`FLOOR(EXTRACT(EPOCH FROM (a::timestamptz - b)) / 86400)::INTEGER`, que
+  reemplaza a `julianday()` de SQLite) contra casos de borde con fracciones
+  de dia cerca de un limite; hoy solo esta validado con datos simulados.
 
 Rama sugerida: `test/postgres-integration`.
 

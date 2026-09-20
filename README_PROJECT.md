@@ -39,9 +39,12 @@ roadmaps, módulos, lecciones, auditoría, usuarios, progreso
 (`lib/progressRepository.ts`, incluyendo el CTE con función ventana de
 `listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
 roadmap/lección), quizzes (`lib/quizRepository.ts`, intentos y estadísticas
-por módulo) y evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
-la revisión admin). Pendientes: admin dashboard, portfolio e import/export de
-roadmaps — ver `backlog.md` para el detalle y el estado de cada dominio.
+por módulo), evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
+la revisión admin) y el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
+de sus consultas agregadas traducidas a Postgres; el cálculo de días de
+inactividad todavía no está verificado contra una PostgreSQL real). Pendientes:
+portfolio e import/export de roadmaps — ver `backlog.md` para el detalle y el
+estado de cada dominio.
 
 ## Dominio Funcional
 
