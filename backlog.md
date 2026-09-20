@@ -224,7 +224,24 @@ Tareas:
   de contrastar cuando se aborde el punto de tests de integracion contra
   PostgreSQL real (mas abajo). Tests nuevos:
   `test/admin-dashboard.postgres.test.ts`.
-- Migrar portfolio e import/export de roadmaps.
+- [x] Migrar portfolio: `getUserPortfolio` paso a `DatabaseClient`. En vez de
+  triplicar el join evidencia+modulo+roadmap, se reutilizo
+  `listEvidences(db, { userId })` de `evidenceRepository.ts` (sin modificarlo)
+  y se reconstruyo en JS el orden original (`roadmap_title`,
+  `module_position` o `module_id`, `updated_at` desc), ya que `listEvidences`
+  ordena distinto para su propio caso de uso (listado admin). La comprobacion
+  de usuario activo (`is_active = 1`, columna `INTEGER` en ambos esquemas, no
+  booleana) quedo en un helper privado dentro de `lib/portfolio.ts`, ya que
+  `findUserById` de `userRepository` no filtra por `is_active` y no se quiso
+  anadir ese comportamiento a un repositorio ya cerrado. Tests nuevos:
+  `test/portfolio.postgres.test.ts`; `test/portfolio.test.ts` adaptado a
+  `DatabaseClient` real via `openSqliteDb`. Nota de fragilidad detectada (no
+  bloqueante): combinar `openDb()` + `chdir` + `vi.doMock` en cierto orden de
+  ejecucion de tests provoca `SQLITE_MISUSE: Database is closed` por
+  contaminacion entre tests; se evito usando `openSqliteDb()` con ruta
+  explicita, pero la causa raiz no se diagnostico — revisar si otros
+  dominios migrados comparten el mismo patron fragil.
+- Migrar import/export de roadmaps.
 - Anadir tests de integracion contra PostgreSQL real para los dominios ya
   migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
   reutilizando la base de test aislada de `test/postgres-integration`.

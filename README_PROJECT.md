@@ -42,9 +42,10 @@ roadmap/lección), quizzes (`lib/quizRepository.ts`, intentos y estadísticas
 por módulo), evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
 la revisión admin) y el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
 de sus consultas agregadas traducidas a Postgres; el cálculo de días de
-inactividad todavía no está verificado contra una PostgreSQL real). Pendientes:
-portfolio e import/export de roadmaps — ver `backlog.md` para el detalle y el
-estado de cada dominio.
+inactividad todavía no está verificado contra una PostgreSQL real) y
+portfolio (`lib/portfolio.ts`, reutilizando `evidenceRepository.listEvidences`
+en vez de duplicar el join). Pendiente: import/export de roadmaps — ver
+`backlog.md` para el detalle y el estado de cada dominio.
 
 ## Dominio Funcional
 
