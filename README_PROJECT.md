@@ -32,20 +32,26 @@ Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
 Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
 el proyecto de Supabase configurado en `.env.local`.
 
-La capa SQL estructurada usa Kysely para las nuevas consultas tipadas. Las
-consultas existentes se migran gradualmente por repositorios, manteniendo
-SQLite local y PostgreSQL remoto durante la transición. Dominios ya migrados:
+La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
+**Todos los dominios ya están migrados** por repositorios tipados
+(`lib/*Repository.ts`), manteniendo SQLite local y PostgreSQL remoto:
 roadmaps, módulos, lecciones, auditoría, usuarios, progreso
 (`lib/progressRepository.ts`, incluyendo el CTE con función ventana de
 `listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
 roadmap/lección), quizzes (`lib/quizRepository.ts`, intentos y estadísticas
 por módulo), evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
-la revisión admin) y el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
+la revisión admin), el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
 de sus consultas agregadas traducidas a Postgres; el cálculo de días de
-inactividad todavía no está verificado contra una PostgreSQL real) y
+inactividad todavía no está verificado contra una PostgreSQL real),
 portfolio (`lib/portfolio.ts`, reutilizando `evidenceRepository.listEvidences`
-en vez de duplicar el join). Pendiente: import/export de roadmaps — ver
-`backlog.md` para el detalle y el estado de cada dominio.
+en vez de duplicar el join) e import/export de roadmaps
+(`lib/roadmapImport.ts`/`lib/roadmapMetadata.ts`, único dominio con
+transacción multi-tabla — usa SQL crudo parametrizado en ambos backends
+dentro de la transacción en vez de Kysely, ya que el query builder no
+participa del cliente de conexión que Postgres usa para `BEGIN`/`COMMIT`).
+Pendiente: tests de integración contra una PostgreSQL real — hoy la rama
+Postgres de cada repositorio solo está probada con un pool `pg` simulado, ver
+`backlog.md` para el detalle.
 
 ## Dominio Funcional
 

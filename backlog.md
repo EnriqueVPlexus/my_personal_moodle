@@ -129,10 +129,17 @@ Avance actual:
   portfolio, import/export de roadmaps y tests de integracion contra
   PostgreSQL real.
 
-### [ ] Migrar dominios restantes a la capa SQL estructurada
+### [x] Migrar dominios restantes a la capa SQL estructurada
 
-Estado: en curso. Usuarios ya migrado (ver detalle abajo); quedan progreso,
-quizzes, evidencias, admin dashboard, portfolio e import/export de roadmaps.
+Estado: hecho. Los diez dominios pendientes (usuarios, progreso, quizzes,
+evidencias, admin dashboard, portfolio e import/export de roadmaps) estan
+migrados a `DatabaseClient`/Kysely, cada uno en su propia rama apilada
+(`feature/progress-repository-postgres` → `.../quizzes-...` →
+`.../evidences-...` → `.../admin-dashboard-...` → `.../portfolio-...` →
+`.../roadmap-import-export-...`), con tests SQLite reales + pool `pg`
+simulado para cada uno. Queda como tarea aparte, ya listada mas abajo,
+anadir tests de integracion contra PostgreSQL real (hoy ninguna rama Postgres
+se ha probado contra una base real, solo con pools simulados).
 
 Valor: completa la sustitucion gradual del acceso SQL disperso iniciada en
 `Capa de acceso SQL estructurada`, siguiendo el patron ya validado en
@@ -241,7 +248,24 @@ Tareas:
   contaminacion entre tests; se evito usando `openSqliteDb()` con ruta
   explicita, pero la causa raiz no se diagnostico — revisar si otros
   dominios migrados comparten el mismo patron fragil.
-- Migrar import/export de roadmaps.
+- [x] Migrar import/export de roadmaps (ultimo dominio de esta tarea):
+  `lib/roadmapImport.ts` y `lib/roadmapMetadata.ts` pasaron a `DatabaseClient`.
+  Es el unico dominio con transaccion multi-tabla (`BEGIN IMMEDIATE` sobre
+  `roadmaps` + `modules` + `roadmap_categories`/`topics`/`roadmap_topics`);
+  por decision expresa se uso SQL crudo parametrizado en ambos backends
+  dentro de la transaccion en vez de Kysely, porque el query builder no
+  participa del `transactionClient` que `PostgresDb` usa internamente para
+  `BEGIN`/`COMMIT`/`ROLLBACK` — excepcion deliberada y acotada solo a este
+  bloque transaccional, el resto de dominios sigue usando Kysely para
+  Postgres. Se descubrio que `PostgresDb.translateSql()` ya traduce solo
+  placeholders `?`→`$n`, `BEGIN IMMEDIATE`→`BEGIN` e incluso
+  `INSERT OR IGNORE`→`ON CONFLICT DO NOTHING`, asi que casi ningun SQL
+  necesito duplicarse. Excepcion: `ORDER BY ... COLLATE NOCASE` se rama
+  explicitamente a `lower(...)` para Postgres, porque el stripping generico
+  de `translateSql` simplemente borra `COLLATE NOCASE` sin preservar el
+  orden case-insensitive. Tests nuevos:
+  `test/roadmap-import.postgres.test.ts` (incluye un caso real de rollback a
+  mitad de transaccion) y `test/roadmap-export.postgres.test.ts`.
 - Anadir tests de integracion contra PostgreSQL real para los dominios ya
   migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
   reutilizando la base de test aislada de `test/postgres-integration`.
