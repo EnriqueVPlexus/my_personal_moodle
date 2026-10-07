@@ -214,10 +214,16 @@ export class PostgresDb implements DatabaseClient {
   private transactionClient: PoolClient | null = null
 
   constructor(connectionString: string) {
+    // Supabase requires SSL; a local Postgres (e.g. the isolated Docker test
+    // database from docker-compose.test.yml, see
+    // test/postgres-integration/README.md) does not support it at all, so
+    // detect a local host and skip SSL only in that case.
+    const isLocalHost = /^postgresql:\/\/[^/]*@?(localhost|127\.0\.0\.1)[:/]/.test(connectionString)
+
     this.pool = new Pool({
       connectionString,
       max: 5,
-      ssl: { rejectUnauthorized: false }
+      ssl: isLocalHost ? false : { rejectUnauthorized: false }
     })
   }
 

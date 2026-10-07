@@ -1,0 +1,31 @@
+# Ephemeral, isolated Postgres for `test/postgres-integration/**`.
+#
+# This is NOT a shared/durable database: no persistent volume is declared,
+# so `docker compose down -v` (or just removing the container) always leaves
+# a clean slate. Never point this at anything real; it exists only so the
+# Postgres integration suite does not have to run against the shared
+# Supabase instance (see backlog.md: "Preparar una base PostgreSQL de test
+# aislada").
+#
+# Usage: npm run test:db:up / npm run test:db:down
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: cantera-hub-postgres-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app_test
+    ports:
+      # 55432 (not the default 5432) so this never clashes with a Postgres
+      # someone already has running locally.
+      - '55432:5432'
+    tmpfs:
+      # No named/bind volume: data lives only in memory-backed tmpfs, so the
+      # container always starts with an empty database.
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d app_test']
+      interval: 2s
+      timeout: 3s
+      retries: 20

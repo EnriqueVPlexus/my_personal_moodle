@@ -398,19 +398,98 @@ Hecho cuando:
 - [x] Existe una prueba de bootstrap desde cero
   (`migrations-bootstrap.postgres-integration.test.ts`).
 
-### [ ] Tests de integracion contra PostgreSQL real
+### [x] Tests de integracion contra PostgreSQL real
 
-Estado: pendiente.
+Estado: hecho. Cobertura funcional completa (auth, contenido, progreso,
+quizzes, importacion, admin dashboard) verificada contra Postgres real, y
+ahora tambien contra una instancia de test aislada (ver tarea de aislamiento
+mas abajo) — el criterio de "Hecho cuando" que faltaba ya se cumple.
+Accesible localmente via `direnv` (`.envrc` carga `DATABASE_URL` desde
+`.env.local`); ejecutar con
+`direnv exec . npx vitest run test/postgres-integration/ --no-file-parallelism`
+— el flag es obligatorio, ver nota de deadlock mas abajo. Preferible, sin
+embargo, usar la base aislada (ver abajo).
 
 Tareas:
 
-- Preparar una base PostgreSQL de test aislada.
-- Ejecutar auth, contenido, progreso, quizzes e importacion contra PostgreSQL.
-- Mantener tests unitarios rapidos sobre SQLite cuando sea suficiente.
-- Prioridad: verificar el calculo de `inactivity_days` en admin dashboard
+- [x] Preparar una base PostgreSQL de test aislada. Se anadio
+  `docker-compose.test.yml` (`postgres:16-alpine`, puerto `55432` para no
+  chocar con un Postgres local por defecto, usuario/clave/BD de un solo uso
+  `postgres`/`postgres`/`app_test`, sin volumen persistente — usa `tmpfs`,
+  asi que siempre arranca vacia). Scripts nuevos: `npm run test:db:up`
+  (levanta el contenedor y aplica las migraciones formales de
+  `scripts/migrate.ts up` contra el, reutilizando el mismo esquema fuente de
+  verdad, sin duplicarlo) y `npm run test:db:down` (`down -v`, nunca trata
+  esta base como duradera), mas el atajo `npm run test:integration`. Se
+  introdujo `TEST_DATABASE_URL` como variable preferente en los 8 ficheros
+  `test/postgres-integration/*.postgres-integration.test.ts`
+  (`process.env.TEST_DATABASE_URL || process.env.DATABASE_URL`), sin romper
+  el fallback existente a `DATABASE_URL`/Supabase real para quien no tenga
+  Docker configurado. `scripts/migrate.ts` y `PostgresDb` (`lib/postgresDb.ts`)
+  forzaban SSL incondicionalmente (`ssl: { rejectUnauthorized: false }`),
+  algo que Supabase requiere pero que el Postgres local de Docker no soporta
+  en absoluto — se corrigio detectando `localhost`/`127.0.0.1` en la cadena
+  de conexion y desactivando SSL solo en ese caso (mismo fix replicado en los
+  dos pools directos de `migrations-bootstrap.postgres-integration.test.ts`).
+  Documentado en `test/postgres-integration/README.md` y en
+  `README_PROJECT.md`. No se creo `.env.test.example`: los permisos del
+  entorno de agente bloquean escribir cualquier fichero `.env*` en la raiz
+  del repo; la configuracion (`TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/app_test`)
+  quedo documentada en el README en su lugar. Verificado end-to-end: 32/32
+  tests pasan contra el contenedor local (mismo recuento que la baseline
+  contra Supabase), y 32/32 siguen pasando contra la Supabase real sin
+  `TEST_DATABASE_URL` (fallback intacto); `npm run test:db:down` deja el
+  contenedor, la red y cualquier volumen completamente eliminados.
+- [x] Ejecutar auth, contenido, progreso, quizzes e importacion contra
+  PostgreSQL:
+  - `test/postgres-integration/auth.postgres-integration.test.ts` — ciclo de
+    vida de sesiones (creacion, expiracion, limpieza de sesiones caducadas).
+  - `test/postgres-integration/content-repositories.postgres-integration.test.ts`
+    — roadmapRepository, moduleRepository, lessonRepository.
+  - `test/postgres-integration/progress-repository.postgres-integration.test.ts`
+    — upserts `ON CONFLICT` y el CTE con `ROW_NUMBER() OVER (PARTITION BY...)`
+    de `listUserRoadmapProgress`, probado con datos reales de 2 roadmaps.
+  - `test/postgres-integration/quiz-repository.postgres-integration.test.ts`
+    — intentos de quiz, resumen por modulo, elegibilidad (limite intentos,
+    cooldown).
+  - `test/postgres-integration/roadmap-import.postgres-integration.test.ts`
+    — incluye un caso de `ROLLBACK` real a mitad de transaccion forzando una
+    violacion de constraint (`modules.title NOT NULL`), confirmando que la
+    fila de roadmap ya insertada no sobrevive; el test mockeado anterior solo
+    podia probar que se llamaba a `ROLLBACK`, no que limpiaba de verdad.
+  - Mas `inactivity_days` en admin dashboard (ver mas abajo).
+  27/27 tests pasan contra Postgres real. No aparecieron mas bugs de
+  aplicacion en esta tanda (a diferencia del `GROUP BY` de admin dashboard).
+- [x] Mantener tests unitarios rapidos sobre SQLite (sin tocar, siguen en
+  `test/*.test.ts` con pool `pg` simulado para la forma del SQL).
+- [x] Verificar el calculo de `inactivity_days` en admin dashboard
   (`FLOOR(EXTRACT(EPOCH FROM (a::timestamptz - b)) / 86400)::INTEGER`, que
   reemplaza a `julianday()` de SQLite) contra casos de borde con fracciones
-  de dia cerca de un limite; hoy solo esta validado con datos simulados.
+  de dia cerca de un limite. Verificado contra Postgres real (Supabase) en
+  `test/postgres-integration/inactivity-days.postgres-integration.test.ts`;
+  los 7 casos de borde pasan. Esta verificacion destapo un bug real ajeno al
+  calculo de dias: la CTE `learner_progress` de
+  `getAdminDashboardRowsPostgres` (`lib/adminDashboard.ts`) seleccionaba
+  `urp.current_module_id` sin incluirlo en el `GROUP BY`, algo que SQLite
+  tolera pero Postgres rechaza (`column "urp.current_module_id" must appear
+  in the GROUP BY clause`). Nunca se detecto antes porque los tests previos
+  usaban un pool `pg` simulado. Corregido anadiendo
+  `urp.current_module_id, urp.last_activity_at` al `GROUP BY` de esa rama (la
+  rama SQLite no se toco, no falla ahi).
+
+Notas operativas descubiertas al escribir estos tests:
+
+- Los ficheros bajo `test/postgres-integration/` deben correrse con
+  `--no-file-parallelism`: cada fichero llama a `PostgresDb.migrate()`
+  (`CREATE TABLE IF NOT EXISTS ...`) contra la misma Supabase real, y en
+  paralelo produce `error: deadlock detected`. Pendiente anadir un script npm
+  o config dedicada de vitest para esto antes de meterlo en CI.
+- `openDb()` (`lib/db.ts`) cambia de backend globalmente segun exista
+  `DATABASE_URL` en el entorno. Con la variable puesta, los tests etiquetados
+  "(SQLite backend)" tambien apuntan a la Postgres real y chocan entre si en
+  paralelo (violaciones de clave duplicada) — no es una regresion, pero
+  significa que `npm run test:unit` normal debe correrse SIN `DATABASE_URL`
+  en el entorno. Pendiente evaluar si esto merece su propio ticket.
 
 Rama sugerida: `test/postgres-integration`.
 
