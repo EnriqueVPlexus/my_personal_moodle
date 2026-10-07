@@ -405,10 +405,9 @@ quizzes, importacion, admin dashboard) verificada contra Postgres real, y
 ahora tambien contra una instancia de test aislada (ver tarea de aislamiento
 mas abajo) — el criterio de "Hecho cuando" que faltaba ya se cumple.
 Accesible localmente via `direnv` (`.envrc` carga `DATABASE_URL` desde
-`.env.local`); ejecutar con
-`direnv exec . npx vitest run test/postgres-integration/ --no-file-parallelism`
-— el flag es obligatorio, ver nota de deadlock mas abajo. Preferible, sin
-embargo, usar la base aislada (ver abajo).
+`.env.local`); ejecutar con `direnv exec . npm run test:integration:run`
+(config dedicada `vitest.integration.config.ts`, ver nota de deadlock mas
+abajo). Preferible, sin embargo, usar la base aislada (ver abajo).
 
 Tareas:
 
@@ -479,17 +478,21 @@ Tareas:
 
 Notas operativas descubiertas al escribir estos tests:
 
-- Los ficheros bajo `test/postgres-integration/` deben correrse con
-  `--no-file-parallelism`: cada fichero llama a `PostgresDb.migrate()`
-  (`CREATE TABLE IF NOT EXISTS ...`) contra la misma Supabase real, y en
-  paralelo produce `error: deadlock detected`. Pendiente anadir un script npm
-  o config dedicada de vitest para esto antes de meterlo en CI.
+- Los ficheros bajo `test/postgres-integration/` no pueden correr en
+  paralelo: cada fichero llama a `PostgresDb.migrate()`
+  (`CREATE TABLE IF NOT EXISTS ...`) contra la misma base, y en paralelo
+  produce `error: deadlock detected`. Resuelto con una config dedicada,
+  `vitest.integration.config.ts` (`fileParallelism: false`), expuesta como
+  `npm run test:integration:run`; ya no hace falta el flag
+  `--no-file-parallelism` en la linea de comandos.
 - `openDb()` (`lib/db.ts`) cambia de backend globalmente segun exista
   `DATABASE_URL` en el entorno. Con la variable puesta, los tests etiquetados
-  "(SQLite backend)" tambien apuntan a la Postgres real y chocan entre si en
-  paralelo (violaciones de clave duplicada) — no es una regresion, pero
-  significa que `npm run test:unit` normal debe correrse SIN `DATABASE_URL`
-  en el entorno. Pendiente evaluar si esto merece su propio ticket.
+  "(SQLite backend)" apuntaban tambien a la Postgres real y chocaban entre si
+  en paralelo (violaciones de clave duplicada). Resuelto: `vitest.config.ts`
+  excluye `test/postgres-integration/**` y fija `DATABASE_URL` y
+  `TEST_DATABASE_URL` a cadena vacia en `test.env`, asi que
+  `npm run test:unit` siempre usa SQLite aunque `direnv` exporte la variable
+  (verificado con una `DATABASE_URL` inalcanzable: 343/343 pasan).
 
 Rama sugerida: `test/postgres-integration`.
 
@@ -498,11 +501,11 @@ Hecho cuando:
 - El flujo critico pasa contra PostgreSQL sin depender de la base de produccion.
 - Las pruebas limpian sus datos y pueden repetirse localmente o en CI.
 
-### [~] Gestion de conexiones y transacciones
+### [x] Gestion de conexiones y transacciones
 
-Estado: parcialmente hecho. Los tres criterios de "Hecho cuando" se
-cumplen (ver correccion mas abajo sobre errores controlados); queda
-`[~]` solo por la sub-tarea de conexiones persistentes en tests.
+Estado: hecho. Los tres criterios de "Hecho cuando" se cumplen (ver
+correccion mas abajo sobre errores controlados) y todas las sub-tareas estan
+cerradas.
 
 Tareas:
 
@@ -532,12 +535,21 @@ Tareas:
 - [x] Garantizar transacciones en importaciones y operaciones multi-tabla.
   Ya cubierto por trabajo previo: `roadmap-import.postgres-integration.test.ts`
   prueba un ROLLBACK real contra Postgres. No se repite aqui.
-- [~] Evitar conexiones persistentes innecesarias durante tests. Mejorado
-  indirectamente (el pool compartido ya no se multiplica por request), pero
-  no se ha tocado el ciclo de vida de conexiones dentro de la propia suite
-  de tests (ver notas operativas de la seccion anterior sobre
-  `--no-file-parallelism` y `DATABASE_URL`); sigue pendiente si se quiere ir
-  mas alla.
+- [x] Evitar conexiones persistentes innecesarias durante tests.
+  - Los tests unitarios ya no abren conexiones a Postgres: `vitest.config.ts`
+    vacia `DATABASE_URL`/`TEST_DATABASE_URL` y excluye la suite de
+    integracion (ver notas operativas de la seccion anterior).
+  - La suite de integracion corre fichero a fichero con su propia config
+    (`vitest.integration.config.ts`), y cada fichero cierra en `afterAll` los
+    pools que abre. El unico que no lo hacia era
+    `connection-pool.postgres-integration.test.ts`, que dejaba abierto el
+    pool singleton de `openDb()` asumiendo que se compartia con otros
+    ficheros; no es asi, porque Vitest aisla los modulos por fichero
+    (`isolate: true` por defecto), asi que ese pool solo vivia en ese
+    fichero y mantenia conexiones idle hasta que el worker terminaba. Ahora
+    lo cierra en `afterAll`.
+  - `npm run test:integration` propaga el codigo de salida de los tests
+    (antes devolvia el de `test:db:down`, es decir 0 aunque fallasen).
 
 Rama sugerida: `chore/db-transactions`.
 
@@ -571,10 +583,7 @@ Hecho cuando:
   abordarlo ahora (ver backlog mas abajo, prioridad baja).
 
 Con la correccion anterior, los tres criterios de "Hecho cuando" se
-cumplen. Sub-tarea "evitar conexiones persistentes innecesarias durante
-tests" queda como `[~]`: mejorada indirectamente por el singleton de
-`openDb()`, pero el ciclo de vida de conexiones dentro de la propia suite de
-tests no se toco especificamente.
+cumplen.
 
 ### [ ] Contratos API estables
 

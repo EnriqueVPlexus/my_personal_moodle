@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import type { PostgresDb } from '../../lib/postgresDb'
 
 /**
@@ -19,8 +19,9 @@ import type { PostgresDb } from '../../lib/postgresDb'
  * docker-compose.test.yml — see test/postgres-integration/README.md).
  * Skipped entirely otherwise so `vitest run` stays green without one.
  *
- * Does NOT call .close() on the shared singleton pool: it is shared
- * process-wide with the app and other test files in this run.
+ * Closes the cached pool in afterAll: Vitest isolates modules per test file,
+ * so the openDb() singleton only lives in this file's module registry and
+ * would otherwise keep its idle connections open until the worker exits.
  */
 const DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL
 const describeIfPostgres = DATABASE_URL ? describe : describe.skip
@@ -34,6 +35,10 @@ if (DATABASE_URL) {
 }
 
 describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () => {
+  afterAll(async () => {
+    await ((await openDb()) as unknown as PostgresDb).close()
+  })
+
   it('returns the same underlying Pool across many sequential calls', async () => {
     const { openDb } = await import('../../lib/db')
 

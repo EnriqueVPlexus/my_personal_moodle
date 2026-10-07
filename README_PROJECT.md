@@ -57,8 +57,11 @@ Tests de integración contra PostgreSQL real: cubiertos auth, contenido
 ventana), quizzes, importación (incluyendo un `ROLLBACK` real forzado a
 mitad de transacción) y el cálculo de `inactivity_days` del panel admin, en
 `test/postgres-integration/*.postgres-integration.test.ts` (se saltan salvo
-que exista `TEST_DATABASE_URL` o `DATABASE_URL`; requieren
-`--no-file-parallelism` por conflictos de `migrate()` concurrente). Corren
+que exista `TEST_DATABASE_URL` o `DATABASE_URL`). Tienen su propia config,
+`vitest.integration.config.ts`, que los ejecuta fichero a fichero
+(`fileParallelism: false`, por conflictos de `migrate()` concurrente);
+`npm run test:unit` los excluye y además vacía `DATABASE_URL`, así que los
+tests unitarios siempre usan SQLite aunque `direnv` cargue la variable. Corren
 contra una base PostgreSQL local aislada vía Docker
 (`docker-compose.test.yml`, `postgres:16-alpine`, sin volumen persistente):
 
@@ -66,11 +69,12 @@ contra una base PostgreSQL local aislada vía Docker
 npm run test:db:up      # levanta el contenedor en localhost:55432 y aplica
                          # las migraciones formales (scripts/migrate.ts up)
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/app_test \
-  npx vitest run test/postgres-integration/ --no-file-parallelism
+  npm run test:integration:run
 npm run test:db:down    # detiene el contenedor y descarta sus datos (-v)
 ```
 
-o el atajo `npm run test:integration`. Configura `TEST_DATABASE_URL` igual
+o el atajo `npm run test:integration` (levanta, ejecuta y desmonta, y
+devuelve el código de salida de los tests). Configura `TEST_DATABASE_URL` igual
 que `DATABASE_URL` (vía `direnv`, ver `.envrc`) para no repetirlo en cada
 comando. Si `TEST_DATABASE_URL` no está definida, los tests caen a
 `DATABASE_URL` (la Supabase real compartida) — útil para quien aún no tiene
