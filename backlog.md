@@ -498,24 +498,83 @@ Hecho cuando:
 - El flujo critico pasa contra PostgreSQL sin depender de la base de produccion.
 - Las pruebas limpian sus datos y pueden repetirse localmente o en CI.
 
-### [ ] Gestion de conexiones y transacciones
+### [~] Gestion de conexiones y transacciones
 
-Estado: pendiente.
+Estado: parcialmente hecho. Los tres criterios de "Hecho cuando" se
+cumplen (ver correccion mas abajo sobre errores controlados); queda
+`[~]` solo por la sub-tarea de conexiones persistentes en tests.
 
 Tareas:
 
-- Revisar ciclo de vida del pool PostgreSQL en desarrollo, tests y serverless.
-- Definir limites, timeouts y comportamiento ante desconexion.
-- Garantizar transacciones en importaciones y operaciones multi-tabla.
-- Evitar conexiones persistentes innecesarias durante tests.
+- [x] Revisar ciclo de vida del pool PostgreSQL en desarrollo, tests y
+  serverless. Bug real confirmado y corregido: `openDb()` (`lib/db.ts`)
+  creaba una instancia `new PostgresDb(...)` (y por tanto un `pg.Pool`
+  nuevo, `max: 5`) en CADA llamada, sin ningun cacheo. Como los 26 handlers
+  de `pages/api/**` llaman a `openDb()` por request, cada peticion HTTP
+  levantaba su propio pool nuevo y nada en el codigo de la app (solo en
+  tests) llamaba nunca a `.close()`. Corregido cacheando la instancia en un
+  `Map<string, PostgresDb>` module-level indexado por `DATABASE_URL` (mismo
+  patron que el `sqlite3ModulePromise` ya existente unas lineas arriba),
+  de forma que el pool se reutiliza durante todo el proceso. Ver
+  `test/postgres-integration/connection-pool.postgres-integration.test.ts`,
+  que llama a `openDb()` 20+ veces (secuencial y concurrente) y comprueba
+  por identidad (`getPool()`) que siempre devuelve el mismo `Pool`, y que
+  `totalCount` no crece sin limite.
+- [x] Definir limites, timeouts y comportamiento ante desconexion.
+  `lib/postgresDb.ts`: se anadieron `idleTimeoutMillis: 30000` y
+  `connectionTimeoutMillis: 5000` al `Pool` (antes no habia timeout de
+  conexion, es decir con el pool saturado una request podia colgarse
+  indefinidamente en vez de fallar rapido), y un listener
+  `this.pool.on('error', ...)` que loguea en vez de dejar que un error de
+  un cliente idle (ej. Supabase cerrando la conexion) tumbe el proceso
+  Node entero — comportamiento que la propia documentacion de
+  `node-postgres` marca como obligatorio.
+- [x] Garantizar transacciones en importaciones y operaciones multi-tabla.
+  Ya cubierto por trabajo previo: `roadmap-import.postgres-integration.test.ts`
+  prueba un ROLLBACK real contra Postgres. No se repite aqui.
+- [~] Evitar conexiones persistentes innecesarias durante tests. Mejorado
+  indirectamente (el pool compartido ya no se multiplica por request), pero
+  no se ha tocado el ciclo de vida de conexiones dentro de la propia suite
+  de tests (ver notas operativas de la seccion anterior sobre
+  `--no-file-parallelism` y `DATABASE_URL`); sigue pendiente si se quiere ir
+  mas alla.
 
 Rama sugerida: `chore/db-transactions`.
 
 Hecho cuando:
 
-- No hay fugas de conexiones bajo carga de tests.
-- Las operaciones parciales hacen rollback comprobable.
-- Los errores de base de datos llegan como respuestas controladas.
+- [x] No hay fugas de conexiones bajo carga de tests. Demostrado por el test
+  de identidad de pool arriba: 20 llamadas concurrentes a `openDb()`
+  reutilizan el mismo `Pool` (`max: 5`), no crean uno nuevo por llamada.
+- [x] Las operaciones parciales hacen rollback comprobable
+  (`roadmap-import.postgres-integration.test.ts`, no tocado en este cambio).
+- [x] Los errores de base de datos llegan como respuestas controladas.
+  Correccion sobre la nota anterior (dejada aqui para que quede el rastro):
+  se penso que los ~22 handlers de `pages/api/**` sin try/catch propio (p.ej.
+  `pages/api/admin/dashboard.ts`, `pages/api/roadmaps/index.ts`) filtraban
+  errores de Postgres sin control. Verificado directamente en el codigo
+  fuente de Next.js instalado
+  (`node_modules/next/dist/server/api-utils/node/api-resolver.js:358-382`):
+  en produccion (`dev === false`) CUALQUIER excepcion no capturada en un
+  handler de `pages/api` la intercepta el propio framework, hace
+  `console.error` en servidor y responde `500 Internal Server Error`
+  generico SIN filtrar mensaje ni stack al cliente; el `throw` solo se
+  propaga en modo `dev` (comportamiento esperado, es el overlay de
+  desarrollo). Esta app no usa Edge runtime en ninguna ruta ni configura
+  `propagateError`, asi que no hay excepcion a esto. El criterio SI se
+  cumple hoy, sin cambios necesarios; no era un hueco de seguridad.
+  Lo que si sigue pendiente, pero como mejora de calidad y no de seguridad:
+  la mayoria de rutas devuelven 500 generico para casos de error de dominio
+  conocidos (p.ej. clave duplicada) en vez de mapearlos a un codigo mas
+  preciso, como ya hace `pages/api/roadmaps/import.ts`
+  (`RoadmapImportConflictError` → 409). Se decidio explicitamente no
+  abordarlo ahora (ver backlog mas abajo, prioridad baja).
+
+Con la correccion anterior, los tres criterios de "Hecho cuando" se
+cumplen. Sub-tarea "evitar conexiones persistentes innecesarias durante
+tests" queda como `[~]`: mejorada indirectamente por el singleton de
+`openDb()`, pero el ciclo de vida de conexiones dentro de la propia suite de
+tests no se toco especificamente.
 
 ### [ ] Contratos API estables
 

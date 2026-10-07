@@ -52,9 +52,38 @@ en vez de duplicar el join) e import/export de roadmaps
 transacción multi-tabla — usa SQL crudo parametrizado en ambos backends
 dentro de la transacción en vez de Kysely, ya que el query builder no
 participa del cliente de conexión que Postgres usa para `BEGIN`/`COMMIT`).
-Pendiente: tests de integración contra una PostgreSQL real — hoy la rama
-Postgres de cada repositorio solo está probada con un pool `pg` simulado, ver
-`backlog.md` para el detalle.
+Tests de integración contra PostgreSQL real: cubiertos auth, contenido
+(roadmaps/módulos/lecciones), progreso (incluyendo el CTE con función
+ventana), quizzes, importación (incluyendo un `ROLLBACK` real forzado a
+mitad de transacción) y el cálculo de `inactivity_days` del panel admin, en
+`test/postgres-integration/*.postgres-integration.test.ts` (se saltan salvo
+que exista `TEST_DATABASE_URL` o `DATABASE_URL`; requieren
+`--no-file-parallelism` por conflictos de `migrate()` concurrente). Corren
+contra una base PostgreSQL local aislada vía Docker
+(`docker-compose.test.yml`, `postgres:16-alpine`, sin volumen persistente):
+
+```bash
+npm run test:db:up      # levanta el contenedor en localhost:55432 y aplica
+                         # las migraciones formales (scripts/migrate.ts up)
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/app_test \
+  npx vitest run test/postgres-integration/ --no-file-parallelism
+npm run test:db:down    # detiene el contenedor y descarta sus datos (-v)
+```
+
+o el atajo `npm run test:integration`. Configura `TEST_DATABASE_URL` igual
+que `DATABASE_URL` (vía `direnv`, ver `.envrc`) para no repetirlo en cada
+comando. Si `TEST_DATABASE_URL` no está definida, los tests caen a
+`DATABASE_URL` (la Supabase real compartida) — útil para quien aún no tiene
+Docker configurado, pero no aislado. Detalle completo en
+`test/postgres-integration/README.md` y en `backlog.md`.
+
+`openDb()` (`lib/db.ts`) cachea la instancia `PostgresDb`/`Pool` por
+proceso (antes creaba un pool nuevo en cada llamada); `PostgresDb` define
+timeouts de conexión/idle y un listener de error en el pool — ver
+`test/postgres-integration/connection-pool.postgres-integration.test.ts` y
+`backlog.md` ("Gestion de conexiones y transacciones") para el detalle y lo
+que queda pendiente (manejo de errores no uniforme en todas las rutas de
+`pages/api/**`).
 
 ## Dominio Funcional
 

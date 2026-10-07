@@ -223,7 +223,19 @@ export class PostgresDb implements DatabaseClient {
     this.pool = new Pool({
       connectionString,
       max: 5,
+      // Recycle idle clients instead of holding them open indefinitely
+      // against Supabase's connection cap, and fail fast (rather than the
+      // pg default of hanging forever) when the pool is saturated.
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
       ssl: isLocalHost ? false : { rejectUnauthorized: false }
+    })
+    // node-postgres requires listening for 'error' on the pool: an idle
+    // client can emit it (e.g. the server terminating the connection), and
+    // an unhandled 'error' event crashes the whole Node process otherwise.
+    // https://node-postgres.com/apis/pool#error
+    this.pool.on('error', (err) => {
+      console.error('Unexpected Postgres pool error', err)
     })
   }
 
