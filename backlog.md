@@ -312,25 +312,91 @@ Hecho cuando:
 - Los handlers se limitan a autenticar, validar, invocar y responder.
 - Los tests de dominio no necesitan levantar Next.js.
 
-### [ ] Migraciones formales de PostgreSQL
+### [x] Migraciones formales de PostgreSQL
 
-Estado: pendiente. La creacion inicial del esquema y el migrador SQLite ya
-existen, pero falta una historia formal de migraciones versionadas.
+Estado: hecho. Se eligio el sistema de migraciones propio de `Kysely`
+(`Migrator` + `FileMigrationProvider`, importados desde el subpath
+`kysely/migration`) en vez de anadir una herramienta nueva: `kysely` ya es
+dependencia del proyecto, ya se usa en `lib/adminDashboard.ts` y
+`lib/kyselyDatabase.ts`, y su schema builder da migraciones tipadas y
+revisables (no SQL crudo).
+
+Se crearon dos piezas:
+
+- `migrations/0001_initial_schema.ts`: traduccion 1:1 (tabla por tabla,
+  columna por columna, indices y constraints incluidos) de la constante
+  `POSTGRES_SCHEMA` de `lib/postgresDb.ts`, escrita con el schema builder de
+  Kysely. Expone `up()`/`down()`; `down()` elimina todo en orden inverso
+  seguro para FKs.
+- `scripts/migrate.ts`: CLI (`up`/`down`/`status`) que conecta a
+  `DATABASE_URL` con la misma configuracion SSL que `PostgresDb` y corre el
+  `Migrator` de Kysely. Se niega a ejecutar si `DATABASE_URL` no esta
+  definida (nunca cae a SQLite). Expuesto como `npm run migrate:up`,
+  `npm run migrate:down`, `npm run migrate:status`.
+
+Dos caminos deliberadamente distintos, no duplicacion accidental:
+
+- `scripts/migrate.ts` (formal, versionado): el camino para despliegues
+  reales contra Supabase. Registra cada migracion ejecutada en
+  `kysely_migration`/`kysely_migration_lock` y permite rollback controlado.
+- `PostgresDb.migrate()` (bootstrap rapido, sin cambios): sigue siendo el
+  `CREATE TABLE IF NOT EXISTS` idempotente del que dependen los tests de
+  integracion contra Postgres para levantar un esquema efimero rapido. No se
+  toco su comportamiento ni se le hizo llamar al nuevo migrador.
+
+Decision de diseno clave: todo `createTable`/`createIndex` de
+`0001_initial_schema.ts` usa `.ifNotExists()`. Esto es lo que permite
+ejecutar `migrate:up` de forma segura contra el `public` de Supabase, que ya
+tiene estas tablas creadas ad-hoc por `PostgresDb.migrate()` — sin esto,
+Kysely genera `CREATE TABLE` sin `IF NOT EXISTS` por defecto y la migracion
+fallaria contra el esquema compartido. Verificado en vivo: `migrate:status`
+(pendiente) -> `migrate:up` (exito, sin duplicar nada) -> `migrate:status`
+(ejecutada).
+
+Rollback: `npm run migrate:down` revierte exactamente una migracion (usa
+`migrateDown()`, el nombre real de la API de Kysely). Ejecucion segura en
+Supabase: correr siempre `npm run migrate:status` antes de `migrate:up` en
+produccion; `DATABASE_URL` debe apuntar a la cadena de conexion de Supabase
+con SSL (mismo `ssl: { rejectUnauthorized: false }` que usa `PostgresDb`).
+
+Prueba de bootstrap desde cero:
+`test/postgres-integration/migrations-bootstrap.postgres-integration.test.ts`
+crea un schema Postgres desechable (`CREATE SCHEMA IF NOT EXISTS
+migration_bootstrap_test_<marcador>`) contra la misma Supabase compartida,
+sin tocar `public`, apunta una conexion dedicada a ese schema (via
+`search_path`, fijado por conexion fisica porque el `options` de arranque de
+`pg` no es fiable) y corre `migrateToLatest()` dos veces: la primera crea
+las 15 tablas esperadas desde una base vacia, la segunda no tiene nada
+pendiente (prueba de idempotencia). El schema se elimina siempre en
+`afterAll` (`DROP SCHEMA ... CASCADE`). Nota tecnica: el introspector de
+Postgres de Kysely no filtra por schema al buscar sus tablas internas
+(`kysely_migration*`), asi que el test pasa `migrationTableSchema` al
+`Migrator` para evitar que confunda esas tablas con las que ya existen en
+`public` de una ejecucion anterior de `migrate:up`.
 
 Tareas:
 
-- Elegir herramienta compatible con la capa SQL seleccionada.
-- Crear migracion inicial reproducible para el esquema actual.
-- Separar migraciones de datos, seeds y cambios de estructura.
-- Documentar rollback y ejecucion segura en Supabase.
+- [x] Elegir herramienta compatible con la capa SQL seleccionada (Kysely
+  `Migrator`).
+- [x] Crear migracion inicial reproducible para el esquema actual
+  (`migrations/0001_initial_schema.ts`).
+- [x] Separar migraciones de datos, seeds y cambios de estructura: no hay
+  seeds ni migraciones de datos todavia, solo la migracion estructural
+  inicial; el patron (una migracion por archivo, numerada) deja el espacio
+  listo para separarlas cuando existan.
+- [x] Documentar rollback y ejecucion segura en Supabase (ver arriba).
 
 Rama sugerida: `feature/postgres-migrations`.
 
 Hecho cuando:
 
-- Una base PostgreSQL vacia puede levantarse solo con las migraciones.
-- Las migraciones son idempotentes o tienen control de version.
-- Existe una prueba de bootstrap desde cero.
+- [x] Una base PostgreSQL vacia puede levantarse solo con las migraciones
+  (probado con el schema desechable, no solo contra `public`).
+- [x] Las migraciones son idempotentes (`.ifNotExists()`) y tienen control
+  de version (tabla `kysely_migration` que registra que se ejecuto y
+  cuando).
+- [x] Existe una prueba de bootstrap desde cero
+  (`migrations-bootstrap.postgres-integration.test.ts`).
 
 ### [ ] Tests de integracion contra PostgreSQL real
 

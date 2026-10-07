@@ -169,6 +169,24 @@ npm run migrate:postgres -- --apply
 No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
 comparar antes los IDs y recuentos de ambas bases.
 
+### Migraciones formales de PostgreSQL
+
+Para levantar o actualizar el esquema de PostgreSQL de forma versionada
+(en vez del bootstrap ad-hoc de `PostgresDb.migrate()`, pensado solo para
+tests), usa el migrador basado en `Kysely` (`migrations/*.ts` +
+`scripts/migrate.ts`):
+
+```bash
+npm run migrate:status   # qué migraciones están ejecutadas / pendientes
+npm run migrate:up       # aplica las migraciones pendientes
+npm run migrate:down     # revierte exactamente la última migración
+```
+
+Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
+`migrate:status` antes de `migrate:up`. Detalle de diseño, el porqué de
+`.ifNotExists()` y la prueba de bootstrap desde cero en
+`backlog.md` ("Migraciones formales de PostgreSQL").
+
 `lib/db.ts` crea y migra estas tablas:
 
 - `roadmaps`
