@@ -42,7 +42,10 @@ roadmap/lección), quizzes (`lib/quizRepository.ts`, intentos y estadísticas
 por módulo), evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
 la revisión admin), el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
 de sus consultas agregadas traducidas a Postgres; el cálculo de días de
-inactividad todavía no está verificado contra una PostgreSQL real),
+inactividad ya está verificado contra una PostgreSQL real —
+`test/postgres-integration/inactivity-days.postgres-integration.test.ts` —,
+lo que además destapó y corrigió un `GROUP BY` incompleto en la CTE
+`learner_progress` que SQLite toleraba pero Postgres no),
 portfolio (`lib/portfolio.ts`, reutilizando `evidenceRepository.listEvidences`
 en vez de duplicar el join) e import/export de roadmaps
 (`lib/roadmapImport.ts`/`lib/roadmapMetadata.ts`, único dominio con

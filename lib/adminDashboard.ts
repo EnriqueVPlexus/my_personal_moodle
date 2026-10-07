@@ -308,7 +308,7 @@ const learnerProgressCteSql = sql`
     LEFT JOIN user_lesson_progress ulp
       ON ulp.lesson_id = lessons.id
      AND ulp.user_id = urp.user_id
-    GROUP BY urp.user_id, urp.roadmap_id
+    GROUP BY urp.user_id, urp.roadmap_id, urp.current_module_id, urp.last_activity_at
   )
 `
 
