@@ -596,7 +596,13 @@ Hecho cuando:
 
 ### [ ] Observabilidad, backups y recuperacion
 
-Estado: pendiente.
+Estado: pendiente, pausado deliberadamente (2026-09-28). Hoy en Supabase
+plan Free (sin backups automaticos ni PITR incluidos por la plataforma).
+Decision del usuario: no construir aqui un script de backup propio para
+Supabase Free porque el proyecto se alojara en el futuro en infraestructura
+propia (AWS o Azure), y el enfoque de backups/restauracion sera distinto
+alli. Retomar este punto cuando se decida esa migracion de hosting, no
+antes.
 
 Tareas:
 
