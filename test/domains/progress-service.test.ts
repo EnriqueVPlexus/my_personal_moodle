@@ -29,13 +29,18 @@ function setup(overrides: Overrides = {}) {
       get: (target, prop: string) => (target as Record<string, unknown>)[prop] ?? missing(`${group}.${prop}`)
     }) as ProgressPorts[K]
 
+  const progress = proxy('progress')
+  const quizAttempts = proxy('quizAttempts')
+  const evidences = proxy('evidences')
+
   return makeProgressService({
-    progress: proxy('progress'),
+    progress,
     learnerViews: proxy('learnerViews'),
-    quizAttempts: proxy('quizAttempts'),
-    evidences: proxy('evidences'),
+    quizAttempts,
+    evidences,
     portfolios: proxy('portfolios'),
-    content: proxy('content')
+    content: proxy('content'),
+    unitOfWork: { run: overrides.unitOfWork?.run ?? (work => work({ progress, quizAttempts, evidences })) }
   })
 }
 
@@ -85,7 +90,7 @@ describe('module progress calculation', () => {
 describe('quiz attempt flow', () => {
   const eligible = { allowed: true, pass_percentage: 70 }
 
-  function quizPorts(overrides: { eligibility?: object; module?: ModuleRecord | undefined } = {}) {
+  function quizPorts(overrides: { eligibility?: object; module?: ModuleRecord | undefined; unitOfWork?: Overrides['unitOfWork'] } = {}) {
     const save = vi.fn(async (_userId: number, _module: unknown, _answers: unknown, grade: object) => ({
       ...grade, submitted_at: '2026-01-01T00:00:00.000Z'
     }))
@@ -97,7 +102,8 @@ describe('quiz attempt flow', () => {
         checkEligibility: async () => (overrides.eligibility ?? eligible) as never,
         getSummary: async () => ({ attempts_count: 1 }),
         save: save as never
-      }
+      },
+      ...(overrides.unitOfWork ? { unitOfWork: overrides.unitOfWork } : {})
     })
     return { service, save, touch }
   }
@@ -143,6 +149,25 @@ describe('quiz attempt flow', () => {
     expect(save).toHaveBeenCalledWith(2, expect.objectContaining({ id: 7 }), { 'bank-0': 0, 'bank-1': 0 }, expect.objectContaining({ score: 1 }))
     expect(touch).toHaveBeenCalledWith({ userId: 2, roadmapId: 4, moduleId: 7 })
     expect(outcome.summary).toEqual({ attempts_count: 1 })
+  })
+
+  it('saves the attempt and touches progress in one unit of work, propagating a failed touch', async () => {
+    const failure = new Error('touch failed')
+    const run = vi.fn()
+    const { service } = quizPorts({
+      unitOfWork: {
+        run: (async (work: (repos: any) => Promise<unknown>) => {
+          run()
+          return work({
+            quizAttempts: { save: async () => ({ score: 1, max_score: 2, percentage: 50, passed: false, submitted_at: 'now' }) },
+            progress: { touchRoadmapProgress: async () => { throw failure } }
+          })
+        }) as any
+      }
+    })
+
+    await expect(service.submitQuizAttempt(2, 7, { 'bank-0': 0, 'bank-1': 0 })).rejects.toBe(failure)
+    expect(run).toHaveBeenCalledTimes(1)
   })
 
   it('only attaches summary and eligibility for signed-in readers', async () => {

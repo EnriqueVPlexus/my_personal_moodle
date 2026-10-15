@@ -62,6 +62,13 @@ export function createServices(db: DatabaseClient) {
       findRoadmap: id => findRoadmapById(db, id),
       findModule: id => modules.findById(id),
       getRoadmapTopics: roadmapId => metadata.getTopics(roadmapId)
+    },
+    unitOfWork: {
+      run: work => db.transaction(tx => work({
+        progress: createProgressRepository(tx),
+        quizAttempts: createQuizAttemptRepository(tx),
+        evidences: createEvidenceRepository(tx)
+      }))
     }
   })
 
