@@ -94,6 +94,62 @@ export interface UserRoadmapAccessTable {
   created_at: OptionalOnInsert<Date | string>
 }
 
+export interface UserLessonProgressTable {
+  id: Generated<number>
+  user_id: number
+  lesson_id: number
+  started_at: Date | string | null
+  last_activity_at: OptionalOnInsert<Date | string>
+  completed_at: Date | string | null
+  time_spent_seconds: OptionalOnInsert<number>
+  created_at: OptionalOnInsert<Date | string>
+  updated_at: OptionalOnInsert<Date | string>
+}
+
+export interface UserRoadmapProgressTable {
+  id: Generated<number>
+  user_id: number
+  roadmap_id: number
+  current_module_id: number | null
+  current_lesson_id: number | null
+  started_at: Date | string | null
+  last_activity_at: OptionalOnInsert<Date | string>
+  completed_at: Date | string | null
+  completed_lessons_count: OptionalOnInsert<number>
+  time_spent_seconds: OptionalOnInsert<number>
+  created_at: OptionalOnInsert<Date | string>
+  updated_at: OptionalOnInsert<Date | string>
+}
+
+export interface UserQuizAttemptsTable {
+  id: Generated<number>
+  user_id: number
+  roadmap_id: number | null
+  module_id: number | null
+  quiz_scope: OptionalOnInsert<string>
+  score: number | null
+  max_score: number | null
+  answers: string | null
+  submitted_at: OptionalOnInsert<Date | string>
+  created_at: OptionalOnInsert<Date | string>
+  updated_at: OptionalOnInsert<Date | string>
+}
+
+export interface UserModuleEvidencesTable {
+  id: Generated<number>
+  user_id: number
+  module_id: number
+  evidence_type: string
+  url: string | null
+  note: string | null
+  review_status: OptionalOnInsert<string>
+  admin_comment: string | null
+  reviewed_at: string | Date | null
+  reviewed_by_user_id: number | null
+  created_at: OptionalOnInsert<Date | string>
+  updated_at: OptionalOnInsert<Date | string>
+}
+
 export interface Database {
   roadmaps: RoadmapsTable
   roadmap_categories: RoadmapCategoriesTable
@@ -103,6 +159,10 @@ export interface Database {
   users: UsersTable
   sessions: SessionsTable
   user_roadmap_access: UserRoadmapAccessTable
+  user_lesson_progress: UserLessonProgressTable
+  user_roadmap_progress: UserRoadmapProgressTable
+  user_quiz_attempts: UserQuizAttemptsTable
+  user_module_evidences: UserModuleEvidencesTable
 }
 
 const kyselyByPool = new WeakMap<Pool, Kysely<Database>>()

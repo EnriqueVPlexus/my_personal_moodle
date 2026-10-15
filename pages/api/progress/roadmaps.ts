@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireUser } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
-import { listUserRoadmapProgress } from '../../../lib/progress'
+import { listUserRoadmapProgress } from '../../../lib/progressRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

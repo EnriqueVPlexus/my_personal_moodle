@@ -3,7 +3,7 @@ import { getRoadmapReadScope } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { MODULE_LEVELS } from '../../../lib/roadmapMetadata'
 import { ROADMAP_DURATION_FILTERS, ROADMAP_PROGRESS_STATUS_FILTERS } from '../../../lib/roadmapFilters'
-import { listUserRoadmapProgress } from '../../../lib/progress'
+import { listUserRoadmapProgress } from '../../../lib/progressRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()

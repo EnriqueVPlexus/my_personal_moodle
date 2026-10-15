@@ -1,11 +1,14 @@
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { describe, expect, it } from 'vitest'
 import {
   persistRoadmapImport,
   RoadmapImportConflictError,
   validateRoadmapImport
 } from '../lib/roadmapImport'
+import { openSqliteDb } from '../lib/db'
+import type { DatabaseClient } from '../lib/database'
 
 const validInput = {
   title: '  Plataforma Cloud  ',
@@ -41,26 +44,9 @@ const validInput = {
   }]
 }
 
-async function importDb() {
-  const db = await open({ filename: ':memory:', driver: sqlite3.Database })
-  await db.exec(`
-    CREATE TABLE roadmaps (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE NOT NULL, description TEXT,
-      duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, objectives TEXT,
-      methodology TEXT, evaluation_weights TEXT, category_id INTEGER, version TEXT, published_at TEXT
-    );
-    CREATE TABLE modules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, roadmap_id INTEGER, position INTEGER, title TEXT,
-      duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, level TEXT, objective TEXT,
-      contents TEXT, importance TEXT, official_resources TEXT, support_videos TEXT,
-      practical_activity TEXT, deliverable_evidence TEXT, evaluation TEXT
-      , quiz_bank TEXT
-    );
-    CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
-    CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
-    CREATE TABLE roadmap_topics (roadmap_id INTEGER, topic_id INTEGER, PRIMARY KEY (roadmap_id, topic_id));
-  `)
-  return db
+async function importDb(): Promise<DatabaseClient> {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-import-'))
+  return openSqliteDb(path.join(tmp, 'test.db'))
 }
 
 describe('roadmap JSON import validation', () => {
@@ -254,7 +240,7 @@ describe('roadmap JSON import persistence', () => {
       title: 'Fundamentos', contents: '["IAM"]'
     })
     expect(JSON.parse((await db.get('SELECT quiz_bank FROM modules WHERE roadmap_id = 1')).quiz_bank)).toHaveLength(1)
-    expect((await db.all('SELECT label FROM topics ORDER BY label')).map(row => row.label)).toEqual(['AWS', 'Terraform'])
+    expect((await db.all('SELECT label FROM topics ORDER BY label')).map((row: any) => row.label)).toEqual(['AWS', 'Terraform'])
     await db.close()
   })
 
@@ -276,7 +262,7 @@ describe('roadmap JSON import persistence', () => {
 
     expect(result).toEqual({ roadmap_id: 1, created_modules: 1, updated_modules: 1 })
     expect(await db.get('SELECT description FROM roadmaps WHERE id = 1')).toEqual({ description: 'Actualizada' })
-    expect((await db.all('SELECT title FROM modules ORDER BY position')).map(row => row.title)).toEqual([
+    expect((await db.all('SELECT title FROM modules ORDER BY position')).map((row: any) => row.title)).toEqual([
       'Fundamentos nuevos', 'Automatización', 'Conservar'
     ])
     await db.close()

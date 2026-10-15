@@ -9,6 +9,7 @@ vi.mock('pg', () => {
     query = queryMock
     connect = connectMock
     end = endMock
+    on = vi.fn()
   }
   return { Pool: FakePool }
 })

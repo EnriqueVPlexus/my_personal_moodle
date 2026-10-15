@@ -9,7 +9,7 @@ import {
   ROADMAP_CATALOG_SEARCH_SQL
 } from '../../../lib/roadmapSearch'
 import { parseRoadmapCatalogFilters } from '../../../lib/roadmapFilters'
-import { listUserRoadmapProgress } from '../../../lib/progress'
+import { listUserRoadmapProgress } from '../../../lib/progressRepository'
 import {
   normalizeDurationRange,
   normalizeTopics,

@@ -51,7 +51,7 @@ async function mockMetadataApi(db: any, options: { scope?: any; userProgress?: a
       options.scope ?? { user: null, allRoadmaps: true, roadmapIds: [] }
     )
   }))
-  vi.doMock('../lib/progress', () => ({
+  vi.doMock('../lib/progressRepository', () => ({
     listUserRoadmapProgress: vi.fn().mockResolvedValue(options.userProgress ?? [])
   }))
 }
