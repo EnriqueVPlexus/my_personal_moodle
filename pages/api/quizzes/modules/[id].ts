@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/auth'
-import { openDb } from '../../../../lib/db'
+import { openDb } from '../../../../lib/persistence'
 import { findModuleById } from '../../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../../lib/progressRepository'
 import { checkAttemptEligibility, getModuleQuizSummary, saveModuleQuizAttempt } from '../../../../lib/quizRepository'

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireUser } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { exportPortfolioAsMarkdown, getUserPortfolio } from '../../../lib/portfolio'
 import { normalizeMetadataKey } from '../../../lib/roadmapMetadata'
 

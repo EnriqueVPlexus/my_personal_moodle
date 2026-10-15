@@ -6,7 +6,7 @@ const user = { id: 2, email: 'user@example.com', role: 'user' as const }
 
 async function mockApi(db: any, options: { admin?: any; read?: boolean; user?: any; scope?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/auth', () => ({
     requireAdmin: vi.fn().mockResolvedValue(options.admin === undefined ? admin : options.admin),
     requireReadAccess: vi.fn().mockResolvedValue(options.read !== false),

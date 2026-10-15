@@ -7,7 +7,7 @@ import {
   saveRoadmapMetadata
 } from './roadmapMetadata'
 import { normalizePublishedAt, normalizeRoadmapVersion } from './roadmapVersion'
-import type { DatabaseClient } from './database'
+import type { DatabaseClient } from './persistence/database'
 
 export type RoadmapImportStrategy = 'create' | 'update'
 

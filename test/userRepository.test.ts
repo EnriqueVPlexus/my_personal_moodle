@@ -13,7 +13,7 @@ afterEach(async () => {
 async function setupDb() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-user-repo-'))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   return openDb()
 }
 

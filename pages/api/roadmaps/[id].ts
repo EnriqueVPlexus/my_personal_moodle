@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progressRepository'
 import { getRoadmapTopics, saveRoadmapMetadata } from '../../../lib/roadmapMetadata'
 import { findRoadmapById, updateRoadmapCore } from '../../../lib/roadmapRepository'

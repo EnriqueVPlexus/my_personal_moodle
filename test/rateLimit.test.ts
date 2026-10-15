@@ -24,7 +24,7 @@ describe('database-backed rate limiter', () => {
   async function setupDb() {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-rate-limit-'))
     process.chdir(tmp)
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     return openDb()
   }
 

@@ -26,7 +26,7 @@ describe('PostgresDb', () => {
   })
 
   it('get() returns the first row and translates ? placeholders to $n', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     queryMock.mockResolvedValueOnce({ rows: [{ id: 1, email: 'a@b.com' }], rowCount: 1 })
 
     const db = new PostgresDb('postgres://fake')
@@ -37,7 +37,7 @@ describe('PostgresDb', () => {
   })
 
   it('all() returns every row', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     queryMock.mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 2 }], rowCount: 2 })
 
     const db = new PostgresDb('postgres://fake')
@@ -47,7 +47,7 @@ describe('PostgresDb', () => {
   })
 
   it('throws on a SQL parameter count mismatch', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     const db = new PostgresDb('postgres://fake')
 
     await expect(db.get('SELECT * FROM users WHERE id = ?', [])).rejects.toThrow(
@@ -57,7 +57,7 @@ describe('PostgresDb', () => {
 
   describe('run()', () => {
     it('appends RETURNING id for an INSERT into an id-generating table without one', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       queryMock.mockResolvedValueOnce({ rows: [{ id: 42 }], rowCount: 1 })
 
       const db = new PostgresDb('postgres://fake')
@@ -71,7 +71,7 @@ describe('PostgresDb', () => {
     })
 
     it('does not duplicate RETURNING when the query already has one', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       queryMock.mockResolvedValueOnce({ rows: [{ id: 7 }], rowCount: 1 })
 
       const db = new PostgresDb('postgres://fake')
@@ -82,7 +82,7 @@ describe('PostgresDb', () => {
     })
 
     it('does not request lastID for updates/deletes or non-id tables', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       queryMock.mockResolvedValueOnce({ rows: [], rowCount: 3 })
 
       const db = new PostgresDb('postgres://fake')
@@ -93,7 +93,7 @@ describe('PostgresDb', () => {
     })
 
     it('translates INSERT OR IGNORE INTO into ON CONFLICT DO NOTHING', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 })
 
       const db = new PostgresDb('postgres://fake')
@@ -108,7 +108,7 @@ describe('PostgresDb', () => {
 
   describe('exec() transaction handling', () => {
     it('BEGIN opens a dedicated client and routes subsequent queries through it', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const client = fakeClient()
       connectMock.mockResolvedValueOnce(client)
 
@@ -125,7 +125,7 @@ describe('PostgresDb', () => {
     })
 
     it('COMMIT releases the transaction client', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const client = fakeClient()
       connectMock.mockResolvedValueOnce(client)
 
@@ -138,7 +138,7 @@ describe('PostgresDb', () => {
     })
 
     it('COMMIT without an open transaction is a no-op', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const db = new PostgresDb('postgres://fake')
 
       await db.exec('COMMIT')
@@ -147,7 +147,7 @@ describe('PostgresDb', () => {
     })
 
     it('ROLLBACK releases the transaction client', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const client = fakeClient()
       connectMock.mockResolvedValueOnce(client)
 
@@ -160,7 +160,7 @@ describe('PostgresDb', () => {
     })
 
     it('ROLLBACK without an open transaction is a no-op', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const db = new PostgresDb('postgres://fake')
 
       await db.exec('ROLLBACK')
@@ -169,7 +169,7 @@ describe('PostgresDb', () => {
     })
 
     it('other statements go straight to the pool', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 })
 
       const db = new PostgresDb('postgres://fake')
@@ -180,7 +180,7 @@ describe('PostgresDb', () => {
   })
 
   it('migrate() runs the schema against the pool', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 })
 
     const db = new PostgresDb('postgres://fake')
@@ -190,14 +190,14 @@ describe('PostgresDb', () => {
   })
 
   it('getPool() exposes the underlying pool', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     const db = new PostgresDb('postgres://fake')
     expect(db.getPool()).toBeDefined()
   })
 
   describe('close()', () => {
     it('releases an open transaction client before ending the pool', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const client = fakeClient()
       connectMock.mockResolvedValueOnce(client)
 
@@ -210,7 +210,7 @@ describe('PostgresDb', () => {
     })
 
     it('ends the pool directly when there is no open transaction', async () => {
-      const { PostgresDb } = await import('../lib/postgresDb')
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const db = new PostgresDb('postgres://fake')
 
       await db.close()

@@ -1,7 +1,7 @@
 import { Selectable } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase, UserModuleEvidencesTable } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase, UserModuleEvidencesTable } from './persistence/kyselyDatabase'
 import { EvidenceReviewStatus, EvidenceType, EVIDENCE_REVIEW_STATUSES, ModuleEvidence } from './evidences'
 
 export type EvidenceRow = Selectable<UserModuleEvidencesTable>

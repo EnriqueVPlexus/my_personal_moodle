@@ -1,7 +1,7 @@
 import { Selectable } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase, LessonsTable } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase, LessonsTable } from './persistence/kyselyDatabase'
 
 export type LessonRow = Selectable<LessonsTable>
 export type LessonWithRoadmapId = LessonRow & { roadmap_id: number }

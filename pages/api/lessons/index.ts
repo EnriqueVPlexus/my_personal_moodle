@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { findLessonById, findLessonsByModuleId, insertLesson } from '../../../lib/lessonRepository'
 import { findModuleById } from '../../../lib/moduleRepository'
 import { createLessonBodySchema, lessonListQuerySchema } from '../../../lib/validation/lessons'

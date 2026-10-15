@@ -1,4 +1,4 @@
-import type { DatabaseClient } from './database'
+import type { DatabaseClient } from './persistence/database'
 
 export const MODULE_LEVELS = ['beginner', 'intermediate', 'advanced', 'capstone'] as const
 

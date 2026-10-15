@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createHash, randomBytes, timingSafeEqual } from 'crypto'
-import { openDb } from './db'
+import { openDb } from './persistence'
 
 export type AuthRole = 'admin' | 'user'
 

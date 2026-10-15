@@ -1,7 +1,7 @@
 import { Insertable, Selectable } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase, AuditLogsTable } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase, AuditLogsTable } from './persistence/kyselyDatabase'
 
 export type AuditLogRow = Selectable<AuditLogsTable>
 export type AuditLogInsert = Omit<Insertable<AuditLogsTable>, 'id'>

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireAdmin } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { listEvidences } from '../../../lib/evidenceRepository'
 import { evidenceListQuerySchema } from '../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../lib/validation/http'

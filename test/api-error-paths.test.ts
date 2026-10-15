@@ -14,7 +14,7 @@ async function mockContentApi(
   options: { admin?: typeof admin | null; read?: boolean; user?: typeof normalUser | null } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
@@ -57,7 +57,7 @@ async function mockUsersApi(
   options: { admin?: typeof admin | null; validatePassword?: (password: string) => string | null } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/auth', () => ({
     isValidRole: (role: unknown) => role === 'admin' || role === 'user',
@@ -84,7 +84,7 @@ async function mockAuthApi(
   } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/auth', () => ({
     createSession: vi.fn((_res: any) => _res.setHeader('Set-Cookie', 'moodle_session=token')),

@@ -15,13 +15,13 @@ const requiredFields = [
 
 const seedCases = [
   {
-    file: '../lib/roadmapSeeds/awsRoadmapSeed.json',
+    file: '../lib/persistence/bootstrap/seeds/awsRoadmapSeed.json',
     title: 'Roadmap AWS gratuito para cantera junior DevOps',
     moduleCount: 11,
     weights: ['20%', '40%', '20%', '20%']
   },
   {
-    file: '../lib/iaDevopsRoadmapSeed.json',
+    file: '../lib/persistence/bootstrap/seeds/iaDevopsRoadmapSeed.json',
     title: 'IA para DevOps',
     moduleCount: 11,
     duration: '6 meses (5-8 h/semana)',

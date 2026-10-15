@@ -8,7 +8,7 @@ const originalCwd = process.cwd()
 async function withTempDb<T>(prefix: string, run: (db: any) => Promise<T>): Promise<T> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   const db = await openDb()
   try {
     return await run(db)

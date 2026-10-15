@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import type { DatabaseClient } from './database'
+import type { DatabaseClient } from './persistence/database'
 
 /**
  * Rate limiter backed by the shared database (SQLite locally, PostgreSQL in

@@ -59,7 +59,7 @@ describe('persistRoadmapImport (postgres backend)', () => {
   })
 
   it('runs the whole multi-table import through the single checked-out transaction client', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     const { persistRoadmapImport } = await import('../lib/roadmapImport')
 
     const client = fakeClient()
@@ -107,7 +107,7 @@ describe('persistRoadmapImport (postgres backend)', () => {
   })
 
   it('rolls back the transaction and releases the client when the roadmap already exists', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     const { persistRoadmapImport } = await import('../lib/roadmapImport')
 
     const client = fakeClient()
@@ -132,7 +132,7 @@ describe('persistRoadmapImport (postgres backend)', () => {
   })
 
   it('rolls back and releases the client when a statement fails mid-transaction', async () => {
-    const { PostgresDb } = await import('../lib/postgresDb')
+    const { PostgresDb } = await import('../lib/persistence/postgresDb')
     const { persistRoadmapImport } = await import('../lib/roadmapImport')
 
     const client = fakeClient()

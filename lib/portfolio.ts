@@ -1,6 +1,6 @@
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase } from './persistence/kyselyDatabase'
 import { listEvidences } from './evidenceRepository'
 
 export type PortfolioItem = {

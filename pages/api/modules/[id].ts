@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../lib/progressRepository'
 import { getModuleQuizSummary } from '../../../lib/quizRepository'

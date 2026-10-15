@@ -1,7 +1,7 @@
 import { sql } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase } from './persistence/kyselyDatabase'
 import { ROADMAP_PAUSED_AFTER_DAYS } from './progressRepository'
 
 function pool(db: DatabaseClient) {

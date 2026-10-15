@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireUser } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { listUserRoadmapProgress } from '../../../lib/progressRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

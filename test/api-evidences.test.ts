@@ -16,7 +16,7 @@ function denyUser(res: any) {
 
 async function mockIndexApi(db: any, options: { admin?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       if (options.admin === null) return denyAdmin(res)
@@ -30,7 +30,7 @@ async function mockModuleIdApi(
   options: { scope?: any; user?: any; scopeAllows?: boolean } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/auth', () => ({
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.scope === null) {
@@ -50,7 +50,7 @@ async function mockModuleIdApi(
 
 async function mockReviewApi(db: any, options: { admin?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       if (options.admin === null) return denyAdmin(res)

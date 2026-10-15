@@ -7,8 +7,8 @@ import {
   RoadmapImportConflictError,
   validateRoadmapImport
 } from '../lib/roadmapImport'
-import { openSqliteDb } from '../lib/db'
-import type { DatabaseClient } from '../lib/database'
+import { openSqliteDb } from '../lib/persistence'
+import type { DatabaseClient } from '../lib/persistence/database'
 
 const validInput = {
   title: '  Plataforma Cloud  ',

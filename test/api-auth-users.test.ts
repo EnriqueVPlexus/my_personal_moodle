@@ -5,7 +5,7 @@ const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 
 async function mockBase(db: any) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 

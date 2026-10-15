@@ -26,7 +26,7 @@ export default defineConfig({
         'pages/**/*.{ts,tsx}'
       ],
       exclude: [
-        'lib/roadmapSeeds/**/*.json'
+        'lib/persistence/bootstrap/seeds/**/*.json'
       ],
       thresholds: {
         lines: 80,

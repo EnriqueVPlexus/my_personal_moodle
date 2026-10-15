@@ -1,7 +1,7 @@
 import { Selectable, sql } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase, UsersTable } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase, UsersTable } from './persistence/kyselyDatabase'
 
 export type UserRow = Omit<Selectable<UsersTable>, 'password_hash'>
 export type UserRoadmapAccessRow = { user_id: number; roadmap_id: number }

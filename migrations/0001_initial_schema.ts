@@ -3,7 +3,7 @@ import { Kysely, sql } from 'kysely'
 /**
  * Formal, versioned migration for the Postgres schema.
  *
- * This is a 1:1 translation of `POSTGRES_SCHEMA` in `lib/postgresDb.ts`,
+ * This is a 1:1 translation of `POSTGRES_SCHEMA` in `lib/persistence/postgresDb.ts`,
  * expressed with Kysely's typed schema builder instead of a raw SQL blob.
  *
  * Every `createTable`/`createIndex` call uses `.ifNotExists()` so this
@@ -13,7 +13,7 @@ import { Kysely, sql } from 'kysely'
  * a genuinely empty schema it creates the full schema from scratch (see
  * `test/postgres-integration/migrations-bootstrap.postgres-integration.test.ts`).
  *
- * `lib/postgresDb.ts`'s `POSTGRES_SCHEMA` stays as the lightweight, idempotent
+ * `lib/persistence/postgresDb.ts`'s `POSTGRES_SCHEMA` stays as the lightweight, idempotent
  * bootstrap used by the test suite; this migration is the formal path for
  * real deployments. Do not let the two drift: any future schema change must
  * be added here as a NEW migration (0002, 0003, ...), and should also be

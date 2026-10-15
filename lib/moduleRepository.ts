@@ -1,7 +1,7 @@
 import { Selectable, sql, Updateable } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase, ModulesTable } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase, ModulesTable } from './persistence/kyselyDatabase'
 
 export type ModuleRow = Selectable<ModulesTable>
 

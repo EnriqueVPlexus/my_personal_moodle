@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../../lib/audit'
 import { requireAdmin } from '../../../../lib/auth'
-import { openDb } from '../../../../lib/db'
+import { openDb } from '../../../../lib/persistence'
 import { getEvidenceById, reviewModuleEvidence } from '../../../../lib/evidenceRepository'
 import { evidenceReviewQuerySchema, reviewEvidenceBodySchema } from '../../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../../lib/validation/http'

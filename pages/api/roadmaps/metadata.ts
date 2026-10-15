@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getRoadmapReadScope } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { MODULE_LEVELS } from '../../../lib/roadmapMetadata'
 import { ROADMAP_DURATION_FILTERS, ROADMAP_PROGRESS_STATUS_FILTERS } from '../../../lib/roadmapFilters'
 import { listUserRoadmapProgress } from '../../../lib/progressRepository'

@@ -25,7 +25,7 @@ import {
   normalizeTopics,
   parseDurationWeeks
 } from '../lib/roadmapMetadata'
-import { getSeedQuizForModule } from '../lib/roadmapQuizBanks'
+import { getSeedQuizForModule } from '../lib/persistence/bootstrap/seeds/quizBanks'
 
 describe('roadmap metadata helpers', () => {
   it('normalizes categories, topics and stable module levels', () => {

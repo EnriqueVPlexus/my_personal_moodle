@@ -1,7 +1,7 @@
 import { Selectable, Updateable } from 'kysely'
-import type { DatabaseClient } from './database'
-import type { PostgresDb } from './postgresDb'
-import { getQueryDatabase, RoadmapsTable } from './kyselyDatabase'
+import type { DatabaseClient } from './persistence/database'
+import type { PostgresDb } from './persistence/postgresDb'
+import { getQueryDatabase, RoadmapsTable } from './persistence/kyselyDatabase'
 
 export type RoadmapWithCategory = Selectable<RoadmapsTable> & {
   category_key: string | null

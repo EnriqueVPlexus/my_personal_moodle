@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Pool } from 'pg'
-import { getQueryDatabase } from '../lib/kyselyDatabase'
+import { getQueryDatabase } from '../lib/persistence/kyselyDatabase'
 
 describe('getQueryDatabase', () => {
   it('caches one Kysely instance per pool', () => {

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { PostgresDb } from '../../lib/postgresDb'
+import { PostgresDb } from '../../lib/persistence/postgresDb'
 import {
   findExistingRoadmapIds,
   findRoadmapById,

@@ -15,7 +15,7 @@ describe('audit log repository', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-audit-repo-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { insertAuditLog, listAuditLogs } = await import('../lib/auditRepository')
     const db = await openDb()
 
@@ -47,7 +47,7 @@ describe('audit log repository', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-audit-repo-limit-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { insertAuditLog, listAuditLogs } = await import('../lib/auditRepository')
     const db = await openDb()
 

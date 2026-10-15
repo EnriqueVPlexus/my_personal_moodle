@@ -9,7 +9,7 @@ import { FileMigrationProvider, Migrator } from 'kysely/migration'
  * `FileMigrationProvider`).
  *
  * This is the deployment path for real Postgres instances (Supabase). It is
- * intentionally separate from `PostgresDb.migrate()` in `lib/postgresDb.ts`,
+ * intentionally separate from `PostgresDb.migrate()` in `lib/persistence/postgresDb.ts`,
  * which stays as the fast, idempotent `CREATE TABLE IF NOT EXISTS` bootstrap
  * used by the test suite to spin up ephemeral schemas. See backlog.md
  * "Migraciones formales de PostgreSQL" for the full rationale.

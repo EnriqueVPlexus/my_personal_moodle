@@ -15,7 +15,7 @@ describe('findRoadmapById', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { findRoadmapById } = await import('../lib/roadmapRepository')
     const db = await openDb()
 
@@ -38,7 +38,7 @@ describe('findRoadmapById', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-missing-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { findRoadmapById } = await import('../lib/roadmapRepository')
     const db = await openDb()
 
@@ -55,7 +55,7 @@ describe('updateRoadmapCore', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-update-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { findRoadmapById, updateRoadmapCore } = await import('../lib/roadmapRepository')
     const db = await openDb()
 
@@ -88,7 +88,7 @@ describe('updateRoadmapCore', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-update-missing-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { updateRoadmapCore } = await import('../lib/roadmapRepository')
     const db = await openDb()
 
@@ -108,7 +108,7 @@ describe('findExistingRoadmapIds', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-existing-ids-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
     const db = await openDb()
 
@@ -126,7 +126,7 @@ describe('findExistingRoadmapIds', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-existing-ids-empty-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
     const db = await openDb()
 

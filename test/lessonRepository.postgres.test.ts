@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PostgresDb } from '../lib/postgresDb'
+import type { PostgresDb } from '../lib/persistence/postgresDb'
 
 type QueryHandler = (sql: string, params: unknown[]) => Promise<{ command?: string; rows: unknown[]; rowCount?: number }>
 

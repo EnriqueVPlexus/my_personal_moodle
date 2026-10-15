@@ -13,7 +13,7 @@ afterEach(async () => {
 async function setupTempDb(prefix: string) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   return openDb()
 }
 

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getRoadmapReadScope, requireUser, scopeAllowsRoadmap } from '../../../../lib/auth'
-import { openDb } from '../../../../lib/db'
+import { openDb } from '../../../../lib/persistence'
 import { deleteModuleEvidence, getModuleEvidence, saveModuleEvidence } from '../../../../lib/evidenceRepository'
 import { findModuleById } from '../../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../../lib/progressRepository'

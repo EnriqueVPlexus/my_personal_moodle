@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireAdmin } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { listAuditLogs } from '../../../lib/auditRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

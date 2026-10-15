@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import type { PostgresDb } from '../../lib/postgresDb'
+import type { PostgresDb } from '../../lib/persistence/postgresDb'
 
 /**
  * Proves backlog.md's "Gestion de conexiones y transacciones" fix:
@@ -36,12 +36,12 @@ if (DATABASE_URL) {
 
 describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () => {
   afterAll(async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
     await ((await openDb()) as unknown as PostgresDb).close()
   })
 
   it('returns the same underlying Pool across many sequential calls', async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
 
     const first = (await openDb()) as unknown as PostgresDb
     const firstPool = first.getPool()
@@ -53,7 +53,7 @@ describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () =>
   })
 
   it('returns the same underlying Pool across many concurrent calls', async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
 
     const results = await Promise.all(
       Array.from({ length: 20 }, () => openDb())
@@ -67,7 +67,7 @@ describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () =>
   })
 
   it('does not grow the pool client count unboundedly across repeated calls', async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
 
     const before = ((await openDb()) as unknown as PostgresDb).getPool()
     const beforeTotal = before.totalCount

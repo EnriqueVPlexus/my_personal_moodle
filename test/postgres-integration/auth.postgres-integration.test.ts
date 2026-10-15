@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { PostgresDb } from '../../lib/postgresDb'
+import { PostgresDb } from '../../lib/persistence/postgresDb'
 import { createSession, clearSession, getUserFromRequest } from '../../lib/auth'
 
 /**

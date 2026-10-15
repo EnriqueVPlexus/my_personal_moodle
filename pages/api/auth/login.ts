@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createSession, requireSameOrigin } from '../../../lib/auth'
 import { rateLimit, clearRateLimit } from '../../../lib/rateLimit'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
 import { normalizeEmail, verifyPassword } from '../../../lib/password'
 import { loginBodySchema } from '../../../lib/validation/auth'
 import { parseOrRespond } from '../../../lib/validation/http'
