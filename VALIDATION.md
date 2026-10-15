@@ -39,15 +39,15 @@ los handlers (por ejemplo `body.durationWeeks`, `body.topics`).
 
 Los esquemas **no duplican** reglas existentes; las invocan:
 
-- `lib/password.ts`: `normalizeEmail` y `validatePassword` (`emailField`, `newPasswordField`).
-- `lib/roadmapMetadata.ts`: `normalizeModuleLevel`, `normalizeDurationRange`,
+- `lib/domains/auth/password.ts`: `normalizeEmail` y `validatePassword` (`emailField`, `newPasswordField`).
+- `lib/domains/content/metadata.ts`: `normalizeModuleLevel`, `normalizeDurationRange`,
   `parseDurationWeeks`, `normalizeTopics`.
-- `lib/roadmapVersion.ts`: `normalizeRoadmapVersion`, `normalizePublishedAt`.
-- `lib/evidences.ts`: `validateEvidenceInput` (ahora devuelve mensajes en español y
+- `lib/domains/content/version.ts`: `normalizeRoadmapVersion`, `normalizePublishedAt`.
+- `lib/domains/progress/evidences.ts`: `validateEvidenceInput` (ahora devuelve mensajes en español y
   el campo afectado).
-- `lib/roadmapImport.ts`: `validateRoadmapImport` sigue validando en profundidad el
+- `lib/domains/content/import.ts`: `validateRoadmapImport` sigue validando en profundidad el
   documento del roadmap (ver [Importación](#importación)).
-- `lib/roadmapSearch.ts`: `parseRoadmapSearchQuery` decide si `q` es demasiado larga.
+- `lib/domains/content/search.ts`: `parseRoadmapSearchQuery` decide si `q` es demasiado larga.
 
 Cuando un esquema aplica un normalizador mediante `.transform`, el handler recibe
 el valor ya normalizado (p. ej. `email` en minúsculas, `topics` sin duplicados).
@@ -151,7 +151,7 @@ conserva además el `413` si el JSON supera 1 MB.
 2. Mensajes de validación en español de España; el resto del código en inglés.
 3. Contrato `{ error: string, issues?: Array<{ path, message }> }`, compatible con
    el frontend actual porque `error` sigue siendo un texto legible.
-4. 401/403/405 y los mensajes de `lib/auth.ts` quedan fuera de alcance.
+4. 401/403/405 y los mensajes de `lib/http/auth.ts` quedan fuera de alcance.
 5. Los identificadores se parsean con una única regla: entero positivo (acepta
    número o cadena numérica; con parámetros repetidos gana el primero). Se eliminan
    los `getId` locales y el uso de `Number(...)`, y se pasa el `id` numérico a
@@ -191,8 +191,8 @@ no leen cuerpo ni query, por lo que no tienen esquema.
 
 ## Fuera de alcance y seguimiento
 
-- Unificar y traducir los mensajes `401`/`403`/`405`/`429` de `lib/auth.ts`,
-  `lib/rateLimit.ts` y `setup token required` (ahora en inglés).
+- Unificar y traducir los mensajes `401`/`403`/`405`/`429` de `lib/http/auth.ts`,
+  `lib/http/rateLimit.ts` y `setup token required` (ahora en inglés).
 - Migrar `validateRoadmapImport` a Zod para obtener rutas e issues del mismo origen.
 - Decidir si `role` y `status` desconocidos deben pasar a `400` (hoy se toleran).
 - Esquemas de respuesta (contratos de salida) y documentación OpenAPI; es parte de
