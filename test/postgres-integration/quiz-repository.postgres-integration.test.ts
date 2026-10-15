@@ -4,7 +4,7 @@ import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } 
 import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/domains/content/quizzes'
 
 /**
- * Verifies lib/quizRepository.ts (attempts + per-module stats) against real
+ * Verifies lib/domains/progress/repositories/quizRepository.ts (attempts + per-module stats) against real
  * Postgres (backlog.md: "Tests de integracion contra PostgreSQL real" -
  * dominio quizzes). Exercises the aggregate/latest-attempt raw SQL passed
  * through Kysely's `sql` tag, including `ORDER BY submitted_at DESC` (the

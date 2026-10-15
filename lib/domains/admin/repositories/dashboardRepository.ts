@@ -107,9 +107,9 @@ type DashboardQueryWindow = { generatedAt: string; activeSince: string; pausedBe
 //      floored to match SQLite's `CAST(... AS INTEGER)` truncation-toward-
 //      zero behavior for the positive day counts this query produces.
 //   2. Nothing else needs translating: `is_active` is an INTEGER column in
-//      both the SQLite and Postgres schemas (see lib/postgresDb.ts and the
+//      both the SQLite and Postgres schemas (see lib/persistence/postgresDb.ts and the
 //      established `is_active = 1` idiom already used verbatim against
-//      Postgres in lib/userRepository.ts and lib/auth.ts), so `is_active = 1`
+//      Postgres in lib/domains/admin/repositories/userRepository.ts and lib/domains/auth/repositories/sessionRepository.ts), so `is_active = 1`
 //      is reused as-is rather than rewritten to `= true`.
 async function getAdminDashboardRowsPostgres(db: PostgresDb, window: DashboardQueryWindow) {
   const kdb = getQueryDatabase(pool(db))

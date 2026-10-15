@@ -33,7 +33,7 @@ export async function saveRoadmapMetadata(
     )
     const topic = await db.get('SELECT id FROM topics WHERE key = ?', [topicKey])
     // SQLite-only shorthand; PostgresDb.exec()/query() already rewrites this to
-    // `ON CONFLICT DO NOTHING` for the Postgres backend (see lib/postgresDb.ts
+    // `ON CONFLICT DO NOTHING` for the Postgres backend (see lib/persistence/postgresDb.ts
     // translateSql), so no explicit branching is required here.
     await db.run(
       'INSERT OR IGNORE INTO roadmap_topics (roadmap_id, topic_id) VALUES (?, ?)',

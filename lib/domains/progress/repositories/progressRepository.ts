@@ -424,7 +424,7 @@ const SQLITE_LIST_USER_ROADMAP_PROGRESS = `
 // connection/instance reuse. Two changes from the SQLite text:
 //   1. `datetime(x)` wrappers are dropped: user_roadmap_progress.last_activity_at
 //      and user_quiz_attempts.submitted_at are native TIMESTAMPTZ columns in the
-//      Postgres schema (see lib/postgresDb.ts), so plain `ORDER BY column DESC`
+//      Postgres schema (see lib/persistence/postgresDb.ts), so plain `ORDER BY column DESC`
 //      is already correct — SQLite's datetime() was only needed there because
 //      SQLite stores these as ISO TEXT.
 //   2. Positional `?` params become interpolated `sql` template values (Kysely

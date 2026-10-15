@@ -8,7 +8,7 @@ import {
 } from '../../lib/domains/progress/repositories/progressRepository'
 
 /**
- * Verifies lib/progressRepository.ts against real Postgres (backlog.md:
+ * Verifies lib/domains/progress/repositories/progressRepository.ts against real Postgres (backlog.md:
  * "Tests de integracion contra PostgreSQL real" - dominio progreso). This is
  * the highest-risk repository per README_PROJECT.md: listUserRoadmapProgress
  * uses a CTE with ROW_NUMBER() OVER (PARTITION BY ...) plus correlated scalar

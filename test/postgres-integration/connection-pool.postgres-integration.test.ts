@@ -26,7 +26,7 @@ import type { PostgresDb } from '../../lib/persistence/postgresDb'
 const DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL
 const describeIfPostgres = DATABASE_URL ? describe : describe.skip
 
-// openDb() (lib/db.ts) reads process.env.DATABASE_URL directly, not
+// openDb() (lib/persistence/openDb.ts) reads process.env.DATABASE_URL directly, not
 // TEST_DATABASE_URL. Force it to the resolved value so this test exercises
 // the isolated local Postgres when TEST_DATABASE_URL is set, instead of
 // silently falling through to SQLite.
@@ -77,7 +77,7 @@ describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () =>
     const after = ((await openDb()) as unknown as PostgresDb).getPool()
 
     expect(after).toBe(before)
-    // The pool is capped at `max: 5` (see lib/postgresDb.ts); repeated
+    // The pool is capped at `max: 5` (see lib/persistence/postgresDb.ts); repeated
     // openDb() calls must reuse existing clients, never create new pools,
     // so totalCount must stay within the pool's own configured max and must
     // not have grown per openDb() call (20 calls, cap is 5).
