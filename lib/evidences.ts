@@ -28,36 +28,36 @@ type EvidenceInput = {
 }
 
 type EvidenceValidation =
-  | { value: { evidenceType: EvidenceType; url: string | null; note: string | null }; error?: never }
-  | { value?: never; error: string }
+  | { value: { evidenceType: EvidenceType; url: string | null; note: string | null }; error?: never; field?: never }
+  | { value?: never; error: string; field?: 'evidence_type' | 'url' | 'note' }
 
 export function validateEvidenceInput(input: EvidenceInput): EvidenceValidation {
   if (!EVIDENCE_TYPES.includes(input.evidence_type as EvidenceType)) {
-    return { error: 'invalid evidence type' }
+    return { error: 'El tipo de evidencia no es válido.', field: 'evidence_type' }
   }
 
   if (input.url !== undefined && input.url !== null && typeof input.url !== 'string') {
-    return { error: 'url must be a string' }
+    return { error: 'El campo «url» debe ser un texto.', field: 'url' }
   }
   if (input.note !== undefined && input.note !== null && typeof input.note !== 'string') {
-    return { error: 'note must be a string' }
+    return { error: 'El campo «nota» debe ser un texto.', field: 'note' }
   }
 
   const url = typeof input.url === 'string' && input.url.trim() ? input.url.trim() : null
   const note = typeof input.note === 'string' && input.note.trim() ? input.note.trim() : null
 
-  if (!url && !note) return { error: 'url or note required' }
-  if (url && url.length > 2048) return { error: 'url is too long' }
-  if (note && note.length > 4000) return { error: 'note is too long' }
+  if (!url && !note) return { error: 'Indica una URL o una nota.', field: 'url' }
+  if (url && url.length > 2048) return { error: 'La URL no puede superar 2048 caracteres.', field: 'url' }
+  if (note && note.length > 4000) return { error: 'La nota no puede superar 4000 caracteres.', field: 'note' }
 
   if (url) {
     try {
       const parsed = new URL(url)
       if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return { error: 'url must use http or https' }
+        return { error: 'La URL debe usar http o https.', field: 'url' }
       }
     } catch {
-      return { error: 'invalid url' }
+      return { error: 'La URL no es válida.', field: 'url' }
     }
   }
 

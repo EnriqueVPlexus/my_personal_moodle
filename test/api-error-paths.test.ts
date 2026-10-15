@@ -191,7 +191,7 @@ describe('content API edge cases', () => {
     const longSearch = createResponse()
     await roadmaps(createRequest({ method: 'GET', query: { q: 'a'.repeat(101) } }), longSearch)
     expect(longSearch.statusCode).toBe(400)
-    expect(longSearch.body.error).toContain('100 characters or fewer')
+    expect(longSearch.body.error).toBe('La búsqueda no puede superar 100 caracteres.')
 
     const modulesWithoutRoadmap = createResponse()
     await modules(createRequest({ method: 'GET' }), modulesWithoutRoadmap)
@@ -385,7 +385,7 @@ describe('content API edge cases', () => {
       body: { answers: { 'module-content': 0 } }
     }), incompleteAnswers)
     expect(incompleteAnswers.statusCode).toBe(400)
-    expect(incompleteAnswers.body.error).toContain('answer every quiz question')
+    expect(incompleteAnswers.body.error).toContain('Responde a todas las preguntas del cuestionario')
 
     const nullableAnswer = createResponse()
     await moduleQuiz(createRequest({
@@ -435,6 +435,8 @@ describe('users API edge cases', () => {
     const missing = createResponse()
     await users(createRequest({ method: 'POST', body: {} }), missing)
     expect(missing.statusCode).toBe(400)
+    expect(missing.body.issues).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'email' })]))
+    expect(db.get).not.toHaveBeenCalled()
 
     const weak = createResponse()
     await users(createRequest({ method: 'POST', body: { email: 'user@example.com', password: 'weak-password' } }), weak)
@@ -487,9 +489,6 @@ describe('users API edge cases', () => {
         .mockResolvedValueOnce({ count: 1 })
         .mockResolvedValueOnce({ id: 2, email: 'other-admin@example.com', role: 'admin', is_active: 0 })
         .mockResolvedValueOnce(normalUser)
-        .mockResolvedValueOnce(normalUser)
-        .mockResolvedValueOnce(normalUser)
-        .mockResolvedValueOnce(normalUser)
         .mockResolvedValueOnce({ ...normalUser, is_active: 1 })
     }
     await mockUsersApi(db, {
@@ -506,7 +505,7 @@ describe('users API edge cases', () => {
     expect(invalidId.statusCode).toBe(400)
 
     const missing = createResponse()
-    await userDetail(createRequest({ method: 'PATCH', query: { id: '99' }, body: { action: 'set_active' } }), missing)
+    await userDetail(createRequest({ method: 'PATCH', query: { id: '99' }, body: { action: 'set_active', is_active: true } }), missing)
     expect(missing.statusCode).toBe(404)
 
     const selfDeactivate = createResponse()
@@ -610,12 +609,7 @@ describe('auth API edge cases', () => {
 
   it('validates setup flow preconditions and creation failures', async () => {
     const db = {
-      get: vi.fn()
-        .mockResolvedValueOnce({ count: 1 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 }),
+      get: vi.fn().mockResolvedValue({ count: 0 }),
       run: vi.fn().mockResolvedValue({ changes: 1, lastID: 1 })
     }
     await mockAuthApi(db, { passwordError: 'weak password' })
@@ -624,10 +618,6 @@ describe('auth API edge cases', () => {
     const method = createResponse()
     await setup(createRequest({ method: 'GET' }), method)
     expect(method.statusCode).toBe(405)
-
-    const completed = createResponse()
-    await setup(createRequest({ method: 'POST', body: {} }), completed)
-    expect(completed.statusCode).toBe(409)
 
     const missing = createResponse()
     await setup(createRequest({ method: 'POST', body: { setupToken: 123 } }), missing)
@@ -646,6 +636,20 @@ describe('auth API edge cases', () => {
       body: { email: 'ADMIN@EXAMPLE.COM', name: '   ', password: 'valid-password-123' }
     }), failed)
     expect(failed.statusCode).toBe(400)
+  })
+
+  it('reports an already completed setup for a valid payload', async () => {
+    const db = { get: vi.fn().mockResolvedValue({ count: 1 }), run: vi.fn() }
+    await mockAuthApi(db)
+    const setup = (await import('../pages/api/auth/setup')).default
+
+    const completed = createResponse()
+    await setup(createRequest({
+      method: 'POST',
+      body: { email: 'admin@example.com', password: 'valid-password-123' }
+    }), completed)
+    expect(completed.statusCode).toBe(409)
+    expect(completed.body).toEqual({ error: 'La configuración inicial ya se completó.' })
   })
 
   it('rejects setup when origin or setup token are invalid', async () => {

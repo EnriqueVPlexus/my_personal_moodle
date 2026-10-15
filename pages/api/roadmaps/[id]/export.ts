@@ -3,6 +3,8 @@ import { getRoadmapReadScope, scopeAllowsRoadmap } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
 import { exportRoadmapAsJson } from '../../../../lib/roadmapImport'
 import { normalizeMetadataKey } from '../../../../lib/roadmapMetadata'
+import { parseOrRespond } from '../../../../lib/validation/http'
+import { roadmapIdQuerySchema } from '../../../../lib/validation/roadmaps'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -10,15 +12,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end('Method Not Allowed')
   }
 
+  const params = parseOrRespond(roadmapIdQuerySchema, req.query, res)
+  if (!params) return
+  const roadmapId = params.id
+
   const db = await openDb()
   const scope = await getRoadmapReadScope(req, res, db)
   if (!scope) return
-
-  const { id } = req.query
-  const roadmapId = Number(id)
-  if (!Number.isInteger(roadmapId) || roadmapId <= 0) {
-    return res.status(400).json({ error: 'ID de roadmap no válido' })
-  }
 
   if (!scopeAllowsRoadmap(scope, roadmapId)) {
     return res.status(403).json({ error: 'Acceso denegado a este roadmap' })

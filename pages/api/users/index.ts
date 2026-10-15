@@ -1,9 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/audit'
-import { isValidRole, requireAdmin } from '../../../lib/auth'
+import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import type { DatabaseClient } from '../../../lib/database'
-import { hashPassword, normalizeEmail, validatePassword } from '../../../lib/password'
+import { hashPassword } from '../../../lib/password'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { createUserBodySchema } from '../../../lib/validation/users'
 import {
   DuplicateEmailError,
   findAllUserRoadmapAccess,
@@ -41,26 +43,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
 
-    const { email, name, role, password } = req.body || {}
-    if (typeof email !== 'string' || typeof password !== 'string') {
-      return res.status(400).json({ error: 'email and password required' })
-    }
-
-    const selectedRole = isValidRole(role) ? role : 'user'
-    const validationError = validatePassword(password)
-    if (validationError) return res.status(400).json({ error: validationError })
+    const body = parseOrRespond(createUserBodySchema, req.body, res)
+    if (!body) return
+    const { email, name, password } = body
+    const selectedRole = body.role ?? 'user'
 
     const now = new Date().toISOString()
     try {
       const userId = await insertUser(db, {
-        email: normalizeEmail(email),
-        name: typeof name === 'string' && name.trim() ? name.trim() : null,
+        email,
+        name: name || null,
         role: selectedRole,
         password_hash: await hashPassword(password),
         created_at: now,
         updated_at: now
       })
-      if (!userId) return res.status(500).json({ error: 'user creation failed' })
+      if (!userId) return res.status(500).json({ error: 'No se pudo crear el usuario.' })
 
       const user = await findUserById(db, userId)
       await writeAuditLog({
@@ -70,12 +68,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         action: 'user.create',
         entityType: 'user',
         entityId: userId,
-        details: { email: normalizeEmail(email), role: selectedRole }
+        details: { email, role: selectedRole }
       })
       return res.status(201).json(user)
     } catch (error) {
       if (error instanceof DuplicateEmailError) {
-        return res.status(409).json({ error: 'email already exists' })
+        return res.status(409).json({ error: 'Ya existe un usuario con ese correo electrónico.' })
       }
       throw error
     }

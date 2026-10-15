@@ -89,7 +89,7 @@ describe('roadmap import API', () => {
     expect(conflictRes.body.code).toBe('not_found')
 
     const tooLargeRes = createResponse()
-    await handler(createRequest({ method: 'POST', body: { roadmap: { title: 'x'.repeat(1024 * 1024 + 1) } } }), tooLargeRes)
+    await handler(createRequest({ method: 'POST', body: { action: 'preview', roadmap: { title: 'x'.repeat(1024 * 1024 + 1) } } }), tooLargeRes)
     expect(tooLargeRes.statusCode).toBe(413)
     await db.close()
   })

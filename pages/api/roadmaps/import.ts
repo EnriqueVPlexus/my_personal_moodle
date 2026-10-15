@@ -7,9 +7,8 @@ import {
   RoadmapImportConflictError,
   validateRoadmapImport
 } from '../../../lib/roadmapImport'
-import type { RoadmapImportStrategy } from '../../../lib/roadmapImport'
-
-const MAX_IMPORT_BYTES = 1024 * 1024
+import { parseOrRespond, sendValidationIssues } from '../../../lib/validation/http'
+import { MAX_IMPORT_BYTES, roadmapImportBodySchema } from '../../../lib/validation/import'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -20,26 +19,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const admin = await requireAdmin(req, res, db)
   if (!admin) return
 
-  const serialized = JSON.stringify(req.body?.roadmap ?? null)
+  const body = parseOrRespond(roadmapImportBodySchema, req.body, res)
+  if (!body) return
+
+  const serialized = JSON.stringify(body.roadmap ?? null)
   if (Buffer.byteLength(serialized, 'utf8') > MAX_IMPORT_BYTES) {
     return res.status(413).json({ error: 'El JSON no puede superar 1 MB.' })
   }
-  const validation = validateRoadmapImport(req.body?.roadmap)
+  const validation = validateRoadmapImport(body.roadmap)
   if (!validation.valid || !validation.roadmap) {
-    return res.status(400).json({ error: 'El roadmap contiene errores.', issues: validation.issues })
+    // validateRoadmapImport already reports `{ path, message }` issues, i.e. the shared contract.
+    return sendValidationIssues(res, validation.issues, 'El roadmap contiene errores.')
   }
 
   const existing = await db.get('SELECT id, title FROM roadmaps WHERE title = ?', [validation.roadmap.title])
-  if (req.body?.action === 'preview') {
+  if (body.action === 'preview') {
     return res.status(200).json({ roadmap: validation.roadmap, existing: existing ?? null })
   }
-  if (req.body?.action !== 'publish') {
-    return res.status(400).json({ error: 'Acción de importación no válida.' })
-  }
-  const strategy = req.body?.strategy as RoadmapImportStrategy
-  if (strategy !== 'create' && strategy !== 'update') {
-    return res.status(400).json({ error: 'La estrategia debe ser create o update.' })
-  }
+  const strategy = body.strategy!
 
   try {
     const result = await persistRoadmapImport(db, validation.roadmap, strategy)

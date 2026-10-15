@@ -4,26 +4,30 @@ import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../
 import { openDb } from '../../../lib/db'
 import { findLessonById, findLessonsByModuleId, insertLesson } from '../../../lib/lessonRepository'
 import { findModuleById } from '../../../lib/moduleRepository'
+import { createLessonBodySchema, lessonListQuerySchema } from '../../../lib/validation/lessons'
+import { parseOrRespond } from '../../../lib/validation/http'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
+    const query = parseOrRespond(lessonListQuerySchema, req.query, res)
+    if (!query) return
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const { module_id } = req.query
-    if (!module_id) return res.status(400).json({ error: 'module_id required' })
-    const moduleRow = await findModuleById(db, module_id as string)
+    const { module_id } = query
+    const moduleRow = await findModuleById(db, module_id)
     if (!moduleRow || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(200).json([])
-    const rows = await findLessonsByModuleId(db, module_id as string)
+    const rows = await findLessonsByModuleId(db, module_id)
     return res.status(200).json(rows)
   }
 
   if (req.method === 'POST') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, module_id } = req.body
-    if (!title || !module_id) return res.status(400).json({ error: 'title and module_id required' })
+    const body = parseOrRespond(createLessonBodySchema, req.body, res)
+    if (!body) return
+    const { title, module_id } = body
     const newId = await insertLesson(db, { module_id, title })
     const row = await findLessonById(db, newId)
     await writeAuditLog({

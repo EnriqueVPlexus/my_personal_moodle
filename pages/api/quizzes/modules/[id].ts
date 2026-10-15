@@ -5,31 +5,19 @@ import { findModuleById } from '../../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../../lib/progressRepository'
 import { checkAttemptEligibility, getModuleQuizSummary, saveModuleQuizAttempt } from '../../../../lib/quizRepository'
 import { buildModuleQuiz, toPublicModuleQuiz } from '../../../../lib/quizzes'
-
-function getId(queryId: string | string[] | undefined) {
-  const value = Number(Array.isArray(queryId) ? queryId[0] : queryId)
-  return Number.isInteger(value) && value > 0 ? value : null
-}
-
-function getAnswers(body: unknown) {
-  if (!body || typeof body !== 'object' || !('answers' in body)) return null
-  const answers = (body as { answers?: unknown }).answers
-  if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return null
-  return answers as Record<string, unknown>
-}
+import { parseOrRespond } from '../../../../lib/validation/http'
+import { quizAttemptBodySchema, quizModuleQuerySchema } from '../../../../lib/validation/quizzes'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const moduleId = getId(req.query.id)
-
-  if (!moduleId) {
-    return res.status(400).json({ error: 'invalid module id' })
-  }
+  const params = parseOrRespond(quizModuleQuerySchema, req.query, res)
+  if (!params) return
+  const moduleId = params.id
 
   if (req.method === 'GET') {
     if (!(await requireReadAccess(req, res, db))) return
     const moduleRow = await findModuleById(db, moduleId)
-    if (!moduleRow) return res.status(404).json({ error: 'not found' })
+    if (!moduleRow) return res.status(404).json({ error: 'No encontrado.' })
 
     const user = await getUserFromRequest(req, db)
     const quiz = buildModuleQuiz(moduleRow)
@@ -47,8 +35,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireUser(req, res, db)
     if (!user) return
 
+    const body = parseOrRespond(quizAttemptBodySchema, req.body, res)
+    if (!body) return
+    const { answers } = body
+
     const moduleRow = await findModuleById(db, moduleId)
-    if (!moduleRow) return res.status(404).json({ error: 'not found' })
+    if (!moduleRow) return res.status(404).json({ error: 'No encontrado.' })
 
     // Fase 3: comprobar elegibilidad antes de procesar el intento
     const eligibility = await checkAttemptEligibility(db, user.id, moduleRow)
@@ -63,13 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const quiz = buildModuleQuiz(moduleRow)
     if (quiz.questions.length === 0) {
-      return res.status(422).json({ error: 'module has no quiz questions' })
+      return res.status(422).json({ error: 'El módulo no tiene preguntas de cuestionario.' })
     }
 
-    const answers = getAnswers(req.body)
-    if (!answers) {
-      return res.status(400).json({ error: 'answers object required' })
-    }
     const normalizedAnswers: Record<string, number> = {}
     const hasInvalidAnswer = quiz.questions.some(question => {
       const rawAnswer = answers[question.id]
@@ -80,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return false
     })
     if (hasInvalidAnswer) {
-      return res.status(400).json({ error: 'answer every quiz question with a valid option' })
+      return res.status(400).json({ error: 'Responde a todas las preguntas del cuestionario con una opción válida.' })
     }
 
     const attempt = await saveModuleQuizAttempt(db, user.id, moduleRow, normalizedAnswers)

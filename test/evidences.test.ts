@@ -18,11 +18,15 @@ describe('evidence helpers', () => {
         note: 'Pipeline reproducible'
       }
     })
-    expect(validateEvidenceInput({ evidence_type: 'file', note: 'x' })).toEqual({ error: 'invalid evidence type' })
-    expect(validateEvidenceInput({ evidence_type: 'demo', url: 'javascript:alert(1)' })).toEqual({
-      error: 'url must use http or https'
+    expect(validateEvidenceInput({ evidence_type: 'file', note: 'x' })).toEqual({
+      error: 'El tipo de evidencia no es válido.',
+      field: 'evidence_type'
     })
-    expect(validateEvidenceInput({ evidence_type: 'note', note: '   ' })).toEqual({ error: 'url or note required' })
+    expect(validateEvidenceInput({ evidence_type: 'demo', url: 'javascript:alert(1)' })).toEqual({
+      error: 'La URL debe usar http o https.',
+      field: 'url'
+    })
+    expect(validateEvidenceInput({ evidence_type: 'note', note: '   ' })).toEqual({ error: 'Indica una URL o una nota.', field: 'url' })
   })
 })
 

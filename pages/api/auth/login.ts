@@ -3,6 +3,8 @@ import { createSession, requireSameOrigin } from '../../../lib/auth'
 import { rateLimit, clearRateLimit } from '../../../lib/rateLimit'
 import { openDb } from '../../../lib/db'
 import { normalizeEmail, verifyPassword } from '../../../lib/password'
+import { loginBodySchema } from '../../../lib/validation/auth'
+import { parseOrRespond } from '../../../lib/validation/http'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -17,10 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!requireSameOrigin(req, res)) return
 
-  const { email, password } = req.body || {}
-  if (typeof email !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'email and password required' })
-  }
+  const body = parseOrRespond(loginBodySchema, req.body, res)
+  if (!body) return
+  const { email, password } = body
 
   const user = await db.get(
     'SELECT id, email, name, role, password_hash FROM users WHERE email = ? AND is_active = 1',
