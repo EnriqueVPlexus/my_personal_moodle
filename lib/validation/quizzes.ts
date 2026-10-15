@@ -9,7 +9,7 @@ export const quizModuleQuerySchema = queryObject({ id: positiveInt('id') })
 // quiz, so the handler keeps them; here we only guarantee the payload shape.
 export const quizAttemptBodySchema = bodyObject({
   answers: z
-    .record(z.string().max(100), z.unknown(), { error: 'El campo «answers» debe ser un objeto con las respuestas.' })
+    .record(z.string().max(100), z.unknown().meta({ type: 'integer', minimum: 0, description: 'Índice de la opción elegida.' }), { error: 'El campo «answers» debe ser un objeto con las respuestas.' })
     .refine(value => Object.keys(value).length <= MAX_QUIZ_ANSWERS, `No se pueden enviar más de ${MAX_QUIZ_ANSWERS} respuestas.`)
 })
 

@@ -18,6 +18,7 @@ export const createUserBodySchema = bodyObject({
   name: optionalText('nombre', 120),
   // Unknown or missing roles fall back to 'user' (long-standing behavior; see VALIDATION.md follow-ups).
   role: z.unknown().transform(value => (value === 'admin' ? 'admin' as const : 'user' as const))
+    .meta({ type: 'string', enum: ['admin', 'user'], description: "Rol; cualquier otro valor se trata como `user`." })
     .optional(),
   password: newPasswordField
 })
