@@ -26,7 +26,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('findAllUsers selects the projected columns ordered by created_at desc', async () => {
-    const { findAllUsers } = await import('../lib/userRepository')
+    const { findAllUsers } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool } = createFakePool(async sql => {
       expect(sql).toContain('select')
@@ -45,14 +45,14 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('findUserById returns undefined when no row matches', async () => {
-    const { findUserById } = await import('../lib/userRepository')
+    const { findUserById } = await import('../lib/domains/admin/repositories/userRepository')
     const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
     expect(await findUserById(fakeDb(pool), 999)).toBeUndefined()
   })
 
   it('findAllUserRoadmapAccess and findUserRoadmapAccessIds read from user_roadmap_access', async () => {
-    const { findAllUserRoadmapAccess, findUserRoadmapAccessIds } = await import('../lib/userRepository')
+    const { findAllUserRoadmapAccess, findUserRoadmapAccessIds } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool: poolAll } = createFakePool(async () => ({
       command: 'SELECT',
@@ -73,7 +73,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('insertUser inserts and returns the new id', async () => {
-    const { insertUser } = await import('../lib/userRepository')
+    const { insertUser } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool, client } = createFakePool(async sql => {
       expect(sql).toContain('insert into "users"')
@@ -95,7 +95,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('insertUser throws DuplicateEmailError on a unique_violation (23505)', async () => {
-    const { insertUser, DuplicateEmailError } = await import('../lib/userRepository')
+    const { insertUser, DuplicateEmailError } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool } = createFakePool(async () => {
       throw Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505' })
@@ -113,7 +113,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('insertUser rethrows unrelated errors', async () => {
-    const { insertUser } = await import('../lib/userRepository')
+    const { insertUser } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool } = createFakePool(async () => {
       throw new Error('connection reset')
@@ -131,7 +131,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('updateUserActive, updateUserPassword and updateUserRoadmapAccessFlag report affected rows', async () => {
-    const { updateUserActive, updateUserPassword, updateUserRoadmapAccessFlag } = await import('../lib/userRepository')
+    const { updateUserActive, updateUserPassword, updateUserRoadmapAccessFlag } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool: poolActive } = createFakePool(async sql => {
       expect(sql).toContain('update "users"')
@@ -147,7 +147,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('countActiveAdmins counts matching rows', async () => {
-    const { countActiveAdmins } = await import('../lib/userRepository')
+    const { countActiveAdmins } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool } = createFakePool(async sql => {
       expect(sql).toContain('count(*)')
@@ -158,7 +158,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('deleteSessionsByUserId and deleteUserRoadmapAccess issue delete statements', async () => {
-    const { deleteSessionsByUserId, deleteUserRoadmapAccess } = await import('../lib/userRepository')
+    const { deleteSessionsByUserId, deleteUserRoadmapAccess } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool: poolSessions, client: clientSessions } = createFakePool(async sql => {
       expect(sql).toContain('delete from "sessions"')
@@ -176,7 +176,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('insertUserRoadmapAccessMany inserts one row per roadmap id with ON CONFLICT DO NOTHING', async () => {
-    const { insertUserRoadmapAccessMany } = await import('../lib/userRepository')
+    const { insertUserRoadmapAccessMany } = await import('../lib/domains/admin/repositories/userRepository')
 
     const calls: string[] = []
     const { pool, client } = createFakePool(async sql => {
@@ -192,7 +192,7 @@ describe('userRepository (postgres backend)', () => {
   })
 
   it('insertUserRoadmapAccessMany is a no-op for an empty list', async () => {
-    const { insertUserRoadmapAccessMany } = await import('../lib/userRepository')
+    const { insertUserRoadmapAccessMany } = await import('../lib/domains/admin/repositories/userRepository')
 
     const { pool, client } = createFakePool(async () => ({ command: 'INSERT', rowCount: 0, rows: [] }))
 

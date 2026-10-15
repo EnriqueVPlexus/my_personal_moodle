@@ -1,7 +1,7 @@
 import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getAdminDashboard } from '../lib/adminDashboard'
+import { getAdminDashboard } from '../lib/domains/admin/repositories/dashboardRepository'
 import { createRequest, createResponse } from './helpers/api'
 
 describe('admin dashboard metrics', () => {
@@ -109,8 +109,8 @@ describe('admin dashboard API', () => {
     vi.doMock('../lib/http/auth', () => ({
       requireAdmin: vi.fn().mockResolvedValue({ id: 1, role: 'admin' })
     }))
-    vi.doMock('../lib/adminDashboard', () => ({
-      getAdminDashboard: vi.fn().mockResolvedValue(data)
+    vi.doMock('../lib/domains/admin/repositories/dashboardRepository', () => ({
+      createDashboardRepository: () => ({ get: vi.fn().mockResolvedValue(data) })
     }))
     const handler = (await import('../pages/api/admin/dashboard')).default
 

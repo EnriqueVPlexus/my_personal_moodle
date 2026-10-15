@@ -7,7 +7,10 @@ import { createImportRepository } from './domains/content/repositories/importRep
 import { createLessonRepository } from './domains/content/repositories/lessonRepository'
 import { createMetadataRepository } from './domains/content/repositories/metadataRepository'
 import { createModuleRepository } from './domains/content/repositories/moduleRepository'
-import { createRoadmapRepository, findRoadmapById } from './domains/content/repositories/roadmapRepository'
+import { createRoadmapRepository, findExistingRoadmapIds, findRoadmapById } from './domains/content/repositories/roadmapRepository'
+import { makeAdminService } from './domains/admin'
+import { createDashboardRepository } from './domains/admin/repositories/dashboardRepository'
+import { createUserAdminRepository } from './domains/admin/repositories/userRepository'
 import { makeProgressService } from './domains/progress'
 import { createEvidenceRepository } from './domains/progress/repositories/evidenceRepository'
 import { createLearnerViewRepository } from './domains/progress/repositories/learnerViewRepository'
@@ -53,11 +56,18 @@ export function createServices(db: DatabaseClient) {
     }
   })
 
+  const admin = makeAdminService({
+    users: createUserAdminRepository(db),
+    dashboards: createDashboardRepository(db),
+    roadmaps: { findExistingIds: ids => findExistingRoadmapIds(db, ids) }
+  })
+
   return {
     auth: createAuthService(db),
     audit: createAuditService(db),
     content,
-    progress: learning
+    progress: learning,
+    admin
   }
 }
 

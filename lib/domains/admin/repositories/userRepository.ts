@@ -1,17 +1,15 @@
 import { Selectable, sql } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase, UsersTable } from './persistence/kyselyDatabase'
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase, UsersTable } from '../../../persistence/kyselyDatabase'
+import { DuplicateEmailError } from '../errors'
+import type { UserAdminRepository } from '../ports'
+import type { UserCoreInsert } from '../types'
 
 export type UserRow = Omit<Selectable<UsersTable>, 'password_hash'>
 export type UserRoadmapAccessRow = { user_id: number; roadmap_id: number }
 
-export class DuplicateEmailError extends Error {
-  constructor() {
-    super('email already exists')
-    this.name = 'DuplicateEmailError'
-  }
-}
+export { DuplicateEmailError }
 
 function pool(db: DatabaseClient) {
   return (db as PostgresDb).getPool()
@@ -79,15 +77,6 @@ export async function findUserRoadmapAccessIds(db: DatabaseClient, userId: numbe
     .orderBy('roadmap_id')
     .execute()
   return rows.map(row => Number(row.roadmap_id))
-}
-
-export type UserCoreInsert = {
-  email: string
-  name: string | null
-  role: 'admin' | 'user'
-  password_hash: string
-  created_at: string
-  updated_at: string
 }
 
 export async function insertUser(db: DatabaseClient, data: UserCoreInsert): Promise<number> {
@@ -231,5 +220,22 @@ export async function insertUserRoadmapAccessMany(db: DatabaseClient, userId: nu
       .values({ user_id: userId, roadmap_id: roadmapId, created_at: createdAt })
       .onConflict(oc => oc.columns(['user_id', 'roadmap_id']).doNothing())
       .execute()
+  }
+}
+
+export function createUserAdminRepository(db: DatabaseClient): UserAdminRepository {
+  return {
+    findAll: () => findAllUsers(db),
+    findById: id => findUserById(db, id),
+    findAllRoadmapAccess: () => findAllUserRoadmapAccess(db),
+    findRoadmapAccessIds: userId => findUserRoadmapAccessIds(db, userId),
+    insert: data => insertUser(db, data),
+    updateActive: (id, isActive, updatedAt) => updateUserActive(db, id, isActive, updatedAt),
+    updatePassword: (id, passwordHash, updatedAt) => updateUserPassword(db, id, passwordHash, updatedAt),
+    updateRoadmapAccessFlag: (id, canViewAll, updatedAt) => updateUserRoadmapAccessFlag(db, id, canViewAll, updatedAt),
+    countActiveAdmins: excludeUserId => countActiveAdmins(db, excludeUserId),
+    deleteSessions: userId => deleteSessionsByUserId(db, userId),
+    deleteRoadmapAccess: userId => deleteUserRoadmapAccess(db, userId),
+    insertRoadmapAccessMany: (userId, roadmapIds, createdAt) => insertUserRoadmapAccessMany(db, userId, roadmapIds, createdAt)
   }
 }

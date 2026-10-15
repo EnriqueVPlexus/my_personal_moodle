@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getAdminDashboard } from '../../../lib/adminDashboard'
+import { createServices } from '../../../lib/container'
 import { requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 
@@ -13,5 +13,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!(await requireAdmin(req, res, db))) return
 
-  return res.status(200).json(await getAdminDashboard(db))
+  return res.status(200).json(await createServices(db).admin.getDashboard())
 }

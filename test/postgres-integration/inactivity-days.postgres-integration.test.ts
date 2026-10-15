@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PostgresDb } from '../../lib/persistence/postgresDb'
-import { getAdminDashboard } from '../../lib/adminDashboard'
+import { getAdminDashboard } from '../../lib/domains/admin/repositories/dashboardRepository'
 
 /**
  * Verifies the SQLite -> Postgres translation of `inactivity_days`

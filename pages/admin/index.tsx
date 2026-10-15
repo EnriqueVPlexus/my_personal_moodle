@@ -3,7 +3,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
-import { AdminDashboardData } from '../../lib/adminDashboard'
+import { AdminDashboardData } from '../../lib/domains/admin'
 import { branding } from '../../lib/branding'
 
 function formatDate(value: string) {
