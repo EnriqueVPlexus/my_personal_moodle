@@ -39,14 +39,20 @@ export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> 
     driver: sqlite3.Database
   })
   await db.exec('PRAGMA foreign_keys = ON')
+  // openSqliteDb() opens a NEW connection per call, so a transaction on one
+  // connection can overlap with writes from another (other requests). Wait up
+  // to 5s for the lock instead of failing at once with SQLITE_BUSY. WAL is
+  // deliberately not enabled: it would add -wal/-shm files and change the
+  // on-disk behaviour of the existing local/temp-dir setup.
+  await db.exec('PRAGMA busy_timeout = 5000')
   await migrateSqliteSchema(db)
   return withSqliteTransactions(db)
 }
 
-// SQLite has one connection per client, so a transaction is plain
+// Each openDb()/openSqliteDb() call owns its own connection, so on that client a transaction is plain
 // BEGIN IMMEDIATE / COMMIT / ROLLBACK on it. The tx client delegates to the
-// same connection; a mutex keeps concurrent transaction() calls on one client
-// from interleaving (a second BEGIN would fail, and non-transactional writes
+// same connection; a mutex keeps concurrent transaction() calls on THAT client
+// from interleaving (other connections are handled by busy_timeout) (a second BEGIN would fail, and non-transactional writes
 // issued meanwhile would silently join the open transaction).
 function withSqliteTransactions(db: Awaited<ReturnType<typeof open>>): DatabaseClient {
   const runExclusive = createMutex()

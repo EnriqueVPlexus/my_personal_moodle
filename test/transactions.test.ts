@@ -100,3 +100,33 @@ describe('SQLite: atomic use cases roll back on mid-failure', () => {
     expect(await count('roadmap_topics')).toBe(0)
   })
 })
+
+describe('SQLite: two connections', () => {
+  it('a write on another connection waits for an open transaction instead of failing with SQLITE_BUSY', async () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-two-conn-')), 'test.db')
+    const first = await openSqliteDb(file)
+    const second = await openSqliteDb(file)
+    try {
+      let release!: () => void
+      const gate = new Promise<void>(resolve => { release = resolve })
+      let inserted = false
+
+      const tx = first.transaction(async t => {
+        await t.run('INSERT INTO roadmaps (title) VALUES (?)', ['first'])
+        await gate
+      })
+      await new Promise(resolve => setTimeout(resolve, 50))
+      const concurrent = second.run('INSERT INTO roadmaps (title) VALUES (?)', ['second']).then(() => { inserted = true })
+      await new Promise(resolve => setTimeout(resolve, 200))
+      expect(inserted).toBe(false)
+
+      release()
+      await tx
+      await concurrent
+      expect((await first.all('SELECT title FROM roadmaps ORDER BY title')).map((r: any) => r.title)).toEqual(['first', 'second'])
+    } finally {
+      await first.close()
+      await second.close()
+    }
+  })
+})

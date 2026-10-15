@@ -173,12 +173,15 @@ relanza **el error original** (un `ROLLBACK` que falle se registra con
   cliente. Por eso `getQueryDatabase(pool(db))` en los repositorios con Kysely
   se une a la transacción sin cambiar una línea: un repositorio no sabe si
   recibe `db` o `tx`.
-- **SQLite**: `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK` sobre la única conexión.
-  Un mutex por cliente serializa transacciones concurrentes sobre la misma
-  conexión.
+- **SQLite**: `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK` sobre la conexión del
+  cliente (cada llamada a `openDb()` abre la suya). El mutex solo serializa
+  `transaction()` sobre ese cliente; entre conexiones distintas manda el lock de
+  SQLite, y `PRAGMA busy_timeout = 5000` hace que una escritura concurrente
+  espere en vez de fallar con `SQLITE_BUSY`. No se activa WAL.
 - `exec('BEGIN' | 'COMMIT' | 'ROLLBACK')` en Postgres lanza un error: ya no
   existe estado de transacción compartido en `PostgresDb` (con la instancia
   cacheada era una condición de carrera entre peticiones).
+- En Postgres cualquier sentencia fallida aborta toda la transacción: el cuerpo de un `UnitOfWork` no debe capturar un error de BD y continuar (p. ej. clave duplicada); relánzalo o comprueba antes de escribir.
 - El cliente `tx` deja de ser válido al terminar (`TransactionClosedError`).
 
 **Puerto en el dominio.** `lib/domains/shared/unitOfWork.ts` define
