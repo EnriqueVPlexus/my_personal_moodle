@@ -118,6 +118,8 @@ export type ApiOperation = {
   summary: string
   description?: string
   auth: AuthLevel
+  /** Set while the operation is being retired. See `API_CONTRACTS.md`, "Deprecación". */
+  deprecated?: { since: string; sunset?: string; replacement?: string }
   request: RequestContract
   /** Every documented status, including the cross-cutting ones added by `operation()`. */
   responses: Record<number, ContractResponse>
@@ -735,9 +737,9 @@ export const operations: ApiOperation[] = [
 ]
 
 /** Every distinct path with the methods it implements (used for the `Allow` header of 405). */
-export function methodsByPath(): Map<string, HttpMethod[]> {
+export function methodsByPath(source: readonly ApiOperation[] = operations): Map<string, HttpMethod[]> {
   const map = new Map<string, HttpMethod[]>()
-  for (const op of operations) {
+  for (const op of source) {
     map.set(op.path, [...(map.get(op.path) ?? []), op.method])
   }
   return map

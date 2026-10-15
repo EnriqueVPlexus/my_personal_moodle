@@ -107,6 +107,29 @@ describe('OpenAPI document', () => {
   })
 })
 
+describe('deprecation', () => {
+  it('marks a deprecated operation and tells the replacement', () => {
+    const [first] = operations
+    const document = buildOpenApiDocument([
+      { ...first, deprecated: { since: '1.2.0', sunset: '2027-01-31', replacement: '`GET /api/v2/x`' } }
+    ]) as any
+    const entry = document.paths[first.path][first.method]
+
+    expect(entry.deprecated).toBe(true)
+    expect(entry.description).toContain('**Obsoleta** desde 1.2.0')
+    expect(entry.description).toContain('2027-01-31')
+    expect(entry.description).toContain('`GET /api/v2/x`')
+  })
+
+  it('leaves current operations unmarked', () => {
+    for (const entry of Object.values((buildOpenApiDocument() as any).paths)) {
+      for (const operation of Object.values(entry as Record<string, any>)) {
+        expect(operation.deprecated).toBeUndefined()
+      }
+    }
+  })
+})
+
 describe('GET /api/openapi.json', () => {
   it('serves the same document publicly and rejects other methods', async () => {
     const handler = (await import('../pages/api/openapi.json')).default

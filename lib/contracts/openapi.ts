@@ -123,11 +123,18 @@ function operationObject(op: ApiOperation, allowed: string[], defs: Record<strin
     defs
   )
 
+  const deprecation = op.deprecated
+    ? `**Obsoleta** desde ${op.deprecated.since}.` +
+      (op.deprecated.sunset ? ` Se retirará a partir de ${op.deprecated.sunset}.` : '') +
+      (op.deprecated.replacement ? ` Usa ${op.deprecated.replacement}.` : '')
+    : undefined
+
   return {
     operationId: op.operationId,
     tags: [op.tag],
     summary: op.summary,
-    description: [op.description, AUTH_LABEL[op.auth]].filter(Boolean).join('\n\n'),
+    description: [op.description, deprecation, AUTH_LABEL[op.auth]].filter(Boolean).join('\n\n'),
+    ...(op.deprecated ? { deprecated: true } : {}),
     ...(parameters.length > 0 ? { parameters } : {}),
     ...(requestBody ? { requestBody } : {}),
     responses,
@@ -145,18 +152,18 @@ const TAG_DESCRIPTIONS: Record<string, string> = {
   'Contrato': 'Descripción de la propia API.'
 }
 
-export function buildOpenApiDocument(): JsonObject {
+export function buildOpenApiDocument(source: readonly ApiOperation[] = operations): JsonObject {
   const defs: Record<string, JsonObject> = {}
-  const allowedByPath = methodsByPath()
+  const allowedByPath = methodsByPath(source)
   const paths: Record<string, Record<string, JsonObject>> = {}
 
-  for (const op of operations) {
+  for (const op of source) {
     paths[op.path] ??= {}
     paths[op.path][op.method] = operationObject(op, allowedByPath.get(op.path) ?? [], defs)
   }
 
   const sortedSchemas = Object.fromEntries(Object.entries(defs).sort(([a], [b]) => a.localeCompare(b)))
-  const tags = [...new Set(operations.map(op => op.tag))].map(name => ({ name, description: TAG_DESCRIPTIONS[name] ?? '' }))
+  const tags = [...new Set(source.map(op => op.tag))].map(name => ({ name, description: TAG_DESCRIPTIONS[name] ?? '' }))
 
   return relocateRefs({
     openapi: '3.1.0',
