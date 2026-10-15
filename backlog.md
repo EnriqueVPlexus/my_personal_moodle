@@ -35,6 +35,8 @@ del producto poco a poco.
 - [x] Validacion de entradas y contratos de error con `zod` (`VALIDATION.md`).
 - [x] Separacion de dominios y persistencia: servicios, puertos y repositorios por
   dominio (`ARCHITECTURE.md`).
+- [x] Contratos API estables: esquemas de respuesta, OpenAPI 3.1 generado
+  (`openapi.json`), tipos compartidos y tests de contrato (`API_CONTRACTS.md`).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -647,23 +649,51 @@ Hecho cuando:
 Con la correccion anterior, los tres criterios de "Hecho cuando" se
 cumplen.
 
-### [ ] Contratos API estables
+### [x] Contratos API estables
 
-Estado: pendiente.
+Estado: hecho (2026-10-15). Las 26 rutas de `pages/api` (mas
+`GET /api/openapi.json`) tienen contrato documentado: los esquemas de respuesta
+viven en `lib/contracts/` junto a los de entrada de `lib/validation/`, un registro
+de rutas (metodo, ruta, acceso, solicitud y respuestas por estado) genera el
+documento OpenAPI 3.1 `openapi.json` con `z.toJSONSchema` de Zod (sin dependencias
+nuevas) y los tipos de las respuestas se comparten con la UI. Describe la API tal
+y como funciona hoy: no cambia ningun estado, cuerpo ni mensaje. Definicion,
+generacion, como anadir un endpoint, politica de versionado y deprecacion e
+incoherencias conocidas en [`API_CONTRACTS.md`](API_CONTRACTS.md); guia para
+consumidores y tabla de endpoints en la seccion `API` de `README.md`.
 
 Tareas:
 
-- Documentar request, response y errores de cada API publica.
-- Definir versionado de API si un cambio rompe clientes.
-- Generar tipos compartidos para frontend y backend.
-- Mantener compatibilidad durante la migracion SQLite/PostgreSQL.
+- [x] Documentar request, response y errores de cada API publica
+  (`openapi.json`, `GET /api/openapi.json`; publico porque solo describe rutas).
+- [x] Definir versionado de API si un cambio rompe clientes: semver en
+  `info.version`, que es incompatible o aditivo, cuando introducir `/api/v2` y
+  procedimiento de deprecacion (`API_CONTRACTS.md`). No se movio ninguna ruta.
+- [x] Generar tipos compartidos para frontend y backend (`z.infer` desde
+  `lib/contracts`, adoptados en catalogo, detalle de roadmap y modulo, progreso,
+  quizzes, evidencias, portfolio, usuarios admin, dashboard, auditoria e
+  importacion).
+- [x] Mantener compatibilidad durante la migracion SQLite/PostgreSQL: el
+  contrato refleja las diferencias reales (contadores como texto y `has_evidence`
+  booleano en PostgreSQL).
+- Seguimiento (fuera de alcance, ver `API_CONTRACTS.md`): `GET/PUT /api/modules`
+  devuelven la columna `quiz_bank` con las respuestas correctas (revisar con
+  prioridad); `module_count` llega como texto en PostgreSQL y `RoadmapCard` no lo
+  muestra; mensajes 401/403/405/429 en ingles y `405` en texto plano;
+  `DELETE /api/roadmaps/:id` da `204` aunque no exista; doble `401`+`404` en
+  `PUT/DELETE /api/evidences/modules/:id`; forma distinta de la respuesta de
+  `PATCH /api/users/:id` segun la accion; migrar `validateRoadmapImport` a Zod.
 
 Rama sugerida: `feature/api-contracts`.
 
 Hecho cuando:
 
-- Las APIs criticas tienen contrato documentado y tests de respuesta.
-- Los cambios incompatibles requieren una decision explicita.
+- [x] Las APIs criticas tienen contrato documentado y tests de respuesta
+  (`test/api-contracts.test.ts` comprueba cada estado de cada handler contra el
+  registro; `test/contracts-openapi.test.ts` exige un registro completo y
+  `openapi.json` al dia).
+- [x] Los cambios incompatibles requieren una decision explicita (`/api/v2`,
+  `MAJOR` de `info.version` y deprecacion minima de 90 dias).
 
 ### [ ] Observabilidad, backups y recuperacion
 

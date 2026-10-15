@@ -4,6 +4,9 @@ Documento técnico de la iniciativa `Validacion de entradas y contratos con Zod`
 (rama `feature/input-validation-zod`). Describe la capa de validación de las API
 Routes, el contrato de error y cómo añadir un esquema a una ruta nueva.
 
+> El contrato completo de la API (respuestas, errores por estado, OpenAPI y
+> versionado) está en `API_CONTRACTS.md`. Este documento cubre la **entrada**.
+
 ## Objetivo
 
 Todas las rutas de `pages/api/**` que leen entrada (cuerpo, `req.query` o parámetros
@@ -195,8 +198,10 @@ no leen cuerpo ni query, por lo que no tienen esquema.
   `lib/http/rateLimit.ts` y `setup token required` (ahora en inglés).
 - Migrar `validateRoadmapImport` a Zod para obtener rutas e issues del mismo origen.
 - Decidir si `role` y `status` desconocidos deben pasar a `400` (hoy se toleran).
-- Esquemas de respuesta (contratos de salida) y documentación OpenAPI; es parte de
-  `Contratos API estables y documentados` en el backlog.
+- ~~Esquemas de respuesta y documentación OpenAPI~~: hecho en `lib/contracts` (ver
+  `API_CONTRACTS.md`). Los esquemas de este directorio son la fuente de las
+  solicitudes del documento OpenAPI; llevan `.meta(...)` en los campos que Zod no
+  puede describir (solo documentación, no cambia qué se acepta).
 - Validar las reglas por pregunta de los quizzes con esquemas generados desde el
   quiz guardado (hoy siguen en el handler porque dependen de datos de la base).
 

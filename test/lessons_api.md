@@ -24,7 +24,8 @@ Usa `-b cookies.txt` en las operaciones admin.
 curl "http://localhost:3000/api/lessons?module_id=1"
 ```
 
-`module_id` es obligatorio. Si falta, la API devuelve `400`.
+`module_id` es obligatorio y debe ser un entero positivo. Si falta o no es válido, la API devuelve `400`
+con `{ "error": "...", "issues": [...] }`. Si el módulo no existe o no es visible para el usuario, devuelve `[]`.
 
 ## Obtener Lección
 
@@ -47,7 +48,9 @@ Campos requeridos:
 - `title`
 - `module_id`
 
-Las lecciones nuevas se crean con `completed = 0`.
+Las lecciones nuevas se crean con `completed = 0`. Responde `201` con la lección creada.
+
+Contrato completo (parámetros, respuestas y errores) en `openapi.json` y `API_CONTRACTS.md`.
 
 ## Actualizar Lección
 
@@ -56,10 +59,11 @@ Requiere admin:
 ```bash
 curl -b cookies.txt -X PUT http://localhost:3000/api/lessons/1 \
   -H 'Content-Type: application/json' \
-  -d '{"title":"Lección 1","completed":1}'
+  -d '{"title":"Lección 1","completed":true}'
 ```
 
-`completed` se normaliza a `1` o `0`.
+`completed` es opcional y debe ser un booleano (`true` o `false`); otro tipo
+devuelve `400`. Si se omite se guarda como no completada.
 
 ## Eliminar Lección
 

@@ -107,6 +107,16 @@ describe('OpenAPI document', () => {
   })
 })
 
+describe('README endpoint table', () => {
+  it('lists every registry operation as `METHOD path`', () => {
+    const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
+
+    for (const op of operations) {
+      expect(readme, `${op.method.toUpperCase()} ${op.path}`).toContain(`\`${op.method.toUpperCase()} ${op.path}\``)
+    }
+  })
+})
+
 describe('deprecation', () => {
   it('marks a deprecated operation and tells the replacement', () => {
     const [first] = operations

@@ -98,59 +98,125 @@ Notas:
 
 ## API
 
-Lecturas públicas por defecto:
+La API HTTP tiene un contrato versionado y generado desde el código, con el
+detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
 
-- `GET /api/roadmaps`
-- `GET /api/roadmaps?q=&category=&topic=&level=&duration=&sort=` (busqueda, filtros combinables y ordenacion)
-- `GET /api/roadmaps/:id`
-- `GET /api/roadmaps/metadata` (categorias, temas, niveles y rango de duracion disponibles)
-- `GET /api/modules`
-- `GET /api/modules?roadmap_id=1`
-- `GET /api/modules/:id`
-- `GET /api/lessons?module_id=1`
-- `GET /api/lessons/:id`
+### Dónde está el contrato
 
-Operaciones admin:
+- `openapi.json` en la raíz del repositorio: documento OpenAPI 3.1 (se regenera
+  con `npm run contracts:generate`; un test falla si está desactualizado).
+- `GET /api/openapi.json`: el mismo documento, servido por la aplicación. Es
+  público y de solo lectura: describe rutas y esquemas, no contiene datos.
+- Cómo verlo: pega el contenido de `openapi.json` en cualquier visor OpenAPI,
+  por ejemplo [Swagger Editor](https://editor.swagger.io), o impórtalo en Postman
+  o Insomnia.
+- Reglas de versionado y cómo evoluciona: `API_CONTRACTS.md`. La versión del
+  contrato es `info.version` (semver).
 
-- `POST /api/roadmaps`
-- `POST /api/roadmaps/import` (`preview` o `publish`, solo admin)
-- `GET /api/evidences` (consulta admin, con filtros opcionales por usuario, roadmap o módulo)
-- `GET|PUT|DELETE /api/evidences/modules/:id` (evidencia propia del usuario autenticado)
-- `PUT /api/roadmaps/:id`
-- `DELETE /api/roadmaps/:id`
-- `POST /api/modules`
-- `PUT /api/modules/:id`
-- `DELETE /api/modules/:id`
-- `POST /api/lessons`
-- `PUT /api/lessons/:id`
-- `DELETE /api/lessons/:id`
-- `GET /api/users`
-- `POST /api/users`
-- `PATCH /api/users/:id`
-- `GET /api/audit-logs`
-- `GET /api/admin/dashboard`
+### Cómo llamar a la API
 
-`PATCH /api/users/:id` acepta `action: "set_roadmap_access"` para cambiar entre acceso a todos los roadmaps y una lista concreta de `roadmap_ids`.
+- **Autenticación**: sesión por cookie `moodle_session` (`HttpOnly`,
+  `SameSite=Lax`). Se obtiene con `POST /api/auth/login`; no hay tokens de API.
+- **Mismo origen**: las peticiones que modifican datos (`POST`, `PUT`, `PATCH`,
+  `DELETE`) comprueban la cabecera `Origin`. Si la envías, debe coincidir con el
+  servidor (o con `ALLOWED_ORIGIN`); si no, responden `403`. Un cliente fuera del
+  navegador puede omitir `Origin`.
+- **Cuerpos**: JSON (`Content-Type: application/json`). Los identificadores de
+  ruta son enteros positivos.
+- **Niveles de acceso**: `Pública`, `Lectura` (pública salvo que el servidor use
+  `REQUIRE_AUTH_FOR_READS=true`; los usuarios con acceso restringido solo ven sus
+  roadmaps), `Sesión` (cualquier usuario activo) y `Admin`.
+- **Errores**: casi todos son JSON `{ "error": "<mensaje>" }`. Los de validación
+  (`400`) añaden `issues: [{ "path": "title", "message": "..." }]`. Otros códigos
+  llevan campos extra: `409` de importación (`code`) y `429` de cuestionarios
+  (`eligibility`). `405` es texto plano `Method Not Allowed` con la cabecera
+  `Allow`. El texto de `error` es para personas; no lo uses para decidir la lógica
+  del cliente. Más detalle en `API_CONTRACTS.md` y `VALIDATION.md`.
+- **Tipos**: los tipos TypeScript de las respuestas se importan de
+  `lib/contracts` (`import type { ... } from '../lib/contracts'`).
 
-Autenticación:
+### Endpoints
 
-- `GET /api/auth/setup-status`
-- `POST /api/auth/setup`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
+Resumen generado desde el registro de rutas (`lib/contracts/registry.ts`); un test
+comprueba que esta tabla incluye todas las rutas. El detalle completo está en
+`openapi.json`.
 
-Las guías rápidas con `curl` para módulos y lecciones están en `test/modules_api.md` y `test/lessons_api.md`.
+#### Autenticación
 
-Errores de validación: si el cuerpo, la query o un `:id` no son válidos, la API responde `400` con
-`{ "error": "<mensaje en español>", "issues": [{ "path": "title", "message": "..." }] }`.
-`error` es siempre un texto legible (el del primer problema) e `issues` lista todos los problemas por campo.
-Los errores nunca incluyen trazas ni detalles internos. Más detalle en `VALIDATION.md`.
+| Método y ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `GET /api/auth/setup-status` | Pública | Estado de la configuración inicial |
+| `POST /api/auth/setup` | Pública | Crear el primer administrador |
+| `POST /api/auth/login` | Pública | Iniciar sesión |
+| `POST /api/auth/logout` | Pública | Cerrar sesión |
+| `GET /api/auth/me` | Pública | Usuario de la sesión actual |
 
-El importador acepta un objeto con `title`, `modules` y, opcionalmente, `description`, `duration`,
-`category`, `topics`, `objectives`, `methodology` y `evaluation_weights`. Cada módulo requiere `title`
-y puede incluir `position`, `level`, duración, contenidos, recursos, actividad, evidencia y evaluación.
-Al actualizar se conservan los módulos no incluidos y el progreso ya registrado.
+#### Catálogo
+
+| Método y ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `GET /api/roadmaps` | Lectura | Buscar roadmaps del catálogo |
+| `POST /api/roadmaps` | Admin | Crear un roadmap |
+| `GET /api/roadmaps/metadata` | Lectura | Metadatos y contadores de los filtros del catálogo |
+| `POST /api/roadmaps/import` | Admin | Previsualizar o publicar la importación de un roadmap |
+| `GET /api/roadmaps/{id}` | Lectura | Detalle de un roadmap con sus módulos y progreso |
+| `PUT /api/roadmaps/{id}` | Admin | Actualizar un roadmap |
+| `DELETE /api/roadmaps/{id}` | Admin | Eliminar un roadmap |
+| `GET /api/roadmaps/{id}/export` | Lectura | Exportar un roadmap como JSON |
+| `GET /api/modules` | Lectura | Listar módulos |
+| `POST /api/modules` | Admin | Crear un módulo |
+| `GET /api/modules/{id}` | Lectura | Detalle de un módulo con lecciones, progreso y cuestionario |
+| `PUT /api/modules/{id}` | Admin | Actualizar un módulo |
+| `DELETE /api/modules/{id}` | Admin | Eliminar un módulo |
+| `GET /api/lessons` | Lectura | Listar las lecciones de un módulo |
+| `POST /api/lessons` | Admin | Crear una lección |
+| `GET /api/lessons/{id}` | Lectura | Obtener una lección |
+| `PUT /api/lessons/{id}` | Admin | Actualizar una lección |
+| `DELETE /api/lessons/{id}` | Admin | Eliminar una lección |
+
+#### Progreso
+
+| Método y ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `GET /api/progress/roadmaps` | Sesión | Progreso del alumno en sus roadmaps |
+| `PUT /api/progress/lessons/{id}` | Sesión | Marcar una lección como completada o pendiente |
+| `GET /api/quizzes/modules/{id}` | Lectura | Cuestionario público de un módulo |
+| `POST /api/quizzes/modules/{id}` | Sesión | Enviar un intento de cuestionario |
+
+#### Evidencias
+
+| Método y ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `GET /api/evidences/modules/{id}` | Sesión | Evidencia del alumno para un módulo |
+| `PUT /api/evidences/modules/{id}` | Sesión | Guardar (crear o reemplazar) la evidencia de un módulo |
+| `DELETE /api/evidences/modules/{id}` | Sesión | Eliminar la evidencia del alumno en un módulo |
+| `GET /api/evidences` | Admin | Listar evidencias de todos los alumnos (revisión) |
+| `PUT /api/evidences/{id}/review` | Admin | Revisar una evidencia |
+| `GET /api/portfolio` | Sesión | Portfolio de evidencias del alumno |
+| `GET /api/portfolio/export` | Sesión | Exportar el portfolio como Markdown |
+
+#### Administración
+
+| Método y ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `GET /api/admin/dashboard` | Admin | Panel de métricas de administración |
+| `GET /api/audit-logs` | Admin | Últimos registros de auditoría |
+| `GET /api/users` | Admin | Listar usuarios |
+| `POST /api/users` | Admin | Crear un usuario |
+| `PATCH /api/users/{id}` | Admin | Activar/desactivar, cambiar contraseña o acceso a roadmaps de un usuario |
+
+#### Contrato
+
+| Método y ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `GET /api/openapi.json` | Pública | Documento OpenAPI 3.1 de esta API |
+
+`PATCH /api/users/{id}` elige la operación con `action` (`set_active`,
+`reset_password` o `set_roadmap_access`). El importador acepta un objeto con
+`title`, `modules` y, opcionalmente, `description`, `duration`, `category`,
+`topics`, `objectives`, `methodology` y `evaluation_weights`; al actualizar se
+conservan los módulos no incluidos y el progreso ya registrado. Guías rápidas con
+`curl` para módulos y lecciones en `test/modules_api.md` y `test/lessons_api.md`.
 
 ## Seguridad
 
@@ -171,6 +237,7 @@ npm run build         # build de producción
 npm run start         # arranca el build
 npm run lint          # ESLint
 npm run test:unit     # Vitest
+npm run contracts:generate  # regenera openapi.json desde lib/contracts
 npm run test:coverage # Vitest con cobertura
 npm test              # lint + validación de seeds + cobertura
 ```
