@@ -6,7 +6,7 @@
  * when it throws.
  *
  * Domains only see this interface; `lib/container.ts` implements it on top of
- * `DatabaseClient.transaction()` so no domain imports `lib/persistence`.
+ * `DatabaseClient.transaction()` so no domain imports the persistence layer.
  *
  * Rules: do reads that decide *whether* to write before or inside `run`,
  * never use the outer repositories for statements that must be atomic, and do
