@@ -4,6 +4,7 @@ import fs from 'fs'
 import { PostgresDb } from './postgresDb'
 import type { DatabaseClient } from './database'
 import { migrateSqliteSchema } from './sqliteSchema'
+import { NestedTransactionError, TransactionClosedError, createMutex, runInTransaction } from './transaction'
 import { seedRoadmaps } from './bootstrap/roadmapSeed'
 import { seedInitialAdmin } from './bootstrap/adminSeed'
 
@@ -39,7 +40,48 @@ export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> 
   })
   await db.exec('PRAGMA foreign_keys = ON')
   await migrateSqliteSchema(db)
-  return Object.assign(db, { backend: 'sqlite' as const }) as unknown as DatabaseClient
+  return withSqliteTransactions(db)
+}
+
+// SQLite has one connection per client, so a transaction is plain
+// BEGIN IMMEDIATE / COMMIT / ROLLBACK on it. The tx client delegates to the
+// same connection; a mutex keeps concurrent transaction() calls on one client
+// from interleaving (a second BEGIN would fail, and non-transactional writes
+// issued meanwhile would silently join the open transaction).
+function withSqliteTransactions(db: Awaited<ReturnType<typeof open>>): DatabaseClient {
+  const runExclusive = createMutex()
+
+  const client = Object.assign(db, {
+    backend: 'sqlite' as const,
+    transaction<T>(work: (tx: DatabaseClient) => Promise<T>): Promise<T> {
+      return runExclusive(() => {
+        let finished = false
+        const guard = <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+          (...args: A): Promise<R> => finished ? Promise.reject(new TransactionClosedError()) : fn(...args)
+
+        const tx = {
+          backend: 'sqlite' as const,
+          get: guard((sql: string, params?: unknown[]) => db.get(sql, params ?? [])),
+          all: guard((sql: string, params?: unknown[]) => db.all(sql, params ?? [])),
+          run: guard(async (sql: string, params?: unknown[]) => {
+            const result = await db.run(sql, params ?? [])
+            return { changes: result.changes, lastID: result.lastID }
+          }),
+          exec: guard((sql: string) => db.exec(sql)),
+          transaction: () => Promise.reject(new NestedTransactionError()),
+          close: () => Promise.reject(new Error('Cannot close the database from inside a transaction.'))
+        } as unknown as DatabaseClient
+
+        return runInTransaction(
+          () => db.exec('BEGIN IMMEDIATE'),
+          () => db.exec('COMMIT'),
+          () => db.exec('ROLLBACK'),
+          () => work(tx)
+        ).finally(() => { finished = true })
+      })
+    }
+  })
+  return client as unknown as DatabaseClient
 }
 
 // Cached by connection string, mirroring the sqlite3ModulePromise pattern

@@ -6,8 +6,7 @@ import { persistRoadmapImport, exportRoadmapAsJson } from '../../lib/domains/con
 /**
  * Verifies lib/domains/content/import.ts and its importRepository against real Postgres (backlog.md: "Tests de
  * integracion contra PostgreSQL real" - dominio importacion). This is the
- * one domain with a real multi-table transaction (BEGIN/COMMIT/ROLLBACK via
- * db.exec, raw SQL, not Kysely), which a mocked pg pool cannot prove: a mock
+ * one domain with a real multi-table transaction (db.transaction(), raw SQL), which a mocked pg pool cannot prove: a mock
  * can only assert that ROLLBACK was *called*, never that it actually leaves
  * the real database clean. This forces a genuine mid-transaction constraint
  * violation (a NOT NULL module title, bypassing the JS-level validation) so

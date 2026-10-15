@@ -1,5 +1,6 @@
 import { Pool, PoolClient, QueryResult } from 'pg'
 import type { DatabaseClient, DatabaseRunResult } from './database'
+import { NestedTransactionError, TransactionClosedError, runInTransaction } from './transaction'
 
 const ID_TABLES = new Set([
   'roadmaps', 'modules', 'lessons', 'users', 'sessions', 'audit_logs',
@@ -191,7 +192,6 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 
 function translateSql(sql: string, params: unknown[] = []) {
   let translated = sql
-    .replace(/BEGIN IMMEDIATE/gi, 'BEGIN')
     .replace(/datetime\(([^)]+)\)/gi, '$1')
     .replace(/\s+COLLATE\s+NOCASE/gi, '')
     .replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT INTO')
@@ -208,10 +208,116 @@ function translateSql(sql: string, params: unknown[] = []) {
   return translated
 }
 
+type Queryable = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>
+
+const TRANSACTION_CONTROL = /^\s*(BEGIN|COMMIT|ROLLBACK|START\s+TRANSACTION|END)\b/i
+
+async function runQuery<T extends Record<string, unknown> = Record<string, unknown>>(
+  target: Queryable,
+  sql: string,
+  params: unknown[] = []
+): Promise<QueryResult<T>> {
+  return (target as Pool).query<T>(translateSql(sql, params), params)
+}
+
+async function runRun(target: Queryable, sql: string, params: unknown[] = []): Promise<DatabaseRunResult> {
+  const isInsert = /^\s*INSERT\s+INTO\s+([a-z_]+)/i.exec(sql)
+  const table = isInsert?.[1]?.toLowerCase()
+  const needsId = Boolean(table && ID_TABLES.has(table) && !/\bRETURNING\b/i.test(sql))
+  const query = needsId ? `${sql.trim().replace(/;$/, '')} RETURNING id` : sql
+  const result = await runQuery(target, query, params)
+  return {
+    changes: result.rowCount || 0,
+    lastID: needsId ? Number(result.rows[0]?.id) : undefined
+  }
+}
+
+function assertNotTransactionControl(sql: string) {
+  if (TRANSACTION_CONTROL.test(sql)) {
+    throw new Error('Transaction control statements are not allowed through exec(): use db.transaction().')
+  }
+}
+
+/**
+ * Client handed to `PostgresDb.transaction()` callbacks. Everything, raw SQL
+ * and Kysely, runs on the one checked-out PoolClient.
+ *
+ * `getPool()` returns a facade that looks like a Pool to Kysely's
+ * PostgresDialect but always yields that same client (release is a no-op), so
+ * repositories that build Kysely with `getQueryDatabase(db.getPool())` join
+ * the transaction without knowing it. Kysely caches one instance per facade
+ * (WeakMap), so it is garbage collected with the transaction.
+ */
+export class PostgresTransaction implements DatabaseClient {
+  readonly backend = 'postgres' as const
+  private finished = false
+  private readonly poolFacade: Pool
+
+  constructor(private readonly client: PoolClient) {
+    const guarded = {
+      query: (...args: unknown[]) => {
+        this.assertOpen()
+        return (client.query as (...a: unknown[]) => unknown)(...args)
+      },
+      release: () => undefined
+    }
+    this.poolFacade = {
+      connect: async () => {
+        this.assertOpen()
+        return guarded
+      },
+      query: guarded.query,
+      end: async () => undefined,
+      on: () => undefined
+    } as unknown as Pool
+  }
+
+  /** @internal Called by PostgresDb once COMMIT/ROLLBACK has run. */
+  markFinished() {
+    this.finished = true
+  }
+
+  private assertOpen() {
+    if (this.finished) throw new TransactionClosedError()
+  }
+
+  getPool(): Pool {
+    return this.poolFacade
+  }
+
+  async get<T = any>(sql: string, params?: unknown[]): Promise<T> {
+    this.assertOpen()
+    return (await runQuery(this.client, sql, params)).rows[0] as T
+  }
+
+  async all<T = any>(sql: string, params?: unknown[]): Promise<T[]> {
+    this.assertOpen()
+    return (await runQuery(this.client, sql, params)).rows as T[]
+  }
+
+  async run(sql: string, params: unknown[] = []): Promise<DatabaseRunResult> {
+    this.assertOpen()
+    return runRun(this.client, sql, params)
+  }
+
+  async exec(sql: string) {
+    this.assertOpen()
+    assertNotTransactionControl(sql)
+    await runQuery(this.client, sql)
+  }
+
+  transaction<T>(): Promise<T> {
+    return Promise.reject(new NestedTransactionError())
+  }
+
+  async close(): Promise<never> {
+    throw new Error('Cannot close the database from inside a transaction.')
+  }
+}
+
 export class PostgresDb implements DatabaseClient {
   readonly backend = 'postgres' as const
   private readonly pool: Pool
-  private transactionClient: PoolClient | null = null
 
   constructor(connectionString: string) {
     // Supabase requires SSL; a local Postgres (e.g. the isolated Docker test
@@ -239,11 +345,6 @@ export class PostgresDb implements DatabaseClient {
     })
   }
 
-  private async query<T extends Record<string, unknown> = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<QueryResult<T>> {
-    const client = this.transactionClient || this.pool
-    return client.query<T>(translateSql(sql, params), params)
-  }
-
   async migrate() {
     await this.pool.query(POSTGRES_SCHEMA)
   }
@@ -253,55 +354,52 @@ export class PostgresDb implements DatabaseClient {
   }
 
   async get<T = any>(sql: string, params?: unknown[]): Promise<T> {
-    const result = await this.query(sql, params)
-    return result.rows[0] as T
+    return (await runQuery(this.pool, sql, params)).rows[0] as T
   }
 
   async all<T = any>(sql: string, params?: unknown[]): Promise<T[]> {
-    const result = await this.query(sql, params)
-    return result.rows as T[]
+    return (await runQuery(this.pool, sql, params)).rows as T[]
   }
 
   async run(sql: string, params: unknown[] = []): Promise<DatabaseRunResult> {
-    const isInsert = /^\s*INSERT\s+INTO\s+([a-z_]+)/i.exec(sql)
-    const table = isInsert?.[1]?.toLowerCase()
-    const needsId = Boolean(table && ID_TABLES.has(table) && !/\bRETURNING\b/i.test(sql))
-    const query = needsId ? `${sql.trim().replace(/;$/, '')} RETURNING id` : sql
-    const result = await this.query(query, params)
-    return {
-      changes: result.rowCount || 0,
-      lastID: needsId ? Number(result.rows[0]?.id) : undefined
-    }
+    return runRun(this.pool, sql, params)
   }
 
   async exec(sql: string) {
-    if (/^\s*BEGIN\b/i.test(sql)) {
-      this.transactionClient = await this.pool.connect()
-      await this.transactionClient.query('BEGIN')
-      return
+    assertNotTransactionControl(sql)
+    await runQuery(this.pool, sql)
+  }
+
+  /**
+   * Checks out ONE client from the pool for the whole transaction and always
+   * releases it (discarding it if ROLLBACK itself failed, since its state is
+   * unknown). Concurrent transactions use different clients.
+   */
+  async transaction<T>(work: (tx: DatabaseClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect()
+    const tx = new PostgresTransaction(client)
+    let discard = false
+    try {
+      return await runInTransaction(
+        () => client.query('BEGIN'),
+        () => client.query('COMMIT'),
+        async () => {
+          try {
+            await client.query('ROLLBACK')
+          } catch (error) {
+            discard = true
+            throw error
+          }
+        },
+        () => work(tx)
+      )
+    } finally {
+      tx.markFinished()
+      client.release(discard)
     }
-    if (/^\s*COMMIT\b/i.test(sql)) {
-      if (!this.transactionClient) return
-      await this.transactionClient.query('COMMIT')
-      this.transactionClient.release()
-      this.transactionClient = null
-      return
-    }
-    if (/^\s*ROLLBACK\b/i.test(sql)) {
-      if (!this.transactionClient) return
-      await this.transactionClient.query('ROLLBACK')
-      this.transactionClient.release()
-      this.transactionClient = null
-      return
-    }
-    await this.query(sql)
   }
 
   async close() {
-    if (this.transactionClient) {
-      this.transactionClient.release()
-      this.transactionClient = null
-    }
     await this.pool.end()
   }
 }

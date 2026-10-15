@@ -106,65 +106,107 @@ describe('PostgresDb', () => {
     })
   })
 
-  describe('exec() transaction handling', () => {
-    it('BEGIN opens a dedicated client and routes subsequent queries through it', async () => {
+  describe('transaction()', () => {
+    async function open() {
       const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const client = fakeClient()
       connectMock.mockResolvedValueOnce(client)
+      return { db: new PostgresDb('postgres://fake'), client }
+    }
 
-      const db = new PostgresDb('postgres://fake')
-      await db.exec('BEGIN IMMEDIATE')
+    it('checks out one client, routes every statement through it and commits', async () => {
+      const { db, client } = await open()
 
-      expect(connectMock).toHaveBeenCalled()
-      expect(client.query).toHaveBeenCalledWith('BEGIN')
+      const result = await db.transaction(async tx => {
+        client.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 })
+        const row = await tx.get('SELECT 1')
+        await tx.run('UPDATE users SET name = ? WHERE id = ?', ['a', 1])
+        return row
+      })
 
-      client.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 })
-      await db.get('SELECT 1')
-      expect(client.query).toHaveBeenCalledWith('SELECT 1', [])
+      expect(result).toEqual({ id: 1 })
+      expect(client.query.mock.calls.map(call => call[0])).toEqual([
+        'BEGIN', 'SELECT 1', 'UPDATE users SET name = $1 WHERE id = $2', 'COMMIT'
+      ])
+      expect(connectMock).toHaveBeenCalledTimes(1)
       expect(queryMock).not.toHaveBeenCalled()
+      expect(client.release).toHaveBeenCalledWith(false)
     })
 
-    it('COMMIT releases the transaction client', async () => {
-      const { PostgresDb } = await import('../lib/persistence/postgresDb')
-      const client = fakeClient()
-      connectMock.mockResolvedValueOnce(client)
+    it('rolls back, releases the client and rethrows the original error', async () => {
+      const { db, client } = await open()
+      const failure = new Error('boom')
 
-      const db = new PostgresDb('postgres://fake')
-      await db.exec('BEGIN')
-      await db.exec('COMMIT')
+      await expect(db.transaction(async () => { throw failure })).rejects.toBe(failure)
 
-      expect(client.query).toHaveBeenCalledWith('COMMIT')
-      expect(client.release).toHaveBeenCalled()
+      expect(client.query.mock.calls.map(call => call[0])).toEqual(['BEGIN', 'ROLLBACK'])
+      expect(client.release).toHaveBeenCalledWith(false)
     })
 
-    it('COMMIT without an open transaction is a no-op', async () => {
-      const { PostgresDb } = await import('../lib/persistence/postgresDb')
-      const db = new PostgresDb('postgres://fake')
+    it('logs a failing ROLLBACK without masking the original error and discards the client', async () => {
+      const { db, client } = await open()
+      const failure = new Error('boom')
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      client.query.mockImplementation(async (sql: string) => {
+        if (sql === 'ROLLBACK') throw new Error('rollback failed')
+        return { rows: [], rowCount: 0 }
+      })
 
-      await db.exec('COMMIT')
+      await expect(db.transaction(async () => { throw failure })).rejects.toBe(failure)
 
-      expect(connectMock).not.toHaveBeenCalled()
+      expect(consoleError).toHaveBeenCalledWith('Transaction rollback failed', expect.any(Error))
+      expect(client.release).toHaveBeenCalledWith(true)
+      consoleError.mockRestore()
     })
 
-    it('ROLLBACK releases the transaction client', async () => {
-      const { PostgresDb } = await import('../lib/persistence/postgresDb')
-      const client = fakeClient()
-      connectMock.mockResolvedValueOnce(client)
+    it('rolls back when COMMIT fails', async () => {
+      const { db, client } = await open()
+      client.query.mockImplementation(async (sql: string) => {
+        if (sql === 'COMMIT') throw new Error('commit failed')
+        return { rows: [], rowCount: 0 }
+      })
 
-      const db = new PostgresDb('postgres://fake')
-      await db.exec('BEGIN')
-      await db.exec('ROLLBACK')
-
+      await expect(db.transaction(async () => 'ok')).rejects.toThrow('commit failed')
       expect(client.query).toHaveBeenCalledWith('ROLLBACK')
       expect(client.release).toHaveBeenCalled()
     })
 
-    it('ROLLBACK without an open transaction is a no-op', async () => {
+    it('rejects nested transactions and use of the tx client after it finished', async () => {
+      const { NestedTransactionError, TransactionClosedError } = await import('../lib/persistence/transaction')
+      const { db } = await open()
+      let leaked: any
+
+      await expect(db.transaction(async tx => {
+        leaked = tx
+        await tx.transaction(async () => 'inner')
+      })).rejects.toBeInstanceOf(NestedTransactionError)
+
+      await expect(leaked.get('SELECT 1')).rejects.toBeInstanceOf(TransactionClosedError)
+    })
+
+    it('exposes a pool facade on the tx client that always yields the transaction client', async () => {
+      const { db, client } = await open()
+
+      await db.transaction(async tx => {
+        const facade = (tx as any).getPool()
+        const first = await facade.connect()
+        const second = await facade.connect()
+        await first.query('SELECT 1')
+        first.release()
+        expect(second).toBe(first)
+      })
+
+      expect(client.query).toHaveBeenCalledWith('SELECT 1')
+      expect(client.release).toHaveBeenCalledTimes(1)
+    })
+
+    it('refuses hand-written transaction control statements through exec()', async () => {
       const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const db = new PostgresDb('postgres://fake')
 
-      await db.exec('ROLLBACK')
-
+      await expect(db.exec('BEGIN')).rejects.toThrow('db.transaction()')
+      await expect(db.exec('COMMIT')).rejects.toThrow('db.transaction()')
+      await expect(db.exec('rollback')).rejects.toThrow('db.transaction()')
       expect(connectMock).not.toHaveBeenCalled()
     })
 
@@ -196,20 +238,7 @@ describe('PostgresDb', () => {
   })
 
   describe('close()', () => {
-    it('releases an open transaction client before ending the pool', async () => {
-      const { PostgresDb } = await import('../lib/persistence/postgresDb')
-      const client = fakeClient()
-      connectMock.mockResolvedValueOnce(client)
-
-      const db = new PostgresDb('postgres://fake')
-      await db.exec('BEGIN')
-      await db.close()
-
-      expect(client.release).toHaveBeenCalled()
-      expect(endMock).toHaveBeenCalled()
-    })
-
-    it('ends the pool directly when there is no open transaction', async () => {
+    it('ends the pool', async () => {
       const { PostgresDb } = await import('../lib/persistence/postgresDb')
       const db = new PostgresDb('postgres://fake')
 
