@@ -44,9 +44,10 @@ lib/
     rateLimit.ts            rateLimit/clearRateLimit: clave por IP y respuesta 429.
     headers.ts              getHeaderValue.
   persistence/              Driver y arranque.
-    database.ts             Interfaz DatabaseClient (backend, get, all, run, exec, close).
+    database.ts             Interfaz DatabaseClient (backend, get, all, run, exec, transaction, close).
+    transaction.ts          Errores y utilidades del helper de transacciones (anidamiento, mutex, rollback).
     openDb.ts               openDb()/openSqliteDb(): selecciona SQLite o Postgres y arranca.
-    postgresDb.ts           PostgresDb (pool cacheado, traducción SQLite -> Postgres).
+    postgresDb.ts           PostgresDb (pool cacheado, traducción SQLite -> Postgres) y PostgresTransaction.
     kyselyDatabase.ts       Esquema Kysely compartido.
     sqliteSchema.ts         Migración idempotente de SQLite.
     bootstrap/              Seed de roadmaps y admin inicial (+ seeds/*.json y banco de quizzes).
@@ -56,6 +57,7 @@ lib/
     progress/               Progreso, intentos de quiz, evidencias, portfolio, vistas del alumno.
     admin/                  Administración de usuarios y panel de control.
     audit/                  Escritura y lectura del registro de auditoría.
+    shared/                 `unitOfWork.ts`: puerto `UnitOfWork` para casos de uso atómicos.
   validation/               Esquemas Zod y contrato de error (ver VALIDATION.md).
   branding.ts               Branding configurable por entorno.
 ```
@@ -154,6 +156,77 @@ saben qué driver hay debajo.
 Si necesitas contexto de la petición dentro del dominio (IP, user agent, usuario),
 pásalo como **datos planos**; construirlos es trabajo del adaptador de `lib/http/`.
 
+## Transacciones
+
+Un caso de uso que escribe en varias tablas (o en varios repositorios) debe ser
+atómico: o se guarda todo o no se guarda nada.
+
+**Primitiva de persistencia.** `DatabaseClient.transaction(work)` ejecuta
+`work(tx)` y confirma (`COMMIT`) al terminar; si `work` lanza, hace `ROLLBACK` y
+relanza **el error original** (un `ROLLBACK` que falle se registra con
+`console.error`, nunca lo tapa).
+
+- **PostgreSQL**: toma **un** `PoolClient` del pool para toda la transacción y
+  lo libera siempre (lo descarta si el propio `ROLLBACK` falló). `tx` es un
+  `PostgresTransaction`: `get/all/run/exec` van por ese cliente y su
+  `getPool()` devuelve una fachada de pool que siempre entrega ese mismo
+  cliente. Por eso `getQueryDatabase(pool(db))` en los repositorios con Kysely
+  se une a la transacción sin cambiar una línea: un repositorio no sabe si
+  recibe `db` o `tx`.
+- **SQLite**: `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK` sobre la única conexión.
+  Un mutex por cliente serializa transacciones concurrentes sobre la misma
+  conexión.
+- `exec('BEGIN' | 'COMMIT' | 'ROLLBACK')` en Postgres lanza un error: ya no
+  existe estado de transacción compartido en `PostgresDb` (con la instancia
+  cacheada era una condición de carrera entre peticiones).
+- El cliente `tx` deja de ser válido al terminar (`TransactionClosedError`).
+
+**Puerto en el dominio.** `lib/domains/shared/unitOfWork.ts` define
+`UnitOfWork<Repositorios>` con `run(work)`. Cada servicio declara qué
+repositorios necesita dentro de la transacción (p. ej. admin:
+`UnitOfWork<{ users: UserAdminRepository }>`) y los recibe ya ligados a ella.
+`lib/container.ts` lo implementa con
+`db.transaction(tx => work({ users: createUserAdminRepository(tx) }))`, así que
+los dominios siguen sin importar `lib/persistence` ni `next`.
+
+**Casos de uso atómicos actuales**
+
+| Dominio | Caso de uso | Escrituras agrupadas |
+| --- | --- | --- |
+| admin | Reemplazar accesos a roadmaps | flag `can_view_all_roadmaps` + borrar + insertar accesos |
+| admin | Desactivar usuario / resetear contraseña | actualizar usuario + revocar sesiones |
+| content | Crear / actualizar roadmap | fila del roadmap + categoría y temas |
+| content | Importar roadmap (`persistRoadmapImport`) | roadmap + metadatos + módulos |
+| progress | Intento de quiz, evidencia de módulo, progreso de lección | registro + `touchRoadmapProgress` / progreso del roadmap |
+
+Se dejaron fuera a propósito: `createFirstAdmin` (un solo `INSERT`; abrir sesión
+después es independiente y un fallo solo obliga a iniciar sesión), `startSession`
+(limpiar caducadas e insertar son independientes), `registerAttempt` del rate
+limit (una escritura), borrados de roadmap/módulo/lección (una sentencia, el
+resto va por `ON DELETE CASCADE`) y las revisiones de evidencia (una escritura).
+
+**Cómo usarlo en un caso de uso nuevo**
+
+1. Declara en `service.ts` un `unitOfWork: UnitOfWork<{ ... }>` en los puertos
+   con los repositorios que necesitas dentro de la transacción.
+2. En el servicio: `await unitOfWork.run(async ({ users }) => { ... })`. Haz
+   dentro solo lo que debe ser atómico (lecturas que deciden y escrituras);
+   devuelve datos y lee el resultado final **fuera**, con los repositorios
+   normales.
+3. En `lib/container.ts`: `unitOfWork: { run: work => db.transaction(tx => work({ ...repositorios construidos con tx })) }`.
+4. Si lo necesitas dentro de un repositorio (como la importación), usa
+   `db.transaction(tx => ...)` directamente en él.
+5. Tests: servicio con un `unitOfWork` falso que cuente ejecuciones y simule el
+   rollback; SQLite real con un `TRIGGER ... RAISE(ABORT)` para forzar el fallo
+   a mitad; y, si hay Kysely, Postgres de integración (Docker efímero).
+
+**Anidamiento.** Las transacciones son planas: llamar a `transaction()` sobre un
+`tx` (o abrir un `UnitOfWork` dentro de otro) lanza `NestedTransactionError`. Se
+descartaron los savepoints y «unirse a la externa» porque un error interno
+capturado por quien llama acabaría confirmando trabajo parcial. Compón casos de
+uso pasando el mismo `tx`/repositorios hacia abajo. No uses el `db` externo para
+sentencias que deban ir dentro: en Postgres irían a otra conexión.
+
 ## Estrategia de tests
 
 | Capa | Dónde | Cómo |
@@ -162,7 +235,7 @@ pásalo como **datos planos**; construirlos es trabajo del adaptador de `lib/htt
 | Repositorios | `test/*Repository*.test.ts`, `test/*.postgres.test.ts` | SQLite real en un directorio temporal; y variantes con `pg` simulado para el SQL de Postgres. |
 | Handlers | `test/api-*.test.ts` y similares | `vi.doMock` de `lib/persistence`, `lib/http/auth` y `lib/http/audit`; comprueban estados, cuerpos y orden de llamadas. |
 | Adaptadores HTTP | `test/lib.test.ts`, `test/rateLimit.test.ts` | Peticiones simuladas contra `lib/http/*`. |
-| Integración | `test/postgres-integration/` | PostgreSQL real efímero (`npm run test:integration`). |
+| Integración | `test/postgres-integration/` | PostgreSQL real efímero (`npm run test:integration`). Incluye las transacciones: Kysely y SQL crudo en el mismo `ROLLBACK`, cliente liberado y transacciones concurrentes. |
 
 ## Decisiones y matices
 
@@ -197,10 +270,10 @@ pásalo como **datos planos**; construirlos es trabajo del adaptador de `lib/htt
 - **Lecturas de catálogo (`catalogRepository`) y vistas del alumno
   (`learnerViewRepository`)**: son modelos de lectura que devuelven filas tal
   cual para no cambiar el JSON de la API.
-- **Transacciones**: no existe un helper de transacciones reutilizable (la
-  importación usa `BEGIN`/`COMMIT` a mano y los repositorios de usuarios usan
-  Kysely sobre el pool, que no participa en la transacción de `PostgresDb`). Por
-  eso el reemplazo de accesos de un usuario sigue siendo secuencial.
+- **Transacciones**: ver la sección [Transacciones](#transacciones) más abajo.
+  Hasta la corrección del 2026-10-15 no existía un helper reutilizable (la
+  importación usaba `BEGIN`/`COMMIT` a mano y los repositorios con Kysely no
+  participaban en ninguna transacción).
 
 ## Fuera de alcance y trabajo futuro
 
@@ -210,8 +283,6 @@ pásalo como **datos planos**; construirlos es trabajo del adaptador de `lib/htt
 - **Mensajes `401`/`403`/`405`/`429` en inglés** (`authentication required`,
   `admin role required`, `Method Not Allowed`, `too many attempts…`,
   `setup token required`, errores de origen): se mantienen tal cual.
-- **Transacción en el reemplazo de accesos de usuario** y, en general, un helper
-  de transacciones que funcione igual en SQLite y Postgres.
 - **`PUT`/`DELETE /api/evidences/modules/[id]`**: si `getRoadmapReadScope` falla,
   escribe un `401` y después un `404` sobre la misma respuesta (comportamiento
   heredado, conservado a propósito en esta refactorización).
