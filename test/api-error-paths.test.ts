@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createRequest, createResponse } from './helpers/api'
+import { createRequest, withFakeTransaction, createResponse } from './helpers/api'
 
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const normalUser = { id: 2, email: 'user@example.com', role: 'user' as const, is_active: 1 }
@@ -14,7 +14,7 @@ async function mockContentApi(
   options: { admin?: typeof admin | null; read?: boolean; user?: typeof normalUser | null } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
   vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
@@ -57,7 +57,7 @@ async function mockUsersApi(
   options: { admin?: typeof admin | null; validatePassword?: (password: string) => string | null } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
   vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/http/auth', () => ({
     isValidRole: (role: unknown) => role === 'admin' || role === 'user',
@@ -84,7 +84,7 @@ async function mockAuthApi(
   } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
   vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/http/auth', () => ({
     createSession: vi.fn((_res: any) => _res.setHeader('Set-Cookie', 'moodle_session=token')),

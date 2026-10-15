@@ -29,6 +29,9 @@ import { createQuizAttemptRepository } from './domains/progress/repositories/qui
  * `openDb()`.
  */
 export function createServices(db: DatabaseClient) {
+  // Each unit of work opens ONE transaction and builds the repositories it
+  // exposes from the tx client (see lib/domains/shared/unitOfWork.ts), so the
+  // domains stay unaware of persistence. Reads outside `run` use `db`.
   const modules = createModuleRepository(db)
   const metadata = createMetadataRepository(db)
   const progress = createProgressRepository(db)
@@ -59,7 +62,10 @@ export function createServices(db: DatabaseClient) {
   const admin = makeAdminService({
     users: createUserAdminRepository(db),
     dashboards: createDashboardRepository(db),
-    roadmaps: { findExistingIds: ids => findExistingRoadmapIds(db, ids) }
+    roadmaps: { findExistingIds: ids => findExistingRoadmapIds(db, ids) },
+    unitOfWork: {
+      run: work => db.transaction(tx => work({ users: createUserAdminRepository(tx) }))
+    }
   })
 
   return {

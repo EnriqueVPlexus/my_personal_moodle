@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createRequest, createResponse } from './helpers/api'
+import { createRequest, withFakeTransaction, createResponse } from './helpers/api'
 
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 
 async function mockBase(db: any) {
   vi.resetModules()
-  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
   vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 
