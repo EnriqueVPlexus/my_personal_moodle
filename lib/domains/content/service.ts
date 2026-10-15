@@ -96,11 +96,11 @@ export function buildCatalogMetadata(aggregates: CatalogAggregates, progress: Pr
     duration_ranges: ROADMAP_DURATION_FILTERS.map((range, index) => ({
       key: range.key,
       label: range.label,
-      roadmap_count: Number([
+      roadmap_count: [
         duration?.up_to_4_count,
         duration?.from_5_to_12_count,
         duration?.over_12_count
-      ][index] ?? 0)
+      ][index] ?? 0
     })),
     progress_statuses: ROADMAP_PROGRESS_STATUS_FILTERS.map(item => ({
       key: item.key,
@@ -175,7 +175,7 @@ export function makeContentService(ports: ContentPorts) {
         catalog.getDurationStats(roadmapIds)
       ])
 
-      const totalRoadmaps = Number(duration?.total_count || 0)
+      const totalRoadmaps = duration?.total_count ?? 0
       const progress: ProgressStatusCounts = { completed: 0, inProgress: 0, notStarted: totalRoadmaps }
 
       if (scope.user) {

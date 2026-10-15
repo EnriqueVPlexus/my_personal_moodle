@@ -92,7 +92,7 @@ export const roadmapDetail = {
   ...roadmapRecord,
   category: { key: 'cloud', label: 'Cloud' },
   topics: [{ key: 'aws', label: 'AWS' }],
-  modules: [{ ...moduleRecord, has_evidence: 1, progress: roadmapProgress.modules[0] }],
+  modules: [{ ...moduleRecord, has_evidence: true, progress: roadmapProgress.modules[0] }],
   progress: roadmapProgress
 }
 

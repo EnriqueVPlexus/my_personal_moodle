@@ -4825,11 +4825,10 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
                 }
               },
               "required": [
@@ -4851,11 +4850,10 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
                 }
               },
               "required": [
@@ -4874,11 +4872,10 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
                 }
               },
               "required": [
@@ -4953,11 +4950,10 @@
             }
           },
           "unclassified_roadmaps": {
-            "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-            "type": [
-              "number",
-              "string"
-            ]
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
           }
         },
         "required": [
@@ -5043,11 +5039,10 @@
             "description": "Fecha y hora como texto (normalmente ISO 8601; en SQLite puede ser `YYYY-MM-DD HH:MM:SS`)."
           },
           "module_count": {
-            "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-            "type": [
-              "number",
-              "string"
-            ]
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
           },
           "category": {
             "anyOf": [
@@ -6653,11 +6648,8 @@
             ]
           },
           "has_evidence": {
-            "description": "Solo con sesión iniciada.",
-            "type": [
-              "number",
-              "boolean"
-            ]
+            "description": "Solo con sesión iniciada. Siempre booleano, con SQLite y con PostgreSQL.",
+            "type": "boolean"
           },
           "progress": {
             "anyOf": [

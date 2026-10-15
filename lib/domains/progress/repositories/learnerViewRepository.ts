@@ -1,4 +1,5 @@
 import type { DatabaseClient } from '../../../persistence/database'
+import { toBoolean } from '../../../persistence/normalize'
 import { publicModuleColumnsSql } from '../../content/publicModule'
 import type { LearnerViewRepository } from '../ports'
 
@@ -9,9 +10,9 @@ import type { LearnerViewRepository } from '../ports'
  */
 export function createLearnerViewRepository(db: DatabaseClient): LearnerViewRepository {
   return {
-    listRoadmapModules(roadmapId, userId) {
+    async listRoadmapModules(roadmapId, userId) {
       if (userId !== null) {
-        return db.all(
+        const rows = await db.all(
           `SELECT ${publicModuleColumnsSql('modules')},
                   EXISTS (
                     SELECT 1 FROM user_module_evidences
@@ -23,6 +24,8 @@ export function createLearnerViewRepository(db: DatabaseClient): LearnerViewRepo
            ORDER BY COALESCE(modules.position, modules.id), modules.id`,
           [userId, roadmapId]
         )
+        // 0/1 on SQLite, boolean on PostgreSQL: always a boolean.
+        return rows.map(row => ({ ...row, has_evidence: toBoolean(row.has_evidence) }))
       }
 
       return db.all(

@@ -1,4 +1,5 @@
 import type { DatabaseClient } from '../../../persistence/database'
+import { toCount, toNullableNumber, withCounts } from '../../../persistence/normalize'
 import type { CatalogRepository } from '../ports'
 
 /**
@@ -89,13 +90,14 @@ function placeholders(ids: number[]) {
 
 export function createCatalogRepository(db: DatabaseClient): CatalogRepository {
   return {
-    listCatalogRows() {
-      return db.all(db.backend === 'postgres' ? POSTGRES_ROADMAP_CATALOG_SEARCH_SQL : ROADMAP_CATALOG_SEARCH_SQL)
+    async listCatalogRows() {
+      const rows = await db.all(db.backend === 'postgres' ? POSTGRES_ROADMAP_CATALOG_SEARCH_SQL : ROADMAP_CATALOG_SEARCH_SQL)
+      return rows.map(row => withCounts(row, ['module_count']))
     },
 
-    listCategoryCounts(roadmapIds) {
+    async listCategoryCounts(roadmapIds) {
       const restriction = roadmapIds ? `WHERE roadmaps.id IN (${placeholders(roadmapIds)})` : ''
-      return db.all(
+      const rows = await db.all(
         `SELECT roadmap_categories.key, roadmap_categories.label, COUNT(roadmaps.id) AS roadmap_count
          FROM roadmap_categories
          INNER JOIN roadmaps ON roadmaps.category_id = roadmap_categories.id
@@ -104,11 +106,12 @@ export function createCatalogRepository(db: DatabaseClient): CatalogRepository {
          ORDER BY roadmap_categories.label COLLATE NOCASE, roadmap_categories.key`,
         roadmapIds ?? []
       )
+      return rows.map(row => withCounts(row, ['roadmap_count']))
     },
 
-    listTopicCounts(roadmapIds) {
+    async listTopicCounts(roadmapIds) {
       const restriction = roadmapIds ? `WHERE roadmap_topics.roadmap_id IN (${placeholders(roadmapIds)})` : ''
-      return db.all(
+      const rows = await db.all(
         `SELECT topics.key, topics.label, COUNT(roadmap_topics.roadmap_id) AS roadmap_count
          FROM topics
          INNER JOIN roadmap_topics ON roadmap_topics.topic_id = topics.id
@@ -117,11 +120,12 @@ export function createCatalogRepository(db: DatabaseClient): CatalogRepository {
          ORDER BY topics.label COLLATE NOCASE, topics.key`,
         roadmapIds ?? []
       )
+      return rows.map(row => withCounts(row, ['roadmap_count']))
     },
 
-    getDurationStats(roadmapIds) {
+    async getDurationStats(roadmapIds) {
       const restriction = roadmapIds ? `WHERE roadmaps.id IN (${placeholders(roadmapIds)})` : ''
-      return db.get(
+      const row = await db.get(
         `SELECT MIN(duration_weeks_min) AS min_weeks,
                 MAX(duration_weeks_max) AS max_weeks,
                 COUNT(*) AS total_count,
@@ -131,15 +135,25 @@ export function createCatalogRepository(db: DatabaseClient): CatalogRepository {
          FROM roadmaps ${restriction}`,
         roadmapIds ?? []
       )
+      if (!row) return undefined
+      return {
+        min_weeks: toNullableNumber(row.min_weeks),
+        max_weeks: toNullableNumber(row.max_weeks),
+        total_count: toCount(row.total_count),
+        up_to_4_count: toCount(row.up_to_4_count),
+        from_5_to_12_count: toCount(row.from_5_to_12_count),
+        over_12_count: toCount(row.over_12_count)
+      }
     },
 
-    listLevelCounts(roadmapIds) {
+    async listLevelCounts(roadmapIds) {
       const restriction = roadmapIds ? `AND roadmap_id IN (${placeholders(roadmapIds)})` : ''
-      return db.all(
+      const rows = await db.all(
         `SELECT level AS key, COUNT(DISTINCT roadmap_id) AS roadmap_count
          FROM modules WHERE level IS NOT NULL ${restriction} GROUP BY level`,
         roadmapIds ?? []
       )
+      return rows.map(row => withCounts(row, ['roadmap_count']))
     },
 
     async countUnclassified(roadmapIds) {
@@ -148,7 +162,7 @@ export function createCatalogRepository(db: DatabaseClient): CatalogRepository {
          WHERE category_id IS NULL ${roadmapIds ? `AND id IN (${placeholders(roadmapIds)})` : ''}`,
         roadmapIds ?? []
       )
-      return row.count
+      return toCount(row.count)
     }
   }
 }
