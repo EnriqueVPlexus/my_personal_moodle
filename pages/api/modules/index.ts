@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/http/audit'
-import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
+import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { findAllModules, findModuleById, findModulesByRoadmapId, findModulesByRoadmapIds, insertModule } from '../../../lib/moduleRepository'
 import { parseOrRespond } from '../../../lib/validation/http'

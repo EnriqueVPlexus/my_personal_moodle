@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/http/audit'
-import { requireAdmin } from '../../../lib/auth'
+import { requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import {
   persistRoadmapImport,

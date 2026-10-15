@@ -12,7 +12,7 @@ function denyAdmin(res: any) {
 async function mockAuditLogsApi(db: any, options: { admin?: any } = {}) {
   vi.resetModules()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       if (options.admin === null) return denyAdmin(res)
       return options.admin ?? admin
@@ -26,7 +26,7 @@ async function mockRoadmapExportApi(
 ) {
   vi.resetModules()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/http/auth', () => ({
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.scope === null) {
         res.status(401).json({ error: 'authentication required' })
@@ -46,7 +46,7 @@ async function mockRoadmapExportApi(
 async function mockMetadataApi(db: any, options: { scope?: any; userProgress?: any[] } = {}) {
   vi.resetModules()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/http/auth', () => ({
     getRoadmapReadScope: vi.fn().mockResolvedValue(
       options.scope ?? { user: null, allRoadmaps: true, roadmapIds: [] }
     )

@@ -106,7 +106,7 @@ describe('admin dashboard API', () => {
     const db = {}
     const data = { overview: { total_users: 2 } }
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({
+    vi.doMock('../lib/http/auth', () => ({
       requireAdmin: vi.fn().mockResolvedValue({ id: 1, role: 'admin' })
     }))
     vi.doMock('../lib/adminDashboard', () => ({

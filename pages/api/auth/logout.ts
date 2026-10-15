@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { clearSession, requireSameOrigin } from '../../../lib/auth'
+import { clearSession, requireSameOrigin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

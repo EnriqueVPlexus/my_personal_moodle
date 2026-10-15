@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getRoadmapReadScope, requireUser, scopeAllowsRoadmap } from '../../../../lib/auth'
+import { getRoadmapReadScope, requireUser, scopeAllowsRoadmap } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { deleteModuleEvidence, getModuleEvidence, saveModuleEvidence } from '../../../../lib/evidenceRepository'
 import { findModuleById } from '../../../../lib/moduleRepository'

@@ -78,7 +78,7 @@ describe('portfolio API handlers', () => {
     const db = await setupDb()
     vi.resetModules()
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
+    vi.doMock('../lib/http/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
 
     const handler = (await import('../pages/api/portfolio/index')).default
     const res = createResponse()
@@ -95,7 +95,7 @@ describe('portfolio API handlers', () => {
     const db = await setupDb()
     vi.resetModules()
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
+    vi.doMock('../lib/http/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
 
     const handler = (await import('../pages/api/portfolio/export')).default
     const res = createResponse()

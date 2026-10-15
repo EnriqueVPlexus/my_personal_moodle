@@ -30,7 +30,7 @@ describe('database-backed rate limiter', () => {
 
   it('allows requests under the limit and blocks once exceeded', async () => {
     const db = await setupDb()
-    const { rateLimit } = await import('../lib/rateLimit')
+    const { rateLimit } = await import('../lib/http/rateLimit')
     const req = createRequest({ headers: { 'x-forwarded-for': '1.2.3.4' } })
 
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -49,7 +49,7 @@ describe('database-backed rate limiter', () => {
 
   it('resets the counter after the window expires', async () => {
     const db = await setupDb()
-    const { rateLimit } = await import('../lib/rateLimit')
+    const { rateLimit } = await import('../lib/http/rateLimit')
     const req = createRequest({ headers: { 'x-forwarded-for': '5.6.7.8' } })
 
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -66,7 +66,7 @@ describe('database-backed rate limiter', () => {
 
   it('keeps independent buckets per scope for the same IP', async () => {
     const db = await setupDb()
-    const { rateLimit } = await import('../lib/rateLimit')
+    const { rateLimit } = await import('../lib/http/rateLimit')
     const req = createRequest({ headers: { 'x-forwarded-for': '9.9.9.9' } })
 
     const loginRes = createResponse()
@@ -80,7 +80,7 @@ describe('database-backed rate limiter', () => {
 
   it('clearRateLimit removes the bucket so the next attempt starts fresh', async () => {
     const db = await setupDb()
-    const { rateLimit, clearRateLimit } = await import('../lib/rateLimit')
+    const { rateLimit, clearRateLimit } = await import('../lib/http/rateLimit')
     const req = createRequest({ headers: { 'x-forwarded-for': '10.10.10.10' } })
 
     const res1 = createResponse()
@@ -96,7 +96,7 @@ describe('database-backed rate limiter', () => {
 
   it('falls back to the socket remote address when there is no forwarded-for header', async () => {
     const db = await setupDb()
-    const { rateLimit } = await import('../lib/rateLimit')
+    const { rateLimit } = await import('../lib/http/rateLimit')
     const req = createRequest({ headers: {}, socket: { remoteAddress: '127.0.0.1' } })
 
     const res = createResponse()

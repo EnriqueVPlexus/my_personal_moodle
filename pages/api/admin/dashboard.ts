@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getAdminDashboard } from '../../../lib/adminDashboard'
-import { requireAdmin } from '../../../lib/auth'
+import { requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

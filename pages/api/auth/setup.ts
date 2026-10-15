@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { writeAuditLog } from '../../../lib/http/audit'
-import { createSession, requireSameOrigin, validateSetupToken } from '../../../lib/auth'
-import { rateLimit, clearRateLimit } from '../../../lib/rateLimit'
+import { createSession, requireSameOrigin, validateSetupToken } from '../../../lib/http/auth'
+import { rateLimit, clearRateLimit } from '../../../lib/http/rateLimit'
 import { openDb } from '../../../lib/persistence'
-import { hashPassword } from '../../../lib/password'
+import { createAuthService } from '../../../lib/domains/auth'
 import { setupBodySchema } from '../../../lib/validation/auth'
 import { parseOrRespond } from '../../../lib/validation/http'
 
@@ -31,28 +31,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!body) return
   const { email, name, password } = body
 
-  const row = await db.get('SELECT COUNT(*) AS count FROM users')
-  if (Number(row.count) > 0) return res.status(409).json({ error: 'La configuración inicial ya se completó.' })
-
-  const now = new Date().toISOString()
-  const result = await db.run(
-    `INSERT INTO users (email, name, role, password_hash, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 1, ?, ?)`,
-    [
-      email,
-      name || null,
-      'admin',
-      await hashPassword(password),
-      now,
-      now
-    ]
-  )
-  const userId = result.lastID
-  if (!userId) return res.status(500).json({ error: 'No se pudo crear el usuario.' })
+  const result = await createAuthService(db).createFirstAdmin({ email, name, password })
+  if (result.status === 'already_configured') {
+    return res.status(409).json({ error: 'La configuración inicial ya se completó.' })
+  }
+  if (result.status === 'failed') {
+    return res.status(500).json({ error: 'No se pudo crear el usuario.' })
+  }
+  const userId = result.userId
 
   await createSession(res, userId, db)
   await clearRateLimit(db, req, 'setup')
-  
+
   await writeAuditLog({
     db,
     req,

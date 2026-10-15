@@ -38,7 +38,7 @@ describe('evidence API handlers', () => {
 
   async function mockModuleApi(db: any) {
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({
+    vi.doMock('../lib/http/auth', () => ({
       getRoadmapReadScope: vi.fn().mockResolvedValue({ user, allRoadmaps: true, roadmapIds: [] }),
       requireUser: vi.fn().mockResolvedValue(user),
       requireAdmin: vi.fn().mockResolvedValue(admin),

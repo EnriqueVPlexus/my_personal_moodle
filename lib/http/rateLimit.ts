@@ -1,11 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import type { DatabaseClient } from './persistence/database'
+import { createAuthService } from '../domains/auth'
+import type { DatabaseClient } from '../persistence'
 
 /**
- * Rate limiter backed by the shared database (SQLite locally, PostgreSQL in
- * production). Storing state in the database instead of process memory keeps
- * the limit effective across multiple server instances/serverless invocations,
- * which an in-memory store cannot do.
+ * HTTP adapter for the rate limiter. The bucket state and the counting rule
+ * live in the auth service; this module derives the key from the request and
+ * writes the 429 response.
  */
 
 function getClientIp(req: NextApiRequest): string {
@@ -36,33 +36,12 @@ export async function rateLimit(
   if (process.env.NODE_ENV === 'test') return true
 
   const { maxAttempts = 5, windowMs = 60 * 1000, scope = 'default' } = options
-  const key = `${scope}:${getClientIp(req)}`
-  const now = Date.now()
-
-  const existing = await db.get<{ attempt_count: number; reset_at: string }>(
-    'SELECT attempt_count, reset_at FROM rate_limits WHERE rate_key = ?',
-    [key]
+  const { allowed } = await createAuthService(db).registerAttempt(
+    `${scope}:${getClientIp(req)}`,
+    { maxAttempts, windowMs }
   )
 
-  const isExpired = !existing || new Date(existing.reset_at).getTime() <= now
-  const nextCount = isExpired ? 1 : Number(existing.attempt_count) + 1
-  const nextResetAt = isExpired ? new Date(now + windowMs).toISOString() : existing.reset_at
-
-  if (existing) {
-    await db.run('UPDATE rate_limits SET attempt_count = ?, reset_at = ? WHERE rate_key = ?', [
-      nextCount,
-      nextResetAt,
-      key
-    ])
-  } else {
-    await db.run('INSERT INTO rate_limits (rate_key, attempt_count, reset_at) VALUES (?, ?, ?)', [
-      key,
-      nextCount,
-      nextResetAt
-    ])
-  }
-
-  if (nextCount > maxAttempts) {
+  if (!allowed) {
     res.status(429).json({ error: 'too many attempts, please try again later' })
     return false
   }
@@ -74,5 +53,5 @@ export async function rateLimit(
  * Clear rate limit entry for an IP within a scope (call after successful authentication).
  */
 export async function clearRateLimit(db: DatabaseClient, req: NextApiRequest, scope = 'default') {
-  await db.run('DELETE FROM rate_limits WHERE rate_key = ?', [`${scope}:${getClientIp(req)}`])
+  await createAuthService(db).clearAttempts(`${scope}:${getClientIp(req)}`)
 }

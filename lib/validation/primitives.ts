@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { normalizeEmail, validatePassword } from '../password'
+import { normalizeEmail, validatePassword } from '../domains/auth/password'
 
 const MAX_SAFE_ID = Number.MAX_SAFE_INTEGER
 

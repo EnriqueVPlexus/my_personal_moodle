@@ -90,7 +90,7 @@ describe('roadmap JSON export', () => {
     const db = await setupDb()
     vi.resetModules()
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({
+    vi.doMock('../lib/http/auth', () => ({
       getRoadmapReadScope: vi.fn().mockResolvedValue({ allRoadmaps: true, roadmapIds: [] }),
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))

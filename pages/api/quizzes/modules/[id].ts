@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/auth'
+import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { findModuleById } from '../../../../lib/moduleRepository'
 import { touchRoadmapProgress } from '../../../../lib/progressRepository'

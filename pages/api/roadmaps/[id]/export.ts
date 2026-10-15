@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getRoadmapReadScope, scopeAllowsRoadmap } from '../../../../lib/auth'
+import { getRoadmapReadScope, scopeAllowsRoadmap } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { exportRoadmapAsJson } from '../../../../lib/roadmapImport'
 import { normalizeMetadataKey } from '../../../../lib/roadmapMetadata'

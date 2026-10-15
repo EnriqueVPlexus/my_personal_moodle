@@ -1,4 +1,4 @@
-import { hashPassword, normalizeEmail, validatePassword } from '../../password'
+import { hashPassword, normalizeEmail, validatePassword } from '../../domains/auth/password'
 
 export async function seedInitialAdmin(db: any) {
   const email = normalizeEmail(process.env.ADMIN_EMAIL || '')

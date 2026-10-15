@@ -6,7 +6,7 @@ const user = { id: 2, email: 'user@example.com', name: 'User Test', role: 'user'
 async function mockPortfolioApi(options: { user?: any; portfolio?: any } = {}) {
   vi.resetModules()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue({}) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/http/auth', () => ({
     requireUser: vi.fn((_req: any, res: any) => {
       if (options.user === null) {
         res.status(401).json({ error: 'authentication required' })

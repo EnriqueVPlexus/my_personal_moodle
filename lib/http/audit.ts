@@ -1,5 +1,5 @@
 import type { NextApiRequest } from 'next'
-import type { AuthUser } from '../auth'
+import type { AuthUser } from './auth'
 import { createAuditService, type AuditContext } from '../domains/audit'
 import type { DatabaseClient } from '../persistence'
 import { getHeaderValue } from './headers'

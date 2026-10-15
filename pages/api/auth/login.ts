@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { createSession, requireSameOrigin } from '../../../lib/auth'
-import { rateLimit, clearRateLimit } from '../../../lib/rateLimit'
+import { createSession, requireSameOrigin } from '../../../lib/http/auth'
+import { rateLimit, clearRateLimit } from '../../../lib/http/rateLimit'
 import { openDb } from '../../../lib/persistence'
-import { normalizeEmail, verifyPassword } from '../../../lib/password'
+import { createAuthService } from '../../../lib/domains/auth'
 import { loginBodySchema } from '../../../lib/validation/auth'
 import { parseOrRespond } from '../../../lib/validation/http'
 
@@ -23,25 +23,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!body) return
   const { email, password } = body
 
-  const user = await db.get(
-    'SELECT id, email, name, role, password_hash FROM users WHERE email = ? AND is_active = 1',
-    [normalizeEmail(email)]
-  )
-
-  if (!user || !(await verifyPassword(password, user.password_hash))) {
+  const result = await createAuthService(db).login(email, password)
+  if (!result.ok) {
     return res.status(401).json({ error: 'invalid credentials' })
   }
 
   // Clear rate limit after successful login
   await clearRateLimit(db, req, 'login')
-  
-  await createSession(res, user.id, db)
-  return res.status(200).json({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
-    }
-  })
+
+  await createSession(res, result.user.id, db)
+  return res.status(200).json({ user: result.user })
 }

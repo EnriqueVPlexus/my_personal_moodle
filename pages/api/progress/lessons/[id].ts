@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireUser } from '../../../../lib/auth'
+import { requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { setLessonProgress } from '../../../../lib/progressRepository'
 import { parseOrRespond } from '../../../../lib/validation/http'
