@@ -178,8 +178,22 @@ pásalo como **datos planos**; construirlos es trabajo del adaptador de `lib/htt
 - **Último admin activo**: la comprobación estaba duplicada de forma idéntica en
   `users/[id]`; ahora es una única regla del servicio de administración.
 - **Bootstrap**: `lib/persistence/bootstrap/` es código de arranque y usa el
-  repositorio de metadatos y utilidades puras de `content` para sembrar. Es la
-  única excepción a «persistence no depende de dominios».
+  repositorio de metadatos y utilidades puras de `content` para sembrar.
+- **Importaciones puras entre capas**: además del bootstrap, hay tres
+  importaciones de funciones o constantes puras (sin SQL ni puertos) que cruzan
+  la regla de dependencias de la tabla anterior:
+  - `lib/persistence/sqliteSchema.ts` importa `domains/content/version` y
+    `domains/content/metadata`.
+  - `lib/domains/progress/repositories/quizRepository.ts` importa
+    `domains/content/quizzes`.
+  - `lib/domains/admin/repositories/dashboardRepository.ts` importa
+    `domains/progress/constants`.
+  Ninguna se salta un puerto. Si crecen, conviene moverlas a un módulo
+  compartido.
+- **Sesión antes del módulo en `GET /api/quizzes/modules/[id]`**: el handler
+  lee el usuario de la sesión antes de buscar el módulo. La respuesta es la
+  misma; el único efecto nuevo es que una petición a un módulo inexistente
+  también actualiza `last_seen_at` de la sesión.
 - **Lecturas de catálogo (`catalogRepository`) y vistas del alumno
   (`learnerViewRepository`)**: son modelos de lectura que devuelven filas tal
   cual para no cambiar el JSON de la API.
