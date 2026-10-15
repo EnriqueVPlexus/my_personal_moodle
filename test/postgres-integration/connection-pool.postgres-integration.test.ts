@@ -36,6 +36,7 @@ if (DATABASE_URL) {
 
 describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () => {
   afterAll(async () => {
+    const { openDb } = await import('../../lib/db')
     await ((await openDb()) as unknown as PostgresDb).close()
   })
 
