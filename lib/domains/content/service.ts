@@ -1,4 +1,5 @@
 import { scopeAllowsRoadmap } from '../auth/policy'
+import type { UnitOfWork } from '../shared/unitOfWork'
 import { RoadmapImportConflictError } from './import'
 import { MODULE_LEVELS } from './metadata'
 import { ROADMAP_DURATION_FILTERS, ROADMAP_PROGRESS_STATUS_FILTERS, type RoadmapCatalogFilters } from './filters'
@@ -32,6 +33,8 @@ export type ContentPorts = {
   lessons: LessonRepository
   imports: ImportRepository
   learnerProgress: LearnerProgressReader
+  /** Atomic roadmap core + metadata writes. */
+  unitOfWork: UnitOfWork<{ roadmaps: RoadmapRepository; metadata: MetadataRepository }>
 }
 
 export type RoadmapDraft = {
@@ -135,7 +138,7 @@ export function emptyCatalogMetadata() {
 export type ContentService = ReturnType<typeof makeContentService>
 
 export function makeContentService(ports: ContentPorts) {
-  const { roadmaps, metadata, catalog, modules, lessons, imports, learnerProgress } = ports
+  const { roadmaps, metadata, catalog, modules, lessons, imports, learnerProgress, unitOfWork } = ports
 
   return {
     // --- Catalog: search and filter metadata -------------------------------
@@ -199,17 +202,22 @@ export function makeContentService(ports: ContentPorts) {
 
     async createRoadmap(draft: RoadmapDraft): Promise<{ id: number; roadmap: RoadmapRecord | undefined; topics: string[] } | null> {
       const topics = draft.topics ?? []
-      const id = await roadmaps.insert({
-        title: draft.title,
-        description: draft.description || null,
-        duration: draft.duration || null,
-        durationWeeks: draft.durationWeeks,
-        version: draft.version,
-        publishedAt: draft.publishedAt
+      const id = await unitOfWork.run(async ({ roadmaps: txRoadmaps, metadata: txMetadata }) => {
+        const insertedId = await txRoadmaps.insert({
+          title: draft.title,
+          description: draft.description || null,
+          duration: draft.duration || null,
+          durationWeeks: draft.durationWeeks,
+          version: draft.version,
+          publishedAt: draft.publishedAt
+        })
+        if (!insertedId) return null
+
+        await txMetadata.save(insertedId, draft.category, topics)
+        return insertedId
       })
       if (!id) return null
 
-      await metadata.save(id, draft.category, topics)
       return { id, roadmap: await roadmaps.findRecordById(id), topics }
     },
 
@@ -219,29 +227,33 @@ export function makeContentService(ports: ContentPorts) {
       const hasCategory = changes.category !== undefined
       const hasTopics = changes.topics !== undefined
 
-      const updatedRows = await roadmaps.updateCore(id, {
-        title: changes.title,
-        description: changes.description || null,
-        ...(changes.duration !== undefined ? { duration: changes.duration || null } : {}),
-        ...(changes.durationWeeks
-          ? { durationWeeks: { min: changes.durationWeeks.min, max: changes.durationWeeks.max } }
-          : {}),
-        ...(changes.version !== undefined ? { version: changes.version } : {}),
-        ...(changes.publishedAt !== undefined ? { publishedAt: changes.publishedAt } : {})
-      })
-      if (!updatedRows) return null
+      const updated = await unitOfWork.run(async ({ roadmaps: txRoadmaps, metadata: txMetadata }) => {
+        const updatedRows = await txRoadmaps.updateCore(id, {
+          title: changes.title,
+          description: changes.description || null,
+          ...(changes.duration !== undefined ? { duration: changes.duration || null } : {}),
+          ...(changes.durationWeeks
+            ? { durationWeeks: { min: changes.durationWeeks.min, max: changes.durationWeeks.max } }
+            : {}),
+          ...(changes.version !== undefined ? { version: changes.version } : {}),
+          ...(changes.publishedAt !== undefined ? { publishedAt: changes.publishedAt } : {})
+        })
+        if (!updatedRows) return false
 
-      if (hasCategory || hasTopics) {
-        const currentCategory = hasCategory
-          ? changes.category
-          : await roadmaps.findCategoryLabelById(id)
-        const currentTopics = hasTopics ? topics : await metadata.getTopics(String(id))
-        await metadata.save(
-          String(id),
-          currentCategory,
-          Array.isArray(currentTopics) ? currentTopics.map((topic: any) => topic.label ?? topic) : []
-        )
-      }
+        if (hasCategory || hasTopics) {
+          const currentCategory = hasCategory
+            ? changes.category
+            : await txRoadmaps.findCategoryLabelById(id)
+          const currentTopics = hasTopics ? topics : await txMetadata.getTopics(String(id))
+          await txMetadata.save(
+            String(id),
+            currentCategory,
+            Array.isArray(currentTopics) ? currentTopics.map((topic: any) => topic.label ?? topic) : []
+          )
+        }
+        return true
+      })
+      if (!updated) return null
 
       return { roadmap: await roadmaps.findRecordById(id), topics }
     },

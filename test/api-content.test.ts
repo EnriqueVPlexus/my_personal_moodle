@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createRequest, createResponse } from './helpers/api'
+import { createRequest, withFakeTransaction, createResponse } from './helpers/api'
 
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const user = { id: 2, email: 'user@example.com', role: 'user' as const }
 
 async function mockApi(db: any, options: { admin?: any; read?: boolean; user?: any; scope?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
   vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn().mockResolvedValue(options.admin === undefined ? admin : options.admin),
     requireReadAccess: vi.fn().mockResolvedValue(options.read !== false),

@@ -40,14 +40,18 @@ function setup(overrides: Overrides = {}) {
       get: (target, prop: string) => (target as Record<string, unknown>)[prop] ?? missing(`${group}.${prop}`)
     }) as ContentPorts[K]
 
+  const roadmaps = proxy('roadmaps')
+  const metadata = proxy('metadata')
+
   return makeContentService({
-    roadmaps: proxy('roadmaps'),
-    metadata: proxy('metadata'),
+    roadmaps,
+    metadata,
     catalog: proxy('catalog'),
     modules: proxy('modules'),
     lessons: proxy('lessons'),
     imports: proxy('imports'),
-    learnerProgress: proxy('learnerProgress')
+    learnerProgress: proxy('learnerProgress'),
+    unitOfWork: { run: overrides.unitOfWork?.run ?? (work => work({ roadmaps, metadata })) }
   })
 }
 
@@ -253,6 +257,38 @@ describe('roadmap use cases', () => {
       title: 'New', version: 'v1.0.0', publishedAt: '2026-01-01', durationWeeks: { min: null, max: null }
     })).toBeNull()
     expect(save).not.toHaveBeenCalled()
+  })
+
+  it('creates and updates roadmaps with their metadata inside one unit of work', async () => {
+    const run = vi.fn((work: (repos: any) => Promise<unknown>) => work({
+      roadmaps: { insert: async () => 8, updateCore: async () => 1, findCategoryLabelById: async () => 'Cloud' },
+      metadata: { save: async () => undefined, getTopics: async () => [] }
+    }))
+    const service = setup({
+      unitOfWork: { run } as any,
+      roadmaps: { findRecordById: async () => roadmapRecord(8) }
+    })
+
+    await service.createRoadmap({ title: 'New', version: 'v1.0.0', publishedAt: '2026-01-01', durationWeeks: { min: null, max: null } })
+    await service.updateRoadmap(8, { title: 'T', category: 'Cloud' })
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+
+  it('propagates a metadata failure from the unit of work without returning a roadmap', async () => {
+    const failure = new Error('metadata failed')
+    const service = setup({
+      unitOfWork: {
+        run: async work => work({
+          roadmaps: { insert: async () => 8 } as any,
+          metadata: { save: async () => { throw failure } } as any
+        })
+      },
+      roadmaps: { findRecordById: async () => { throw new Error('must not read after a failed write') } }
+    })
+
+    await expect(service.createRoadmap({
+      title: 'New', version: 'v1.0.0', publishedAt: '2026-01-01', durationWeeks: { min: null, max: null }, category: 'Cloud'
+    })).rejects.toBe(failure)
   })
 
   it('deleting is idempotent and reports the previous title', async () => {

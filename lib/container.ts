@@ -43,7 +43,13 @@ export function createServices(db: DatabaseClient) {
     modules,
     lessons: createLessonRepository(db),
     imports: createImportRepository(db),
-    learnerProgress: { listUserRoadmapProgress: userId => progress.listUserRoadmapProgress(userId) }
+    learnerProgress: { listUserRoadmapProgress: userId => progress.listUserRoadmapProgress(userId) },
+    unitOfWork: {
+      run: work => db.transaction(tx => work({
+        roadmaps: createRoadmapRepository(tx),
+        metadata: createMetadataRepository(tx)
+      }))
+    }
   })
 
   const learning = makeProgressService({
