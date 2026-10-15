@@ -4826,7 +4826,11 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "type": "number"
+                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
+                  "type": [
+                    "number",
+                    "string"
+                  ]
                 }
               },
               "required": [
@@ -4848,7 +4852,11 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "type": "number"
+                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
+                  "type": [
+                    "number",
+                    "string"
+                  ]
                 }
               },
               "required": [
@@ -4867,7 +4875,11 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "type": "number"
+                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
+                  "type": [
+                    "number",
+                    "string"
+                  ]
                 }
               },
               "required": [
@@ -4942,7 +4954,11 @@
             }
           },
           "unclassified_roadmaps": {
-            "type": "number"
+            "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
+            "type": [
+              "number",
+              "string"
+            ]
           }
         },
         "required": [
@@ -5028,7 +5044,11 @@
             "description": "Fecha y hora como texto (normalmente ISO 8601; en SQLite puede ser `YYYY-MM-DD HH:MM:SS`)."
           },
           "module_count": {
-            "type": "number"
+            "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
+            "type": [
+              "number",
+              "string"
+            ]
           },
           "category": {
             "anyOf": [

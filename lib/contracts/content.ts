@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { timestampSchema } from './common'
+import { countSchema, timestampSchema } from './common'
 
 const nullableText = z.string().nullable()
 const nullableWeeks = z.number().nullable()
@@ -25,7 +25,7 @@ export const topicRefSchema = z.object({ key: z.string(), label: z.string() })
 
 /** One entry of `GET /api/roadmaps`: the roadmap row plus category, topics and module count. */
 export const catalogRoadmapSchema = roadmapRecordSchema.extend({
-  module_count: z.number(),
+  module_count: countSchema,
   category: categoryRefSchema.nullable(),
   topics: z.array(topicRefSchema),
   user_progress_status: z.enum(['not_started', 'in_progress', 'completed']).optional().meta({
@@ -63,16 +63,18 @@ export const lessonRecordSchema = z.object({
   completed: z.number()
 })
 
-const countedItemSchema = z.object({ key: z.string(), label: z.string(), roadmap_count: z.number() })
+const countedItemSchema = z.object({ key: z.string(), label: z.string(), roadmap_count: countSchema })
+// Computed buckets: always numbers.
+const bucketSchema = z.object({ key: z.string(), label: z.string(), roadmap_count: z.number() })
 
 export const catalogMetadataSchema = z.object({
   categories: z.array(countedItemSchema),
   topics: z.array(countedItemSchema),
-  levels: z.array(z.object({ key: z.string(), roadmap_count: z.number() })),
+  levels: z.array(z.object({ key: z.string(), roadmap_count: countSchema })),
   duration: z.object({ min_weeks: nullableWeeks, max_weeks: nullableWeeks }),
-  duration_ranges: z.array(countedItemSchema),
-  progress_statuses: z.array(countedItemSchema),
-  unclassified_roadmaps: z.number()
+  duration_ranges: z.array(bucketSchema),
+  progress_statuses: z.array(bucketSchema),
+  unclassified_roadmaps: countSchema
 })
 
 // --- Import / export -------------------------------------------------------

@@ -146,7 +146,7 @@ export default function RoadmapsPage() {
     if (!metadata || !router.isReady) return
     const validCategories = new Set(metadata.categories.map(item => item.key))
     const validTopics = new Set(metadata.topics.map(item => item.key))
-    const validLevels = new Set(metadata.levels.filter(item => item.roadmap_count > 0).map(item => item.key))
+    const validLevels = new Set(metadata.levels.filter(item => Number(item.roadmap_count) > 0).map(item => item.key))
     const validProgressStatuses = new Set((metadata.progress_statuses ?? []).map(item => item.key))
     const canonicalFilters = {
       ...filters,
@@ -349,7 +349,7 @@ export default function RoadmapsPage() {
               />
               <FilterGroup
                 title="Nivel"
-                options={(metadata?.levels ?? []).filter(item => item.roadmap_count > 0).map(item => ({ ...item, label: levelLabel(item.key) }))}
+                options={(metadata?.levels ?? []).filter(item => Number(item.roadmap_count) > 0).map(item => ({ ...item, label: levelLabel(item.key) }))}
                 selected={filters.levels}
                 onToggle={value => toggleFilter('levels', value)}
               />
@@ -360,7 +360,7 @@ export default function RoadmapsPage() {
                 onToggle={value => toggleFilter('durations', value)}
                 hideCounts={!metadata?.duration_ranges}
               />
-              {metadata?.progress_statuses && metadata.progress_statuses.some(item => item.roadmap_count > 0) ? (
+              {metadata?.progress_statuses && metadata.progress_statuses.some(item => Number(item.roadmap_count) > 0) ? (
                 <FilterGroup
                   title="Estado mi progreso"
                   options={metadata.progress_statuses}
