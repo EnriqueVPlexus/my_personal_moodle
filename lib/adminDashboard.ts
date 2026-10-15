@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { DatabaseClient } from './persistence/database'
 import type { PostgresDb } from './persistence/postgresDb'
 import { getQueryDatabase } from './persistence/kyselyDatabase'
-import { ROADMAP_PAUSED_AFTER_DAYS } from './progressRepository'
+import { ROADMAP_PAUSED_AFTER_DAYS } from './domains/progress/constants'
 
 function pool(db: DatabaseClient) {
   return (db as PostgresDb).getPool()

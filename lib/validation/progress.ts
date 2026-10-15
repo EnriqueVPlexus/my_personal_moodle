@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_LESSON_TIME_INCREMENT_SECONDS } from '../progressRepository'
+import { MAX_LESSON_TIME_INCREMENT_SECONDS } from '../domains/progress/constants'
 import { bodyObject, positiveInt, queryObject } from './primitives'
 
 export const lessonProgressQuerySchema = queryObject({ id: positiveInt('id') })

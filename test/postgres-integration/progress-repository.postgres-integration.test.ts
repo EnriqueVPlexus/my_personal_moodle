@@ -5,7 +5,7 @@ import {
   setLessonProgress,
   listUserRoadmapProgress,
   getRoadmapDetailProgress
-} from '../../lib/progressRepository'
+} from '../../lib/domains/progress/repositories/progressRepository'
 
 /**
  * Verifies lib/progressRepository.ts against real Postgres (backlog.md:

@@ -42,7 +42,7 @@ describe('evidenceRepository (postgres backend)', () => {
 
   describe('getModuleEvidence', () => {
     it('selects the evidence via the Kysely query builder', async () => {
-      const { getModuleEvidence } = await import('../lib/evidenceRepository')
+      const { getModuleEvidence } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const { pool, client } = createFakePool(async sql => {
         expect(sql).toContain('select')
         expect(sql).toContain('"user_module_evidences"')
@@ -59,7 +59,7 @@ describe('evidenceRepository (postgres backend)', () => {
 
   describe('saveModuleEvidence', () => {
     it('upserts via onConflict().doUpdateSet() and re-reads the row', async () => {
-      const { saveModuleEvidence } = await import('../lib/evidenceRepository')
+      const { saveModuleEvidence } = await import('../lib/domains/progress/repositories/evidenceRepository')
       let insertSeen = false
       const { pool } = createFakePool(async sql => {
         if (/insert into "user_module_evidences"/i.test(sql)) {
@@ -84,7 +84,7 @@ describe('evidenceRepository (postgres backend)', () => {
 
   describe('reviewModuleEvidence', () => {
     it('updates the review fields and returns the refreshed row', async () => {
-      const { reviewModuleEvidence } = await import('../lib/evidenceRepository')
+      const { reviewModuleEvidence } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const reviewed = { ...evidenceRow, review_status: 'aprobado', admin_comment: 'Bien hecho', reviewed_by_user_id: 1 }
       let updateSeen = false
       const { pool } = createFakePool(async sql => {
@@ -107,7 +107,7 @@ describe('evidenceRepository (postgres backend)', () => {
 
   describe('listEvidences', () => {
     it('builds joins and applies filters conditionally', async () => {
-      const { listEvidences } = await import('../lib/evidenceRepository')
+      const { listEvidences } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const listedRow = {
         ...evidenceRow,
         user_email: 'user@example.com',
@@ -132,7 +132,7 @@ describe('evidenceRepository (postgres backend)', () => {
     })
 
     it('omits the WHERE clause when no filters are given', async () => {
-      const { listEvidences } = await import('../lib/evidenceRepository')
+      const { listEvidences } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const { pool } = createFakePool(async sql => {
         expect(sql).not.toContain('where')
         return { command: 'SELECT', rowCount: 0, rows: [] }

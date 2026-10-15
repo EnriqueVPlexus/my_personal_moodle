@@ -15,12 +15,16 @@ async function mockPortfolioApi(options: { user?: any; portfolio?: any } = {}) {
       return options.user ?? user
     })
   }))
-  vi.doMock('../lib/portfolio', () => ({
-    getUserPortfolio: vi.fn().mockResolvedValue(
-      options.portfolio === undefined
-        ? { user, total_evidences: 0, approved_evidences: 0, roadmaps: [] }
-        : options.portfolio
-    ),
+  vi.doMock('../lib/domains/progress/repositories/portfolioRepository', () => ({
+    createPortfolioRepository: () => ({
+      getForUser: vi.fn().mockResolvedValue(
+        options.portfolio === undefined
+          ? { user, total_evidences: 0, approved_evidences: 0, roadmaps: [] }
+          : options.portfolio
+      )
+    })
+  }))
+  vi.doMock('../lib/domains/progress/portfolio', () => ({
     exportPortfolioAsMarkdown: vi.fn().mockReturnValue('# Portfolio de Evidencias - User Test')
   }))
 }

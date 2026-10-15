@@ -37,7 +37,8 @@ async function mockModuleIdApi(
         res.status(401).json({ error: 'authentication required' })
         return null
       }
-      return options.scope ?? { user, allRoadmaps: true, roadmapIds: [] }
+      // scopeAllows: false means the scope grants no roadmap (the real policy decides)
+      return options.scope ?? { user, allRoadmaps: options.scopeAllows !== false, roadmapIds: [] }
     }),
     requireUser: vi.fn((_req: any, res: any) => {
       if (options.user === null) return denyUser(res)
@@ -45,7 +46,9 @@ async function mockModuleIdApi(
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(options.scopeAllows ?? true)
   }))
-  vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/domains/progress/repositories/progressRepository', () => ({
+    createProgressRepository: () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) })
+  }))
 }
 
 async function mockReviewApi(db: any, options: { admin?: any } = {}) {

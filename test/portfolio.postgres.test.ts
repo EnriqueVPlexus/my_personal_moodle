@@ -52,7 +52,7 @@ describe('getUserPortfolio (postgres backend)', () => {
   })
 
   it('groups evidence across multiple roadmaps and modules', async () => {
-    const { getUserPortfolio } = await import('../lib/portfolio')
+    const { getUserPortfolio } = await import('../lib/domains/progress/repositories/portfolioRepository')
 
     const rows = [
       evidenceRow({ id: 1, roadmap_id: 10, roadmap_title: 'DevOps Cantera', module_id: 21, module_position: 1, module_title: 'Contenedores con Docker' }),
@@ -100,7 +100,7 @@ describe('getUserPortfolio (postgres backend)', () => {
   })
 
   it('returns an empty portfolio structure when the user has no evidence', async () => {
-    const { getUserPortfolio } = await import('../lib/portfolio')
+    const { getUserPortfolio } = await import('../lib/domains/progress/repositories/portfolioRepository')
 
     const { pool } = createFakePool(async sql => {
       if (/from "users"/i.test(sql)) {
@@ -118,7 +118,7 @@ describe('getUserPortfolio (postgres backend)', () => {
   })
 
   it('returns null when the user does not exist or is inactive', async () => {
-    const { getUserPortfolio } = await import('../lib/portfolio')
+    const { getUserPortfolio } = await import('../lib/domains/progress/repositories/portfolioRepository')
 
     const { pool } = createFakePool(async sql => {
       expect(sql).toContain('from "users"')

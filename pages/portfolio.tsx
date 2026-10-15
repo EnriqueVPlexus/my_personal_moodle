@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 import Layout from '../components/Layout'
 import { useAuth } from '../components/AuthProvider'
 import { branding } from '../lib/branding'
-import { UserPortfolio } from '../lib/portfolio'
+import { UserPortfolio } from '../lib/domains/progress/portfolio'
 
 const typeLabels: Record<string, string> = {
   github: 'GitHub',

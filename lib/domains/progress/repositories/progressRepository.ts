@@ -1,24 +1,17 @@
 import { sql } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase } from './persistence/kyselyDatabase'
-
-type RoadmapProgressTouch = {
-  userId: number
-  roadmapId: number
-  moduleId?: number | null
-  lessonId?: number | null
-  completedLessonsCount?: number
-  timeSpentSeconds?: number
-  completedAt?: string | null
-}
-
-type LessonProgressUpdate = {
-  userId: number
-  lessonId: number
-  completed: boolean
-  timeSpentSeconds?: number
-}
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase } from '../../../persistence/kyselyDatabase'
+import { clampTimeSpent, percentageValue, progressPercentage, resolveRoadmapStatus } from '../rules'
+import type {
+  LessonProgressUpdate,
+  ModuleProgressStatus,
+  RoadmapDetailProgress,
+  RoadmapModuleProgressSummary,
+  RoadmapProgressTouch,
+  UserRoadmapProgressSummary
+} from '../types'
+import type { ProgressRepository } from '../ports'
 
 type LessonContext = {
   lessonId: number
@@ -27,117 +20,8 @@ type LessonContext = {
   title: string
 }
 
-export const ROADMAP_PAUSED_AFTER_DAYS = 14
-export const MAX_LESSON_TIME_INCREMENT_SECONDS = 30 * 60
-
-export type RoadmapProgressStatus = 'started' | 'in_progress' | 'paused' | 'completed'
-
-export type UserRoadmapProgressSummary = {
-  roadmap_id: number
-  title: string
-  description?: string | null
-  duration?: string | null
-  started_at?: string | null
-  last_activity_at: string
-  completed_at?: string | null
-  completed_lessons_count: number
-  total_lessons: number
-  total_modules: number
-  time_spent_seconds: number
-  current_module_id?: number | null
-  current_module_title?: string | null
-  current_lesson_id?: number | null
-  current_lesson_title?: string | null
-  progress_percentage: number
-  status: RoadmapProgressStatus
-  next_href: string
-  next_step_label: string
-  quiz_attempts_count: number
-  average_quiz_percentage?: number | null
-  best_quiz_percentage?: number | null
-  last_quiz_percentage?: number | null
-}
-
-export type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
-
-export type RoadmapModuleProgressSummary = {
-  module_id: number
-  title: string
-  position?: number | null
-  total_lessons: number
-  completed_lessons_count: number
-  progress_percentage: number
-  status: ModuleProgressStatus
-  last_activity_at?: string | null
-  next_lesson_id?: number | null
-  next_lesson_title?: string | null
-}
-
-export type RoadmapDetailProgress = {
-  roadmap_id: number
-  started_at?: string | null
-  last_activity_at?: string | null
-  completed_at?: string | null
-  completed_lessons_count: number
-  total_lessons: number
-  total_modules: number
-  time_spent_seconds: number
-  current_module_id?: number | null
-  current_module_title?: string | null
-  current_lesson_id?: number | null
-  current_lesson_title?: string | null
-  progress_percentage: number
-  status: RoadmapProgressStatus
-  next_href: string
-  next_step_label: string
-  modules: RoadmapModuleProgressSummary[]
-}
-
 function nowIso() {
   return new Date().toISOString()
-}
-
-function progressPercentage(completed: number, total: number) {
-  return total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
-}
-
-function percentageValue(value: unknown) {
-  if (value === null || value === undefined) return null
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? Math.round(numeric) : null
-}
-
-function isPaused(lastActivityAt: unknown) {
-  if (!lastActivityAt) return false
-  const lastActivity = new Date(String(lastActivityAt)).getTime()
-  if (!Number.isFinite(lastActivity)) return false
-
-  const elapsedMs = Date.now() - lastActivity
-  const pausedAfterMs = ROADMAP_PAUSED_AFTER_DAYS * 24 * 60 * 60 * 1000
-  return elapsedMs >= pausedAfterMs
-}
-
-export function resolveRoadmapStatus(options: {
-  completedAt?: string | null
-  completedLessonsCount: number
-  totalLessons: number
-  currentModuleId?: number | null
-  lastActivityAt?: string | null
-}): RoadmapProgressStatus {
-  if (options.totalLessons > 0 && options.completedLessonsCount >= options.totalLessons) {
-    return 'completed'
-  }
-
-  const hasMeaningfulProgress = options.completedLessonsCount > 0 || Boolean(options.currentModuleId)
-  if (hasMeaningfulProgress && isPaused(options.lastActivityAt)) return 'paused'
-  if (hasMeaningfulProgress) return 'in_progress'
-  return 'started'
-}
-
-function clampTimeSpent(value: unknown) {
-  const numeric = typeof value === 'number' ? value : Number(value || 0)
-  if (!Number.isFinite(numeric) || numeric <= 0) return 0
-  return Math.min(MAX_LESSON_TIME_INCREMENT_SECONDS, Math.round(numeric))
 }
 
 // Plain aggregate joins/counts, no CTE/window functions: reused verbatim for
@@ -915,5 +799,14 @@ export async function getRoadmapDetailProgress(
     next_href: nextHref,
     next_step_label: nextStepLabel,
     modules: moduleSummaries
+  }
+}
+
+export function createProgressRepository(db: DatabaseClient): ProgressRepository {
+  return {
+    touchRoadmapProgress: options => touchRoadmapProgress(db, options),
+    setLessonProgress: options => setLessonProgress(db, options),
+    listUserRoadmapProgress: userId => listUserRoadmapProgress(db, userId),
+    getRoadmapDetailProgress: (userId, roadmapId) => getRoadmapDetailProgress(db, userId, roadmapId)
   }
 }

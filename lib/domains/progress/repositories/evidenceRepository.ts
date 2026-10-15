@@ -1,8 +1,9 @@
 import { Selectable } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase, UserModuleEvidencesTable } from './persistence/kyselyDatabase'
-import { EvidenceReviewStatus, EvidenceType, EVIDENCE_REVIEW_STATUSES, ModuleEvidence } from './evidences'
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase, UserModuleEvidencesTable } from '../../../persistence/kyselyDatabase'
+import { EvidenceReviewStatus, EvidenceType, EVIDENCE_REVIEW_STATUSES, ModuleEvidence } from '../evidences'
+import type { EvidenceRepository } from '../ports'
 
 export type EvidenceRow = Selectable<UserModuleEvidencesTable>
 
@@ -287,4 +288,15 @@ export async function listEvidences(db: DatabaseClient, filters: EvidenceListFil
     ...row,
     review_status: row.review_status ?? 'pendiente'
   })) as unknown as EvidenceListRow[]
+}
+
+export function createEvidenceRepository(db: DatabaseClient): EvidenceRepository {
+  return {
+    get: (userId, moduleId) => getModuleEvidence(db, userId, moduleId),
+    getById: evidenceId => getEvidenceById(db, evidenceId),
+    save: (userId, moduleId, input) => saveModuleEvidence(db, userId, moduleId, input),
+    review: (evidenceId, adminUserId, input) => reviewModuleEvidence(db, evidenceId, adminUserId, input),
+    delete: (userId, moduleId) => deleteModuleEvidence(db, userId, moduleId),
+    list: filters => listEvidences(db, filters)
+  }
 }

@@ -7,35 +7,57 @@ import { createImportRepository } from './domains/content/repositories/importRep
 import { createLessonRepository } from './domains/content/repositories/lessonRepository'
 import { createMetadataRepository } from './domains/content/repositories/metadataRepository'
 import { createModuleRepository } from './domains/content/repositories/moduleRepository'
-import { createRoadmapRepository } from './domains/content/repositories/roadmapRepository'
-import { listUserRoadmapProgress } from './progressRepository'
+import { createRoadmapRepository, findRoadmapById } from './domains/content/repositories/roadmapRepository'
+import { makeProgressService } from './domains/progress'
+import { createEvidenceRepository } from './domains/progress/repositories/evidenceRepository'
+import { createLearnerViewRepository } from './domains/progress/repositories/learnerViewRepository'
+import { createPortfolioRepository } from './domains/progress/repositories/portfolioRepository'
+import { createProgressRepository } from './domains/progress/repositories/progressRepository'
+import { createQuizAttemptRepository } from './domains/progress/repositories/quizRepository'
 
 /**
  * Composition root: builds every domain service from a DatabaseClient.
  *
  * This is the only place that knows which repository implements which port
  * and how domains are connected to each other (cross-domain ports such as the
- * content catalog reading the learner's progress). No DI framework: each
- * factory is a plain function and services are cheap closures, so handlers
- * build them per request from `openDb()`.
+ * content catalog reading the learner's progress, or the learner views
+ * reading catalog rows). No DI framework: each factory is a plain function
+ * and services are cheap closures, so handlers build them per request from
+ * `openDb()`.
  */
 export function createServices(db: DatabaseClient) {
+  const modules = createModuleRepository(db)
+  const metadata = createMetadataRepository(db)
+  const progress = createProgressRepository(db)
+
   const content = makeContentService({
     roadmaps: createRoadmapRepository(db),
-    metadata: createMetadataRepository(db),
+    metadata,
     catalog: createCatalogRepository(db),
-    modules: createModuleRepository(db),
+    modules,
     lessons: createLessonRepository(db),
     imports: createImportRepository(db),
-    learnerProgress: {
-      listUserRoadmapProgress: userId => listUserRoadmapProgress(db, userId)
+    learnerProgress: { listUserRoadmapProgress: userId => progress.listUserRoadmapProgress(userId) }
+  })
+
+  const learning = makeProgressService({
+    progress,
+    learnerViews: createLearnerViewRepository(db),
+    quizAttempts: createQuizAttemptRepository(db),
+    evidences: createEvidenceRepository(db),
+    portfolios: createPortfolioRepository(db),
+    content: {
+      findRoadmap: id => findRoadmapById(db, id),
+      findModule: id => modules.findById(id),
+      getRoadmapTopics: roadmapId => metadata.getTopics(roadmapId)
     }
   })
 
   return {
     auth: createAuthService(db),
     audit: createAuditService(db),
-    content
+    content,
+    progress: learning
   }
 }
 

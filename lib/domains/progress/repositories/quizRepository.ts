@@ -1,13 +1,15 @@
 import { sql } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase } from './persistence/kyselyDatabase'
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase } from '../../../persistence/kyselyDatabase'
 import {
   gradeModuleQuiz,
   type AttemptEligibility,
+  type QuizGrade,
   type ModuleQuizSource,
   type ModuleQuizSummary
-} from './domains/content/quizzes'
+} from '../../content/quizzes'
+import type { QuizAttemptRepository } from '../ports'
 
 const PASSING_PERCENTAGE = 70
 
@@ -20,13 +22,13 @@ function percentage(score: number, maxScore: number) {
   return Math.round((score / maxScore) * 100)
 }
 
-export async function saveModuleQuizAttempt(
+export async function insertModuleQuizAttempt(
   db: DatabaseClient,
   userId: number,
   module: ModuleQuizSource,
-  answers: Record<string, unknown>
+  answers: Record<string, unknown>,
+  grade: QuizGrade
 ) {
-  const grade = gradeModuleQuiz(module, answers)
   const submittedAt = new Date().toISOString()
 
   if (db.backend !== 'postgres') {
@@ -70,6 +72,16 @@ export async function saveModuleQuizAttempt(
     ...grade,
     submitted_at: submittedAt
   }
+}
+
+/** Grades the answers and stores the attempt (convenience over the port flow). */
+export async function saveModuleQuizAttempt(
+  db: DatabaseClient,
+  userId: number,
+  module: ModuleQuizSource,
+  answers: Record<string, unknown>
+) {
+  return insertModuleQuizAttempt(db, userId, module, answers, gradeModuleQuiz(module, answers))
 }
 
 export async function getModuleQuizSummary(
@@ -227,5 +239,13 @@ export async function checkAttemptEligibility(
     remaining_attempts: maxAttempts !== null ? maxAttempts - count : null,
     cooldown_ends_at: null,
     pass_percentage: passPct
+  }
+}
+
+export function createQuizAttemptRepository(db: DatabaseClient): QuizAttemptRepository {
+  return {
+    save: (userId, module, answers, grade) => insertModuleQuizAttempt(db, userId, module, answers, grade),
+    getSummary: (userId, moduleId) => getModuleQuizSummary(db, userId, moduleId),
+    checkEligibility: (userId, module) => checkAttemptEligibility(db, userId, module)
   }
 }

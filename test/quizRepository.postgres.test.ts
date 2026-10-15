@@ -41,7 +41,7 @@ describe('quizRepository (postgres backend)', () => {
 
   describe('saveModuleQuizAttempt', () => {
     it('inserts the graded attempt via the Kysely query builder', async () => {
-      const { saveModuleQuizAttempt } = await import('../lib/quizRepository')
+      const { saveModuleQuizAttempt } = await import('../lib/domains/progress/repositories/quizRepository')
 
       const { pool, client } = createFakePool(async (sql, params) => {
         expect(sql).toContain('insert into "user_quiz_attempts"')
@@ -63,7 +63,7 @@ describe('quizRepository (postgres backend)', () => {
 
   describe('getModuleQuizSummary', () => {
     it('reports null average/best when there are no attempts', async () => {
-      const { getModuleQuizSummary } = await import('../lib/quizRepository')
+      const { getModuleQuizSummary } = await import('../lib/domains/progress/repositories/quizRepository')
       const { pool } = createFakePool(async sql => {
         expect(sql).not.toContain('datetime(')
         if (/count\(\*\) as attempts_count/i.test(sql)) {
@@ -83,7 +83,7 @@ describe('quizRepository (postgres backend)', () => {
     })
 
     it('aggregates attempts and orders the latest by submitted_at without datetime()', async () => {
-      const { getModuleQuizSummary } = await import('../lib/quizRepository')
+      const { getModuleQuizSummary } = await import('../lib/domains/progress/repositories/quizRepository')
       const { pool } = createFakePool(async sql => {
         expect(sql).not.toContain('datetime(')
         if (/count\(\*\) as attempts_count/i.test(sql)) {
@@ -118,7 +118,7 @@ describe('quizRepository (postgres backend)', () => {
 
   describe('checkAttemptEligibility', () => {
     it('blocks once the attempt count reaches the configured max', async () => {
-      const { checkAttemptEligibility } = await import('../lib/quizRepository')
+      const { checkAttemptEligibility } = await import('../lib/domains/progress/repositories/quizRepository')
       const { pool } = createFakePool(async () => ({
         command: 'SELECT',
         rowCount: 1,
@@ -131,7 +131,7 @@ describe('quizRepository (postgres backend)', () => {
     })
 
     it('computes a cooldown window from the last failed attempt without datetime()', async () => {
-      const { checkAttemptEligibility } = await import('../lib/quizRepository')
+      const { checkAttemptEligibility } = await import('../lib/domains/progress/repositories/quizRepository')
       const { pool } = createFakePool(async sql => {
         expect(sql).not.toContain('datetime(')
         if (/select count\(\*\) as cnt/i.test(sql)) {

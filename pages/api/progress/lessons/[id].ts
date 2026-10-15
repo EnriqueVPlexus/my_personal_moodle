@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { createServices } from '../../../../lib/container'
 import { requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
-import { setLessonProgress } from '../../../../lib/progressRepository'
 import { parseOrRespond } from '../../../../lib/validation/http'
 import { lessonProgressBodySchema, lessonProgressQuerySchema } from '../../../../lib/validation/progress'
 
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { completed } = body
   const timeSpentSeconds = body.time_spent_seconds ?? 0
 
-  const progress = await setLessonProgress(db, {
+  const progress = await createServices(db).progress.setLessonProgress({
     userId: user.id,
     lessonId,
     completed,

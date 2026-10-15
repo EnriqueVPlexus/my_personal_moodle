@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PostgresDb } from '../../lib/persistence/postgresDb'
-import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } from '../../lib/quizRepository'
+import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } from '../../lib/domains/progress/repositories/quizRepository'
 import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/domains/content/quizzes'
 
 /**
