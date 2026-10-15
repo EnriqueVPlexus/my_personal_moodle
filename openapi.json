@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cantera Hub API",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "Contrato de la API HTTP de Cantera Hub. Generado desde `lib/contracts` (`npm run contracts:generate`); no editar a mano. Describe el comportamiento actual: los mensajes de error son texto en español salvo los de autenticación, origen y límite de intentos, que están en inglés. Reglas de versionado y compatibilidad: `API_CONTRACTS.md`."
   },
   "servers": [

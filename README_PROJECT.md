@@ -303,7 +303,12 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 2.0.0).
+
+Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
+ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para
+administradores y los contadores/`has_evidence` llegan normalizados (números y
+booleano) con SQLite y PostgreSQL.
 
 ## Endpoints Relevantes
 

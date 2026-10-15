@@ -101,6 +101,22 @@ lib/domains/<dominio>/
 - **audit**: `service.ts` (`record(evento, contexto)` y `list`). `AuditContext`
   es `{ ip, userAgent }`; no sabe qué es una petición HTTP.
 
+### Proyección pública de módulos y números en los repositorios
+
+- **Módulos**: la columna `quiz_bank` guarda las respuestas correctas y no sale
+  nunca en una respuesta. Los repositorios de módulos y la vista del alumno
+  seleccionan columnas explícitas (`PUBLIC_MODULE_COLUMNS` en
+  `lib/domains/content/publicModule.ts`, tipo `ModuleRecord`, sin `quiz_bank`). Solo
+  `findQuizSourceById` (tipo `ModuleWithQuizBank`) la lee, para construir y corregir
+  quizzes, y `getModuleDetail` aplica además `toPublicModule` antes de responder. El
+  JSON de exportación de roadmaps (`/api/roadmaps/{id}/export`) sí incluye los
+  quizzes: es una copia de seguridad que se reimporta y por eso es solo para admin.
+  Nunca uses `SELECT *` sobre `modules` en una ruta de lectura.
+- **Números y booleanos**: `pg` devuelve `COUNT`/`SUM` como texto y `EXISTS` como
+  booleano; SQLite devuelve números y `0`/`1`. Los repositorios normalizan justo
+  tras la consulta con `lib/persistence/normalize.ts` (`toCount`, `toBoolean`,
+  `withCounts`), de modo que servicios, API y UI ven un solo tipo.
+
 ### Dependencias entre dominios
 
 Los servicios pueden importar **funciones y tipos puros** de otro dominio
