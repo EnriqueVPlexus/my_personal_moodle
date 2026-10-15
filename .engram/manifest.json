@@ -8,6 +8,14 @@
       "sessions": 1,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "956befe7",
+      "created_by": "enrique.velascomarti",
+      "created_at": "2026-10-15T07:03:59Z",
+      "sessions": 0,
+      "memories": 5,
+      "prompts": 0
     }
   ]
 }
