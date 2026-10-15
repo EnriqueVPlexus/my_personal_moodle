@@ -36,10 +36,12 @@ async function mockRoadmapExportApi(
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(options.scopeAllows ?? true)
   }))
-  vi.doMock('../lib/roadmapImport', () => ({
-    exportRoadmapAsJson: vi.fn().mockResolvedValue(
-      options.exportData === undefined ? { title: 'Roadmap de prueba' } : options.exportData
-    )
+  vi.doMock('../lib/domains/content/repositories/importRepository', () => ({
+    createImportRepository: () => ({
+      exportRoadmap: vi.fn().mockResolvedValue(
+        options.exportData === undefined ? { title: 'Roadmap de prueba' } : options.exportData
+      )
+    })
   }))
 }
 

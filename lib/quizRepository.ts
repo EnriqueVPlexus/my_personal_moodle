@@ -7,7 +7,7 @@ import {
   type AttemptEligibility,
   type ModuleQuizSource,
   type ModuleQuizSummary
-} from './quizzes'
+} from './domains/content/quizzes'
 
 const PASSING_PERCENTAGE = 70
 

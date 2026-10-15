@@ -1,7 +1,9 @@
 import { Selectable, sql, Updateable } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase, ModulesTable } from './persistence/kyselyDatabase'
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase, ModulesTable } from '../../../persistence/kyselyDatabase'
+import type { ModuleRepository } from '../ports'
+import type { ModuleCoreInsert, ModuleCoreUpdate } from '../types'
 
 export type ModuleRow = Selectable<ModulesTable>
 
@@ -68,15 +70,6 @@ export async function findModuleById(db: DatabaseClient, id: number | string): P
     .executeTakeFirst()
 }
 
-export type ModuleCoreInsert = {
-  roadmap_id: number
-  title: string
-  level: string | null
-  duration: string | null
-  duration_weeks_min: number | null
-  duration_weeks_max: number | null
-}
-
 const SQLITE_INSERT_MODULE = `
   INSERT INTO modules (roadmap_id, title, level, duration, duration_weeks_min, duration_weeks_max)
   VALUES (?, ?, ?, ?, ?, ?)
@@ -101,13 +94,6 @@ export async function insertModule(db: DatabaseClient, data: ModuleCoreInsert): 
     .returning('id')
     .executeTakeFirstOrThrow()
   return inserted.id
-}
-
-export type ModuleCoreUpdate = {
-  title: string
-  level?: string | null
-  duration?: string | null
-  durationWeeks?: { min: number | null; max: number | null }
 }
 
 const SQLITE_UPDATE_MODULE_CORE = `
@@ -169,4 +155,16 @@ export async function deleteModule(db: DatabaseClient, id: number | string): Pro
     .executeTakeFirst()
 
   return Number(result.numDeletedRows ?? 0)
+}
+
+export function createModuleRepository(db: DatabaseClient): ModuleRepository {
+  return {
+    findAll: () => findAllModules(db),
+    findByRoadmapId: roadmapId => findModulesByRoadmapId(db, roadmapId),
+    findByRoadmapIds: roadmapIds => findModulesByRoadmapIds(db, roadmapIds),
+    findById: id => findModuleById(db, id),
+    insert: data => insertModule(db, data),
+    updateCore: (id, patch) => updateModuleCore(db, id, patch),
+    delete: id => deleteModule(db, id)
+  }
 }

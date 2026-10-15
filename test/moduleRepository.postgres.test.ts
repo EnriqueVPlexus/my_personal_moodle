@@ -49,7 +49,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('findModulesByRoadmapId selects and orders modules for a single roadmap', async () => {
-    const { findModulesByRoadmapId } = await import('../lib/moduleRepository')
+    const { findModulesByRoadmapId } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool } = createFakePool(async (sql) => {
       expect(sql).toContain('select')
@@ -63,7 +63,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('findModulesByRoadmapIds returns an empty array without querying when given no ids', async () => {
-    const { findModulesByRoadmapIds } = await import('../lib/moduleRepository')
+    const { findModulesByRoadmapIds } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
@@ -74,7 +74,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('findModulesByRoadmapIds selects modules for multiple roadmap ids', async () => {
-    const { findModulesByRoadmapIds } = await import('../lib/moduleRepository')
+    const { findModulesByRoadmapIds } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool } = createFakePool(async (sql, params) => {
       expect(sql).toContain('in')
@@ -88,7 +88,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('findAllModules selects every module ordered by id desc', async () => {
-    const { findAllModules } = await import('../lib/moduleRepository')
+    const { findAllModules } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 1, rows: [sampleModule] }))
 
@@ -98,7 +98,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('findModuleById selects a single module by id', async () => {
-    const { findModuleById } = await import('../lib/moduleRepository')
+    const { findModuleById } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 1, rows: [sampleModule] }))
 
@@ -108,7 +108,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('insertModule inserts a module and returns the new id', async () => {
-    const { insertModule } = await import('../lib/moduleRepository')
+    const { insertModule } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool, client } = createFakePool(async (sql) => {
       expect(sql).toContain('insert into')
@@ -130,7 +130,7 @@ describe('moduleRepository (postgres backend)', () => {
 
   describe('updateModuleCore', () => {
     it('updates all optional fields when provided', async () => {
-      const { updateModuleCore } = await import('../lib/moduleRepository')
+      const { updateModuleCore } = await import('../lib/domains/content/repositories/moduleRepository')
 
       const { pool } = createFakePool(async (sql) => {
         expect(sql).toContain('update "modules"')
@@ -148,7 +148,7 @@ describe('moduleRepository (postgres backend)', () => {
     })
 
     it('updates only the title when optional fields are omitted', async () => {
-      const { updateModuleCore } = await import('../lib/moduleRepository')
+      const { updateModuleCore } = await import('../lib/domains/content/repositories/moduleRepository')
 
       const { pool } = createFakePool(async (sql) => {
         expect(sql).not.toContain('"level"')
@@ -162,7 +162,7 @@ describe('moduleRepository (postgres backend)', () => {
     })
 
     it('sets level, duration and durationWeeks to null when explicitly cleared', async () => {
-      const { updateModuleCore } = await import('../lib/moduleRepository')
+      const { updateModuleCore } = await import('../lib/domains/content/repositories/moduleRepository')
 
       const { pool } = createFakePool(async () => ({ command: 'UPDATE', rowCount: 1, rows: [] }))
 
@@ -178,7 +178,7 @@ describe('moduleRepository (postgres backend)', () => {
   })
 
   it('deleteModule deletes a module by id', async () => {
-    const { deleteModule } = await import('../lib/moduleRepository')
+    const { deleteModule } = await import('../lib/domains/content/repositories/moduleRepository')
 
     const { pool } = createFakePool(async (sql) => {
       expect(sql).toContain('delete from "modules"')

@@ -3,7 +3,7 @@ import {
   LearningModule,
   asLearningLinks,
   asTextList
-} from '../lib/roadmapPresentation'
+} from '../lib/domains/content/presentation'
 
 type Props = {
   module: LearningModule

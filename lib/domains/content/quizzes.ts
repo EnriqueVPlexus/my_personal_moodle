@@ -1,4 +1,4 @@
-import { asLearningLinks, asTextList } from './roadmapPresentation'
+import { asLearningLinks, asTextList } from './presentation'
 
 export type ModuleQuizSource = {
   id: number

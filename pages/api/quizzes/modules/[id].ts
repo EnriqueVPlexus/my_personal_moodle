@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
-import { findModuleById } from '../../../../lib/moduleRepository'
+import { findModuleById } from '../../../../lib/domains/content/repositories/moduleRepository'
 import { touchRoadmapProgress } from '../../../../lib/progressRepository'
 import { checkAttemptEligibility, getModuleQuizSummary, saveModuleQuizAttempt } from '../../../../lib/quizRepository'
-import { buildModuleQuiz, toPublicModuleQuiz } from '../../../../lib/quizzes'
+import { buildModuleQuiz, toPublicModuleQuiz } from '../../../../lib/domains/content/quizzes'
 import { parseOrRespond } from '../../../../lib/validation/http'
 import { quizAttemptBodySchema, quizModuleQuerySchema } from '../../../../lib/validation/quizzes'
 

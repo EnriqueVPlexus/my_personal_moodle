@@ -1,5 +1,5 @@
-import { DEFAULT_ROADMAP_VERSION } from '../roadmapVersion'
-import { parseDurationWeeks } from '../roadmapMetadata'
+import { DEFAULT_ROADMAP_VERSION } from '../domains/content/version'
+import { parseDurationWeeks } from '../domains/content/metadata'
 
 /**
  * Idempotent SQLite schema bootstrap (CREATE TABLE IF NOT EXISTS + ensureColumn).

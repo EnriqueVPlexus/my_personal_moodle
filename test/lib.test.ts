@@ -6,12 +6,12 @@ import {
   asLearningLinks,
   asTextList,
   parseJsonValue
-} from '../lib/roadmapPresentation'
+} from '../lib/domains/content/presentation'
 import {
   buildModuleQuiz,
   gradeModuleQuiz,
   toPublicModuleQuiz
-} from '../lib/quizzes'
+} from '../lib/domains/content/quizzes'
 import {
   hashPassword,
   normalizeEmail,
@@ -24,7 +24,7 @@ import {
   normalizeModuleLevel,
   normalizeTopics,
   parseDurationWeeks
-} from '../lib/roadmapMetadata'
+} from '../lib/domains/content/metadata'
 import { getSeedQuizForModule } from '../lib/persistence/bootstrap/seeds/quizBanks'
 
 describe('roadmap metadata helpers', () => {

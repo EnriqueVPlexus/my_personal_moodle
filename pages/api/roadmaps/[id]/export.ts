@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getRoadmapReadScope, scopeAllowsRoadmap } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
-import { exportRoadmapAsJson } from '../../../../lib/roadmapImport'
-import { normalizeMetadataKey } from '../../../../lib/roadmapMetadata'
+import { createServices } from '../../../../lib/container'
+import { normalizeMetadataKey } from '../../../../lib/domains/content/metadata'
 import { parseOrRespond } from '../../../../lib/validation/http'
 import { roadmapIdQuerySchema } from '../../../../lib/validation/roadmaps'
 
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: 'Acceso denegado a este roadmap' })
   }
 
-  const exportData = await exportRoadmapAsJson(db, roadmapId)
+  const exportData = await createServices(db).content.exportRoadmap(roadmapId)
   if (!exportData) {
     return res.status(404).json({ error: 'Roadmap no encontrado' })
   }

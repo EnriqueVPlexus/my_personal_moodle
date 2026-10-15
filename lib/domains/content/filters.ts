@@ -1,4 +1,4 @@
-import { MODULE_LEVELS, normalizeMetadataKey } from './roadmapMetadata'
+import { MODULE_LEVELS, normalizeMetadataKey } from './metadata'
 
 export const ROADMAP_SORT_OPTIONS = ['relevance', 'title', 'duration'] as const
 export type RoadmapSort = typeof ROADMAP_SORT_OPTIONS[number]

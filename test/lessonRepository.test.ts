@@ -20,7 +20,7 @@ async function setupTempDb(prefix: string) {
 describe('lesson repository', () => {
   it('lists lessons for a module, reads by id with roadmap id, and inserts new lessons', async () => {
     const db = await setupTempDb('moodle-lesson-repo-')
-    const repo = await import('../lib/lessonRepository')
+    const repo = await import('../lib/domains/content/repositories/lessonRepository')
 
     const moduleRow = await db.get<{ id: number; roadmap_id: number }>(
       'SELECT id, roadmap_id FROM modules ORDER BY id LIMIT 1'
@@ -49,7 +49,7 @@ describe('lesson repository', () => {
 
   it('updates and deletes a lesson, returning zero changes when missing', async () => {
     const db = await setupTempDb('moodle-lesson-repo-write-')
-    const repo = await import('../lib/lessonRepository')
+    const repo = await import('../lib/domains/content/repositories/lessonRepository')
 
     const moduleRow = await db.get<{ id: number }>('SELECT id FROM modules ORDER BY id LIMIT 1')
     const lessonId = await repo.insertLesson(db, { module_id: moduleRow.id, title: 'Leccion original' })

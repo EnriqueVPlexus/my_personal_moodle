@@ -28,7 +28,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('findLessonsByModuleId selects lessons for a module ordered by id', async () => {
-    const { findLessonsByModuleId } = await import('../lib/lessonRepository')
+    const { findLessonsByModuleId } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async (sql) => {
       expect(sql).toContain('select')
@@ -41,7 +41,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('findLessonById selects a single lesson by id', async () => {
-    const { findLessonById } = await import('../lib/lessonRepository')
+    const { findLessonById } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 1, rows: [sampleLesson] }))
 
@@ -51,7 +51,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('findLessonWithRoadmapId joins modules to include roadmap_id', async () => {
-    const { findLessonWithRoadmapId } = await import('../lib/lessonRepository')
+    const { findLessonWithRoadmapId } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async (sql) => {
       expect(sql).toContain('inner join')
@@ -68,7 +68,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('findLessonWithRoadmapId returns undefined when nothing matches', async () => {
-    const { findLessonWithRoadmapId } = await import('../lib/lessonRepository')
+    const { findLessonWithRoadmapId } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
@@ -78,7 +78,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('insertLesson inserts a lesson and returns the new id', async () => {
-    const { insertLesson } = await import('../lib/lessonRepository')
+    const { insertLesson } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool, client } = createFakePool(async (sql) => {
       expect(sql).toContain('insert into')
@@ -92,7 +92,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('updateLesson updates the lesson title and completion state', async () => {
-    const { updateLesson } = await import('../lib/lessonRepository')
+    const { updateLesson } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async (sql) => {
       expect(sql).toContain('update "lessons"')
@@ -105,7 +105,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('updateLesson marks the lesson as not completed', async () => {
-    const { updateLesson } = await import('../lib/lessonRepository')
+    const { updateLesson } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async (sql, params) => {
       expect(params).toContain(0)
@@ -118,7 +118,7 @@ describe('lessonRepository (postgres backend)', () => {
   })
 
   it('deleteLesson deletes a lesson by id', async () => {
-    const { deleteLesson } = await import('../lib/lessonRepository')
+    const { deleteLesson } = await import('../lib/domains/content/repositories/lessonRepository')
 
     const { pool } = createFakePool(async (sql) => {
       expect(sql).toContain('delete from "lessons"')

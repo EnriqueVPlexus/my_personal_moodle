@@ -16,7 +16,7 @@ describe('findRoadmapById', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { findRoadmapById } = await import('../lib/roadmapRepository')
+    const { findRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const roadmap = await db.get<{ id: number }>(
@@ -39,7 +39,7 @@ describe('findRoadmapById', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { findRoadmapById } = await import('../lib/roadmapRepository')
+    const { findRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const found = await findRoadmapById(db, 999999)
@@ -56,7 +56,7 @@ describe('updateRoadmapCore', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { findRoadmapById, updateRoadmapCore } = await import('../lib/roadmapRepository')
+    const { findRoadmapById, updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const before = await db.get<{ id: number; version: string }>(
@@ -89,7 +89,7 @@ describe('updateRoadmapCore', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { updateRoadmapCore } = await import('../lib/roadmapRepository')
+    const { updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const changes = await updateRoadmapCore(db, 999999, {
@@ -109,7 +109,7 @@ describe('findExistingRoadmapIds', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+    const { findExistingRoadmapIds } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const rows = await db.all<{ id: number }>('SELECT id FROM roadmaps LIMIT 2')
@@ -127,7 +127,7 @@ describe('findExistingRoadmapIds', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+    const { findExistingRoadmapIds } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     expect(await findExistingRoadmapIds(db, [])).toEqual([])

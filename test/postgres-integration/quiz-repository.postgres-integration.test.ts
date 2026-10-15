@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PostgresDb } from '../../lib/persistence/postgresDb'
 import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } from '../../lib/quizRepository'
-import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/quizzes'
+import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/domains/content/quizzes'
 
 /**
  * Verifies lib/quizRepository.ts (attempts + per-module stats) against real

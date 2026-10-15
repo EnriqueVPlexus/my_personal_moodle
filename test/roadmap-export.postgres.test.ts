@@ -59,7 +59,7 @@ describe('exportRoadmapAsJson (postgres backend)', () => {
 
   it('translates the SQLite-only COLLATE NOCASE ordering into lower() for the topics query', async () => {
     const { PostgresDb } = await import('../lib/persistence/postgresDb')
-    const { exportRoadmapAsJson } = await import('../lib/roadmapImport')
+    const { exportRoadmapAsJson } = await import('../lib/domains/content/repositories/importRepository')
 
     let sawTopicsQuery = false
     queryMock.mockImplementation(async (sql: string) => {
@@ -93,7 +93,7 @@ describe('exportRoadmapAsJson (postgres backend)', () => {
 
   it('reads back a populated quiz_bank column', async () => {
     const { PostgresDb } = await import('../lib/persistence/postgresDb')
-    const { exportRoadmapAsJson } = await import('../lib/roadmapImport')
+    const { exportRoadmapAsJson } = await import('../lib/domains/content/repositories/importRepository')
     const quiz = [{ question: '¿Q?', answer: 'A', options: ['A', 'B'], explanation: null, type: 'multiple_choice' }]
 
     queryMock.mockImplementation(async (sql: string) => {
@@ -111,7 +111,7 @@ describe('exportRoadmapAsJson (postgres backend)', () => {
 
   it('returns null when the roadmap does not exist', async () => {
     const { PostgresDb } = await import('../lib/persistence/postgresDb')
-    const { exportRoadmapAsJson } = await import('../lib/roadmapImport')
+    const { exportRoadmapAsJson } = await import('../lib/domains/content/repositories/importRepository')
 
     queryMock.mockImplementation(async (sql: string) => {
       if (/FROM roadmaps/i.test(sql)) return { rows: [], rowCount: 0 }

@@ -11,7 +11,7 @@ import {
   LearningModule,
   asEvaluationWeights,
   asTextList
-} from '../../lib/roadmapPresentation'
+} from '../../lib/domains/content/presentation'
 
 type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
 

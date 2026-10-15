@@ -1,13 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
-import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/http/auth'
+import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
-import { deleteLesson, findLessonById, findLessonWithRoadmapId, updateLesson } from '../../../lib/lessonRepository'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { lessonIdQuerySchema, updateLessonBodySchema } from '../../../lib/validation/lessons'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
+  const { content } = createServices(db)
 
   if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
     res.setHeader('Allow', 'GET, PUT, DELETE')
@@ -21,11 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const lesson = await findLessonWithRoadmapId(db, id)
+    const lesson = await content.getLesson(scope, id)
     if (!lesson) return res.status(404).json({ error: 'No encontrado.' })
-    if (!scopeAllowsRoadmap(scope, lesson.roadmap_id)) return res.status(404).json({ error: 'No encontrado.' })
-    const { roadmap_id: _roadmapId, ...lessonBody } = lesson
-    return res.status(200).json(lessonBody)
+    return res.status(200).json(lesson)
   }
 
   if (req.method === 'PUT') {
@@ -35,10 +34,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!body) return
     const { title } = body
     const completed = body.completed ?? false
-    const changes = await updateLesson(db, id, { title, completed })
-    if (!changes) return res.status(404).json({ error: 'Lección no encontrada.' })
 
-    const updated = await findLessonById(db, id)
+    const updated = await content.updateLesson(id, { title, completed })
+    if (!updated) return res.status(404).json({ error: 'Lección no encontrada.' })
+
     await writeAuditLog({
       db,
       req,
@@ -48,16 +47,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       entityId: String(id),
       details: { title, completed }
     })
-    return res.status(200).json(updated)
+    return res.status(200).json(updated.lesson)
   }
 
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const lesson = await findLessonById(db, id)
+
+    const lesson = await content.deleteLesson(id)
     if (!lesson) return res.status(404).json({ error: 'Lección no encontrada.' })
 
-    await deleteLesson(db, id)
     await writeAuditLog({
       db,
       req,

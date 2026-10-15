@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireUser } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { exportPortfolioAsMarkdown, getUserPortfolio } from '../../../lib/portfolio'
-import { normalizeMetadataKey } from '../../../lib/roadmapMetadata'
+import { normalizeMetadataKey } from '../../../lib/domains/content/metadata'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

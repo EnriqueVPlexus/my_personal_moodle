@@ -2,11 +2,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { describe, expect, it } from 'vitest'
-import {
-  persistRoadmapImport,
-  RoadmapImportConflictError,
-  validateRoadmapImport
-} from '../lib/roadmapImport'
+import { RoadmapImportConflictError, validateRoadmapImport } from '../lib/domains/content/import'
+import { persistRoadmapImport } from '../lib/domains/content/repositories/importRepository'
 import { openSqliteDb } from '../lib/persistence'
 import type { DatabaseClient } from '../lib/persistence/database'
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_ROADMAP_SEARCH_QUERY_LENGTH, parseRoadmapSearchQuery } from '../roadmapSearch'
+import { MAX_ROADMAP_SEARCH_QUERY_LENGTH, parseRoadmapSearchQuery } from '../domains/content/search'
 import { queryObject } from './primitives'
 
 const MAX_FILTER_VALUE_LENGTH = 500

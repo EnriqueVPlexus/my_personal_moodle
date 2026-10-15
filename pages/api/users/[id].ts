@@ -6,7 +6,7 @@ import type { DatabaseClient } from '../../../lib/persistence/database'
 import { hashPassword } from '../../../lib/domains/auth/password'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { updateUserBodySchema, userIdQuerySchema } from '../../../lib/validation/users'
-import { findExistingRoadmapIds } from '../../../lib/roadmapRepository'
+import { findExistingRoadmapIds } from '../../../lib/domains/content/repositories/roadmapRepository'
 import {
   countActiveAdmins,
   deleteSessionsByUserId,

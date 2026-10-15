@@ -15,7 +15,10 @@ export function secureCompare(a: string, b: string) {
   return first.length === second.length && timingSafeEqual(first, second)
 }
 
-export function scopeAllowsRoadmap(scope: RoadmapReadScope, roadmapId: unknown) {
+export function scopeAllowsRoadmap(
+  scope: Pick<RoadmapReadScope, 'allRoadmaps' | 'roadmapIds'>,
+  roadmapId: unknown
+) {
   if (scope.allRoadmaps) return true
   const id = Number(Array.isArray(roadmapId) ? roadmapId[0] : roadmapId)
   return Number.isInteger(id) && scope.roadmapIds.includes(id)

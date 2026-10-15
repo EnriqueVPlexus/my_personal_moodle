@@ -1,14 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PostgresDb } from '../../lib/persistence/postgresDb'
-import {
-  validateRoadmapImport,
-  persistRoadmapImport,
-  exportRoadmapAsJson,
-  RoadmapImportConflictError
-} from '../../lib/roadmapImport'
+import { validateRoadmapImport, RoadmapImportConflictError } from '../../lib/domains/content/import'
+import { persistRoadmapImport, exportRoadmapAsJson } from '../../lib/domains/content/repositories/importRepository'
 
 /**
- * Verifies lib/roadmapImport.ts against real Postgres (backlog.md: "Tests de
+ * Verifies lib/domains/content/import.ts and its importRepository against real Postgres (backlog.md: "Tests de
  * integracion contra PostgreSQL real" - dominio importacion). This is the
  * one domain with a real multi-table transaction (BEGIN/COMMIT/ROLLBACK via
  * db.exec, raw SQL, not Kysely), which a mocked pg pool cannot prove: a mock

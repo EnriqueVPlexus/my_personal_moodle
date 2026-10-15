@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
-import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'
+import { findModuleById } from '../../../lib/domains/content/repositories/moduleRepository'
 import { touchRoadmapProgress } from '../../../lib/progressRepository'
 import { getModuleQuizSummary } from '../../../lib/quizRepository'
-import { buildModuleQuiz, toPublicModuleQuiz } from '../../../lib/quizzes'
+import { buildModuleQuiz, toPublicModuleQuiz } from '../../../lib/domains/content/quizzes'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { moduleIdQuerySchema, updateModuleBodySchema } from '../../../lib/validation/modules'
 
@@ -98,16 +99,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!admin) return
     const body = parseOrRespond(updateModuleBodySchema, req.body, res)
     if (!body) return
-    const { title, level, duration, durationWeeks } = body
-    const changes = await updateModuleCore(db, id, {
-      title,
-      ...(level !== undefined ? { level } : {}),
-      ...(duration !== undefined ? { duration: duration || null } : {}),
-      ...(durationWeeks ? { durationWeeks: { min: durationWeeks.min, max: durationWeeks.max } } : {})
-    })
-    if (!changes) return res.status(404).json({ error: 'Módulo no encontrado.' })
+    const { title, level } = body
 
-    const updated = await findModuleById(db, id)
+    const updated = await createServices(db).content.updateModule(id, body)
+    if (!updated) return res.status(404).json({ error: 'Módulo no encontrado.' })
+
     await writeAuditLog({
       db,
       req,
@@ -117,16 +113,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       entityId: String(id),
       details: { title, level: level ?? null }
     })
-    return res.status(200).json(updated)
+    return res.status(200).json(updated.module)
   }
 
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const moduleRow = await findModuleById(db, id)
+
+    const moduleRow = await createServices(db).content.deleteModule(id)
     if (!moduleRow) return res.status(404).json({ error: 'Módulo no encontrado.' })
 
-    await deleteModule(db, id)
     await writeAuditLog({
       db,
       req,

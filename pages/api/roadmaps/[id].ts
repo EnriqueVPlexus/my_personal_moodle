@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progressRepository'
-import { getRoadmapTopics, saveRoadmapMetadata } from '../../../lib/roadmapMetadata'
-import { findRoadmapById, updateRoadmapCore } from '../../../lib/roadmapRepository'
+import { createMetadataRepository } from '../../../lib/domains/content/repositories/metadataRepository'
+import { findRoadmapById } from '../../../lib/domains/content/repositories/roadmapRepository'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { roadmapIdQuerySchema, updateRoadmapBodySchema } from '../../../lib/validation/roadmaps'
 
@@ -62,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }))
       : modules
 
-    const topics = await getRoadmapTopics(db, roadmap.id)
+    const topics = await createMetadataRepository(db).getTopics(roadmap.id)
 
     const { category_key: categoryKey, category_label: categoryLabel, ...publicRoadmap } = roadmap
     return res.status(200).json({
@@ -79,38 +80,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!admin) return
     const body = parseOrRespond(updateRoadmapBodySchema, req.body, res)
     if (!body) return
-    const { title, description, duration, category, durationWeeks, version, publishedAt } = body
-    const normalizedTopics = body.topics ?? []
-    const hasCategory = category !== undefined
-    const hasTopics = body.topics !== undefined
-    const changes = await updateRoadmapCore(db, id, {
-      title,
-      description: description || null,
-      ...(duration !== undefined ? { duration: duration || null } : {}),
-      ...(durationWeeks ? { durationWeeks: { min: durationWeeks.min, max: durationWeeks.max } } : {}),
-      ...(version !== undefined ? { version } : {}),
-      ...(publishedAt !== undefined ? { publishedAt } : {})
-    })
-    if (!changes) return res.status(404).json({ error: 'Roadmap no encontrado.' })
-    if (hasCategory || hasTopics) {
-      const currentCategory = hasCategory
-        ? category
-        : (await db.get(
-          `SELECT roadmap_categories.label FROM roadmaps
-           LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
-           WHERE roadmaps.id = ?`,
-          [id]
-        ))?.label
-      const currentTopics = hasTopics ? normalizedTopics : await getRoadmapTopics(db, String(id))
-      await saveRoadmapMetadata(
-        db,
-        String(id),
-        currentCategory,
-        Array.isArray(currentTopics) ? currentTopics.map((topic: any) => topic.label ?? topic) : []
-      )
-    }
-    
-    const updated = await db.get('SELECT * FROM roadmaps WHERE id = ?', [id])
+    const { title, category } = body
+
+    const updated = await createServices(db).content.updateRoadmap(id, body)
+    if (!updated) return res.status(404).json({ error: 'Roadmap no encontrado.' })
+
     await writeAuditLog({
       db,
       req,
@@ -118,16 +92,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'roadmap.update',
       entityType: 'roadmap',
       entityId: String(id),
-      details: { title, category: category || null, topics: normalizedTopics }
+      details: { title, category: category || null, topics: updated.topics }
     })
-    return res.status(200).json(updated)
+    return res.status(200).json(updated.roadmap)
   }
 
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const roadmap = await db.get('SELECT title FROM roadmaps WHERE id = ?', [id])
-    await db.run('DELETE FROM roadmaps WHERE id = ?', [id])
+
+    const { title } = await createServices(db).content.deleteRoadmap(id)
     await writeAuditLog({
       db,
       req,
@@ -135,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'roadmap.delete',
       entityType: 'roadmap',
       entityId: String(id),
-      details: { title: roadmap?.title || null }
+      details: { title }
     })
     return res.status(204).end()
   }

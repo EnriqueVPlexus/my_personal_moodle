@@ -1,7 +1,8 @@
 import { Selectable } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase, LessonsTable } from './persistence/kyselyDatabase'
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase, LessonsTable } from '../../../persistence/kyselyDatabase'
+import type { LessonRepository } from '../ports'
 
 export type LessonRow = Selectable<LessonsTable>
 export type LessonWithRoadmapId = LessonRow & { roadmap_id: number }
@@ -108,4 +109,15 @@ export async function deleteLesson(db: DatabaseClient, id: number | string): Pro
     .executeTakeFirst()
 
   return Number(result.numDeletedRows ?? 0)
+}
+
+export function createLessonRepository(db: DatabaseClient): LessonRepository {
+  return {
+    findByModuleId: moduleId => findLessonsByModuleId(db, moduleId),
+    findById: id => findLessonById(db, id),
+    findWithRoadmapId: id => findLessonWithRoadmapId(db, id),
+    insert: data => insertLesson(db, data),
+    update: (id, data) => updateLesson(db, id, data),
+    delete: id => deleteLesson(db, id)
+  }
 }

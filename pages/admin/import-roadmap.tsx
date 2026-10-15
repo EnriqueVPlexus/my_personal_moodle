@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
-import type { NormalizedRoadmapImport, RoadmapImportIssue } from '../../lib/roadmapImport'
+import type { NormalizedRoadmapImport, RoadmapImportIssue } from '../../lib/domains/content/import'
 
 const exampleRoadmap = {
   title: 'Roadmap de ejemplo',

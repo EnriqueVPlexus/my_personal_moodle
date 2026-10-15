@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { validateRoadmapImport, RoadmapImportConflictError } from '../lib/roadmapImport'
+import { validateRoadmapImport, RoadmapImportConflictError } from '../lib/domains/content/import'
 
 const queryMock = vi.fn()
 const connectMock = vi.fn()
@@ -60,7 +60,7 @@ describe('persistRoadmapImport (postgres backend)', () => {
 
   it('runs the whole multi-table import through the single checked-out transaction client', async () => {
     const { PostgresDb } = await import('../lib/persistence/postgresDb')
-    const { persistRoadmapImport } = await import('../lib/roadmapImport')
+    const { persistRoadmapImport } = await import('../lib/domains/content/repositories/importRepository')
 
     const client = fakeClient()
     connectMock.mockResolvedValueOnce(client)
@@ -108,7 +108,7 @@ describe('persistRoadmapImport (postgres backend)', () => {
 
   it('rolls back the transaction and releases the client when the roadmap already exists', async () => {
     const { PostgresDb } = await import('../lib/persistence/postgresDb')
-    const { persistRoadmapImport } = await import('../lib/roadmapImport')
+    const { persistRoadmapImport } = await import('../lib/domains/content/repositories/importRepository')
 
     const client = fakeClient()
     connectMock.mockResolvedValueOnce(client)
@@ -133,7 +133,7 @@ describe('persistRoadmapImport (postgres backend)', () => {
 
   it('rolls back and releases the client when a statement fails mid-transaction', async () => {
     const { PostgresDb } = await import('../lib/persistence/postgresDb')
-    const { persistRoadmapImport } = await import('../lib/roadmapImport')
+    const { persistRoadmapImport } = await import('../lib/domains/content/repositories/importRepository')
 
     const client = fakeClient()
     connectMock.mockResolvedValueOnce(client)

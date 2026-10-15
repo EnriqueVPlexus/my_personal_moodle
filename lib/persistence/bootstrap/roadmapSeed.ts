@@ -3,12 +3,9 @@ import awsRoadmapSeed from './seeds/awsRoadmapSeed.json'
 import iaDevopsRoadmapSeed from './seeds/iaDevopsRoadmapSeed.json'
 import devopsRoadmapSeed from './seeds/devopsRoadmapSeed.json'
 import { getSeedQuizForModule } from './seeds/quizBanks'
-import { DEFAULT_ROADMAP_VERSION, normalizePublishedAt, normalizeRoadmapVersion } from '../../roadmapVersion'
-import {
-  normalizeModuleLevel,
-  parseDurationWeeks,
-  saveRoadmapMetadata
-} from '../../roadmapMetadata'
+import { DEFAULT_ROADMAP_VERSION, normalizePublishedAt, normalizeRoadmapVersion } from '../../domains/content/version'
+import { normalizeModuleLevel, parseDurationWeeks } from '../../domains/content/metadata'
+import { saveRoadmapMetadata } from '../../domains/content/repositories/metadataRepository'
 
 type LearningResource = {
   label?: string
