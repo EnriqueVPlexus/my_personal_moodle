@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { writeAuditLog } from '../../../../lib/audit'
+import { writeAuditLog } from '../../../../lib/http/audit'
 import { requireAdmin } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/persistence'
 import { getEvidenceById, reviewModuleEvidence } from '../../../../lib/evidenceRepository'

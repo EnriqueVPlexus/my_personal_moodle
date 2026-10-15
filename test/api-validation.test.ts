@@ -18,7 +18,7 @@ async function loadHandler(route: string) {
   vi.resetModules()
   const db = createDb()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   vi.doMock('../lib/rateLimit', () => ({
     rateLimit: vi.fn().mockResolvedValue(true),
     clearRateLimit: vi.fn().mockResolvedValue(undefined)
@@ -164,7 +164,7 @@ describe('API input validation contract', () => {
     vi.resetModules()
     const db = createDb()
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn() }))
+    vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn() }))
     vi.doMock('../lib/auth', async () => ({
       ...(await vi.importActual('../lib/auth') as object),
       requireAdmin: vi.fn((_req: unknown, res: any) => {

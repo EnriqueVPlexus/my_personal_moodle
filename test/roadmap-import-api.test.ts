@@ -18,7 +18,7 @@ async function loadHandler(db: any, allowed: any = admin) {
   vi.resetModules()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(allowed) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   return (await import('../pages/api/roadmaps/import')).default
 }
 

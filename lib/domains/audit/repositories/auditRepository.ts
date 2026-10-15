@@ -1,7 +1,8 @@
 import { Insertable, Selectable } from 'kysely'
-import type { DatabaseClient } from './persistence/database'
-import type { PostgresDb } from './persistence/postgresDb'
-import { getQueryDatabase, AuditLogsTable } from './persistence/kyselyDatabase'
+import type { DatabaseClient } from '../../../persistence/database'
+import type { PostgresDb } from '../../../persistence/postgresDb'
+import { getQueryDatabase, AuditLogsTable } from '../../../persistence/kyselyDatabase'
+import type { AuditLogRepository } from '../ports'
 
 export type AuditLogRow = Selectable<AuditLogsTable>
 export type AuditLogInsert = Omit<Insertable<AuditLogsTable>, 'id'>
@@ -58,4 +59,12 @@ export async function listAuditLogs(db: DatabaseClient, limit = 200): Promise<Au
     .orderBy('id', 'desc')
     .limit(limit)
     .execute()
+}
+
+/** Adapter: the single implementation of the audit log port. */
+export function createAuditLogRepository(db: DatabaseClient): AuditLogRepository {
+  return {
+    insert: entry => insertAuditLog(db, entry),
+    list: limit => listAuditLogs(db, limit)
+  }
 }

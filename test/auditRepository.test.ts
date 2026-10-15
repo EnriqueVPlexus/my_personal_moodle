@@ -16,7 +16,7 @@ describe('audit log repository', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { insertAuditLog, listAuditLogs } = await import('../lib/auditRepository')
+    const { insertAuditLog, listAuditLogs } = await import('../lib/domains/audit/repositories/auditRepository')
     const db = await openDb()
 
     await insertAuditLog(db, {
@@ -48,7 +48,7 @@ describe('audit log repository', () => {
     process.chdir(tmp)
 
     const { openDb } = await import('../lib/persistence')
-    const { insertAuditLog, listAuditLogs } = await import('../lib/auditRepository')
+    const { insertAuditLog, listAuditLogs } = await import('../lib/domains/audit/repositories/auditRepository')
     const db = await openDb()
 
     for (let i = 0; i < 3; i += 1) {

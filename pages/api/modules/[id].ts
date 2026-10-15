@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { writeAuditLog } from '../../../lib/audit'
+import { writeAuditLog } from '../../../lib/http/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/persistence'
 import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/moduleRepository'

@@ -45,7 +45,7 @@ describe('evidence API handlers', () => {
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))
     vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
-    vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+    vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   }
 
   it('returns and upserts the signed-in user evidence', async () => {

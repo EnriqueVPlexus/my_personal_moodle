@@ -19,7 +19,7 @@ async function mockApi(db: any, options: { admin?: any; read?: boolean; user?: a
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
   }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 
 describe('content API handlers', () => {

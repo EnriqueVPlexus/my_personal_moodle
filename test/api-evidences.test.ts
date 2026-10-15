@@ -57,7 +57,7 @@ async function mockReviewApi(db: any, options: { admin?: any } = {}) {
       return options.admin ?? admin
     })
   }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 
 describe('GET/POST /api/evidences', () => {

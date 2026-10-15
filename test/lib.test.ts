@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRequest, createResponse } from './helpers/api'
-import { writeAuditLog } from '../lib/audit'
+import { writeAuditLog } from '../lib/http/audit'
 import {
   asEvaluationWeights,
   asLearningLinks,
