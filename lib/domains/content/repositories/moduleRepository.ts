@@ -3,9 +3,13 @@ import type { DatabaseClient } from '../../../persistence/database'
 import type { PostgresDb } from '../../../persistence/postgresDb'
 import { getQueryDatabase, ModulesTable } from '../../../persistence/kyselyDatabase'
 import type { ModuleRepository } from '../ports'
-import type { ModuleCoreInsert, ModuleCoreUpdate } from '../types'
+import { PUBLIC_MODULE_COLUMNS, publicModuleColumnsSql } from '../publicModule'
+import type { ModuleCoreInsert, ModuleCoreUpdate, ModuleWithQuizBank } from '../types'
 
-export type ModuleRow = Selectable<ModulesTable>
+/** Module without its quiz answers: the only shape the list/get queries return. */
+export type ModuleRow = Pick<Selectable<ModulesTable>, (typeof PUBLIC_MODULE_COLUMNS)[number]>
+
+const PUBLIC_COLUMNS_SQL = publicModuleColumnsSql()
 
 function pool(db: DatabaseClient) {
   return (db as PostgresDb).getPool()
@@ -14,14 +18,14 @@ function pool(db: DatabaseClient) {
 export async function findModulesByRoadmapId(db: DatabaseClient, roadmapId: number | string): Promise<ModuleRow[]> {
   if (db.backend !== 'postgres') {
     return db.all<ModuleRow>(
-      'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
+      `SELECT ${PUBLIC_COLUMNS_SQL} FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id`,
       [roadmapId]
     )
   }
 
   return getQueryDatabase(pool(db))
     .selectFrom('modules')
-    .selectAll()
+    .select([...PUBLIC_MODULE_COLUMNS])
     .where('roadmap_id', '=', Number(roadmapId))
     .orderBy(sql`coalesce(position, id)`)
     .orderBy('id')
@@ -33,14 +37,14 @@ export async function findModulesByRoadmapIds(db: DatabaseClient, roadmapIds: Ar
 
   if (db.backend !== 'postgres') {
     return db.all<ModuleRow>(
-      `SELECT * FROM modules WHERE roadmap_id IN (${roadmapIds.map(() => '?').join(', ')}) ORDER BY id DESC`,
+      `SELECT ${PUBLIC_COLUMNS_SQL} FROM modules WHERE roadmap_id IN (${roadmapIds.map(() => '?').join(', ')}) ORDER BY id DESC`,
       roadmapIds
     )
   }
 
   return getQueryDatabase(pool(db))
     .selectFrom('modules')
-    .selectAll()
+    .select([...PUBLIC_MODULE_COLUMNS])
     .where('roadmap_id', 'in', roadmapIds.map(Number))
     .orderBy('id', 'desc')
     .execute()
@@ -48,24 +52,40 @@ export async function findModulesByRoadmapIds(db: DatabaseClient, roadmapIds: Ar
 
 export async function findAllModules(db: DatabaseClient): Promise<ModuleRow[]> {
   if (db.backend !== 'postgres') {
-    return db.all<ModuleRow>('SELECT * FROM modules ORDER BY id DESC')
+    return db.all<ModuleRow>(`SELECT ${PUBLIC_COLUMNS_SQL} FROM modules ORDER BY id DESC`)
   }
 
   return getQueryDatabase(pool(db))
     .selectFrom('modules')
-    .selectAll()
+    .select([...PUBLIC_MODULE_COLUMNS])
     .orderBy('id', 'desc')
     .execute()
 }
 
 export async function findModuleById(db: DatabaseClient, id: number | string): Promise<ModuleRow | undefined> {
   if (db.backend !== 'postgres') {
-    return db.get<ModuleRow>('SELECT * FROM modules WHERE id = ?', [id])
+    return db.get<ModuleRow>(`SELECT ${PUBLIC_COLUMNS_SQL} FROM modules WHERE id = ?`, [id])
   }
 
   return getQueryDatabase(pool(db))
     .selectFrom('modules')
-    .selectAll()
+    .select([...PUBLIC_MODULE_COLUMNS])
+    .where('id', '=', Number(id))
+    .executeTakeFirst()
+}
+
+/**
+ * Internal read for quiz building and grading: the only query that returns
+ * `quiz_bank`. Callers must never put the row in a response.
+ */
+export async function findQuizSourceById(db: DatabaseClient, id: number | string): Promise<ModuleWithQuizBank | undefined> {
+  if (db.backend !== 'postgres') {
+    return db.get<ModuleWithQuizBank>(`SELECT ${PUBLIC_COLUMNS_SQL}, quiz_bank FROM modules WHERE id = ?`, [id])
+  }
+
+  return getQueryDatabase(pool(db))
+    .selectFrom('modules')
+    .select([...PUBLIC_MODULE_COLUMNS, 'quiz_bank'])
     .where('id', '=', Number(id))
     .executeTakeFirst()
 }
@@ -163,6 +183,7 @@ export function createModuleRepository(db: DatabaseClient): ModuleRepository {
     findByRoadmapId: roadmapId => findModulesByRoadmapId(db, roadmapId),
     findByRoadmapIds: roadmapIds => findModulesByRoadmapIds(db, roadmapIds),
     findById: id => findModuleById(db, id),
+    findQuizSourceById: id => findQuizSourceById(db, id),
     insert: data => insertModule(db, data),
     updateCore: (id, patch) => updateModuleCore(db, id, patch),
     delete: id => deleteModule(db, id)

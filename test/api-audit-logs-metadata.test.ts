@@ -22,19 +22,15 @@ async function mockAuditLogsApi(db: any, options: { admin?: any } = {}) {
 
 async function mockRoadmapExportApi(
   db: any,
-  options: { scope?: any; scopeAllows?: boolean; exportData?: any } = {}
+  options: { admin?: any; exportData?: any } = {}
 ) {
   vi.resetModules()
   vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
   vi.doMock('../lib/http/auth', () => ({
-    getRoadmapReadScope: vi.fn((_req: any, res: any) => {
-      if (options.scope === null) {
-        res.status(401).json({ error: 'authentication required' })
-        return null
-      }
-      return options.scope ?? { user: null, allRoadmaps: true, roadmapIds: [] }
-    }),
-    scopeAllowsRoadmap: vi.fn().mockReturnValue(options.scopeAllows ?? true)
+    requireAdmin: vi.fn((_req: any, res: any) => {
+      if (options.admin === null) return denyAdmin(res)
+      return options.admin ?? admin
+    })
   }))
   vi.doMock('../lib/domains/content/repositories/importRepository', () => ({
     createImportRepository: () => ({
@@ -108,15 +104,16 @@ describe('GET /api/roadmaps/[id]/export', () => {
     expect(res.statusCode).toBe(405)
   })
 
-  it('stops when the roadmap scope is unavailable', async () => {
+  it('stops when the caller is not an admin', async () => {
     const db = {}
-    await mockRoadmapExportApi(db, { scope: null })
+    await mockRoadmapExportApi(db, { admin: null })
     const handler = (await import('../pages/api/roadmaps/[id]/export')).default
 
     const res = createResponse()
     await handler(createRequest({ method: 'GET', query: { id: '7' } }), res)
 
-    expect(res.statusCode).toBe(401)
+    expect(res.statusCode).toBe(403)
+    expect(res.body).toEqual({ error: 'admin role required' })
   })
 
   it('rejects a non-numeric roadmap id', async () => {
@@ -140,18 +137,6 @@ describe('GET /api/roadmaps/[id]/export', () => {
     await handler(createRequest({ method: 'GET', query: { id: '0' } }), res)
 
     expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 403 when the scope forbids the roadmap', async () => {
-    const db = {}
-    await mockRoadmapExportApi(db, { scopeAllows: false })
-    const handler = (await import('../pages/api/roadmaps/[id]/export')).default
-
-    const res = createResponse()
-    await handler(createRequest({ method: 'GET', query: { id: '7' } }), res)
-
-    expect(res.statusCode).toBe(403)
-    expect(res.body).toEqual({ error: 'Acceso denegado a este roadmap' })
   })
 
   it('returns 404 when the roadmap does not exist', async () => {

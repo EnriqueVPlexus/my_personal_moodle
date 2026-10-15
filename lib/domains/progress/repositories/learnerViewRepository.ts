@@ -1,4 +1,5 @@
 import type { DatabaseClient } from '../../../persistence/database'
+import { publicModuleColumnsSql } from '../../content/publicModule'
 import type { LearnerViewRepository } from '../ports'
 
 /**
@@ -11,7 +12,7 @@ export function createLearnerViewRepository(db: DatabaseClient): LearnerViewRepo
     listRoadmapModules(roadmapId, userId) {
       if (userId !== null) {
         return db.all(
-          `SELECT modules.*,
+          `SELECT ${publicModuleColumnsSql('modules')},
                   EXISTS (
                     SELECT 1 FROM user_module_evidences
                     WHERE user_module_evidences.module_id = modules.id
@@ -25,7 +26,7 @@ export function createLearnerViewRepository(db: DatabaseClient): LearnerViewRepo
       }
 
       return db.all(
-        'SELECT * FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id',
+        `SELECT ${publicModuleColumnsSql()} FROM modules WHERE roadmap_id = ? ORDER BY COALESCE(position, id), id`,
         [roadmapId]
       )
     },

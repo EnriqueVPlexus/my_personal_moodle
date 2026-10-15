@@ -50,7 +50,6 @@ export const moduleRecordSchema = z.object({
   practical_activity: nullableText,
   deliverable_evidence: nullableText,
   evaluation: nullableText,
-  quiz_bank: nullableText,
   quiz_pass_percentage: z.number().nullable(),
   quiz_max_attempts: z.number().nullable(),
   quiz_cooldown_minutes: z.number().nullable()

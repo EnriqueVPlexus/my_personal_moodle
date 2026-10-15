@@ -42,7 +42,6 @@ export const moduleRecord = {
   practical_activity: null,
   deliverable_evidence: null,
   evaluation: null,
-  quiz_bank: null,
   quiz_pass_percentage: null,
   quiz_max_attempts: null,
   quiz_cooldown_minutes: null

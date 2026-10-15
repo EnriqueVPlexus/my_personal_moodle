@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getRoadmapReadScope, scopeAllowsRoadmap } from '../../../../lib/http/auth'
+import { requireAdmin } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { createServices } from '../../../../lib/container'
 import { normalizeMetadataKey } from '../../../../lib/domains/content/metadata'
@@ -17,12 +17,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const roadmapId = params.id
 
   const db = await openDb()
-  const scope = await getRoadmapReadScope(req, res, db)
-  if (!scope) return
-
-  if (!scopeAllowsRoadmap(scope, roadmapId)) {
-    return res.status(403).json({ error: 'Acceso denegado a este roadmap' })
-  }
+  // Admin-only backup: the document round-trips the quiz answers, so it must
+  // never be readable by learners or anonymous readers.
+  const admin = await requireAdmin(req, res, db)
+  if (!admin) return
 
   const exportData = await createServices(db).content.exportRoadmap(roadmapId)
   if (!exportData) {
