@@ -10,6 +10,7 @@
     "lint": "eslint --ext .js,.jsx,.ts,.tsx .",
     "test": "bash ./test/lint.test.sh",
     "test:unit": "vitest run",
+    "contracts:generate": "tsx scripts/generate-openapi.ts",
     "test:coverage": "vitest run --coverage",
     "migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts",
     "migrate:up": "tsx scripts/migrate.ts up",
