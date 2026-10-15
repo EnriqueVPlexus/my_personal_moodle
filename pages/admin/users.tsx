@@ -4,22 +4,11 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
+import type { AdminUserWithAccess, CatalogRoadmap } from '../../lib/contracts'
 
-type UserRow = {
-  id: number
-  email: string
-  name?: string | null
-  role: 'admin' | 'user'
-  is_active: number
-  can_view_all_roadmaps: number
-  roadmap_access_ids: number[]
-  created_at: string
-}
+type UserRow = AdminUserWithAccess
+type RoadmapRow = Pick<CatalogRoadmap, 'id' | 'title'>
 
-type RoadmapRow = {
-  id: number
-  title: string
-}
 
 export default function AdminUsersPage() {
   const { user, isAdmin, loading } = useAuth()

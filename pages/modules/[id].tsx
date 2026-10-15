@@ -8,79 +8,28 @@ import ModuleLearningContent from '../../components/ModuleLearningContent'
 import { useAuth } from '../../components/AuthProvider'
 import { LearningModule } from '../../lib/domains/content/presentation'
 import { branding } from '../../lib/branding'
+import type {
+  ModuleLesson,
+  ModuleProgress as ContractModuleProgress,
+  ModuleQuiz,
+  QuizAttemptResponse,
+  QuizSummary
+} from '../../lib/contracts'
 
-type ModuleProgress = {
-  total_lessons: number
-  completed_lessons_count: number
-  progress_percentage: number
-  status: 'not_started' | 'in_progress' | 'completed'
-  next_lesson_title?: string | null
-  time_spent_seconds: number
-}
+type ModuleProgress = Pick<
+  ContractModuleProgress,
+  'total_lessons' | 'completed_lessons_count' | 'progress_percentage' | 'status' | 'next_lesson_title' | 'time_spent_seconds'
+>
 
-type QuizQuestion = {
-  id: string
-  type?: 'multiple_choice' | 'true_false' | 'code_snippet'
-  prompt: string
-  options: string[]
-  explanation: string
-}
-
-type ModuleQuiz = {
-  questions: QuizQuestion[]
-}
-
-type QuizSummary = {
-  attempts_count: number
-  average_score_percentage?: number | null
-  best_score_percentage?: number | null
-  latest_attempt?: {
-    score: number
-    max_score: number
-    percentage: number
-    submitted_at: string
-  } | null
-}
-
-type AttemptEligibility = {
-  allowed: boolean
-  remaining_attempts?: number | null
-  cooldown_ends_at?: string | null
-  pass_percentage: number
-}
-
-type QuizFeedbackItem = {
-  question_id: string
-  prompt: string
-  selected_option?: string | null
-  correct_option: string
-  is_correct: boolean
-  explanation: string
-}
-
-type QuizResult = {
-  score: number
-  max_score: number
-  percentage: number
-  passed: boolean
-  feedback: QuizFeedbackItem[]
-  summary?: QuizSummary
-  eligibility?: AttemptEligibility
-}
+type QuizResult = QuizAttemptResponse
 
 type ModuleDetail = LearningModule & {
   progress?: ModuleProgress | null
   quiz?: ModuleQuiz | null
   quiz_summary?: QuizSummary | null
-  quiz_eligibility?: AttemptEligibility | null
 }
 
-type LessonWithProgress = {
-  id: number
-  title: string
-  completed?: number | boolean
-  progress_time_spent_seconds?: number
-}
+type LessonWithProgress = ModuleLesson
 
 function formatStudyTime(totalSeconds: number) {
   if (!totalSeconds) return '0 min'

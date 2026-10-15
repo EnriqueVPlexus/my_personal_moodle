@@ -4,22 +4,10 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
+import type { EvidenceListItem } from '../../lib/contracts'
 
-type EvidenceRow = {
-  id: number
-  evidence_type: 'github' | 'demo' | 'document' | 'note'
-  url?: string | null
-  note?: string | null
-  review_status?: 'pendiente' | 'aprobado' | 'requiere_cambios'
-  admin_comment?: string | null
-  reviewed_at?: string | null
-  updated_at: string
-  user_email: string
-  user_name?: string | null
-  module_id: number
-  module_title: string
-  roadmap_title: string
-}
+type EvidenceRow = EvidenceListItem
+
 
 const typeLabels: Record<EvidenceRow['evidence_type'], string> = {
   github: 'GitHub',

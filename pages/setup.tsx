@@ -5,17 +5,12 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { useAuth } from '../components/AuthProvider'
 import { branding } from '../lib/branding'
-
-type SetupStatus = {
-  needsSetup: boolean
-  requiresToken: boolean
-  productionRequiresToken: boolean
-}
+import type { SetupStatusResponse } from '../lib/contracts'
 
 export default function SetupPage() {
   const router = useRouter()
   const { refresh } = useAuth()
-  const [status, setStatus] = useState<SetupStatus | null>(null)
+  const [status, setStatus] = useState<SetupStatusResponse | null>(null)
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')

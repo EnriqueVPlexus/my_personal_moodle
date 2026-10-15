@@ -7,53 +7,18 @@ import ModuleLearningContent from '../../components/ModuleLearningContent'
 import ModuleForm from '../../components/ModuleForm'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
+import type { RoadmapDetailModule, RoadmapDetailProgress, RoadmapDetailResponse } from '../../lib/contracts'
 import {
   LearningModule,
   asEvaluationWeights,
   asTextList
 } from '../../lib/domains/content/presentation'
 
-type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
-
-type ModuleProgress = {
-  total_lessons: number
-  completed_lessons_count: number
-  progress_percentage: number
-  status: ModuleProgressStatus
-  next_lesson_title?: string | null
-}
-
-type RoadmapProgress = {
-  completed_lessons_count: number
-  total_lessons: number
-  total_modules: number
-  time_spent_seconds: number
-  progress_percentage: number
-  status: 'started' | 'in_progress' | 'paused' | 'completed'
-  next_href: string
-  next_step_label: string
-}
-
-type RoadmapModule = LearningModule & {
-  progress?: ModuleProgress | null
-  has_evidence?: number | boolean
-}
-
-type RoadmapDetail = {
-  id: number
-  title: string
-  version?: string
-  published_at?: string
-  duration?: string
-  description?: string
-  objectives?: unknown
-  methodology?: unknown
-  evaluation_weights?: unknown
-  modules?: RoadmapModule[]
-  progress?: RoadmapProgress | null
-  category?: { key: string; label: string } | null
-  topics?: Array<{ key: string; label: string }>
-}
+type ModuleProgress = NonNullable<RoadmapDetailModule['progress']>
+type ModuleProgressStatus = ModuleProgress['status']
+type RoadmapProgress = RoadmapDetailProgress
+type RoadmapModule = LearningModule & Pick<RoadmapDetailModule, 'progress' | 'has_evidence'>
+type RoadmapDetail = Omit<RoadmapDetailResponse, 'modules'> & { modules?: RoadmapModule[] }
 
 function formatWeekCount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
