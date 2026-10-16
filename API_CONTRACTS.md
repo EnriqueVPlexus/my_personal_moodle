@@ -9,8 +9,9 @@ El contrato describe lo que la API hace hoy, también cuando es incoherente (ver
 [Incoherencias conocidas](#incoherencias-conocidas)). La versión 1.0.0 solo
 documentó; la 2.0.0 corrige una fuga de seguridad y unifica tipos; la 3.0.0
 hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuario;
-la 3.1.0 documenta por completo el documento de `POST /api/roadmaps/import`
-(ver el [Historial](#historial-del-contrato)).
+la 3.1.0 documenta por completo el documento de `POST /api/roadmaps/import`;
+la 3.2.0 hace que `POST /api/users` devuelva `roadmap_access_ids` y corrige el doble
+`401`+`404` de las evidencias (ver el [Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
 
@@ -263,6 +264,30 @@ contratos).
 | 2.0.0 | 2026-10-15 | Corrección de seguridad (módulos y exportación ya no exponen las respuestas de los cuestionarios) y contadores/indicadores con tipo único. Ver [2.0.0](#200-2026-10-15). |
 | 3.0.0 | 2026-10-16 | Coherencia de la API: errores `401`/`403`/`405`/`429` en español, `405` en JSON, `DELETE /api/roadmaps/{id}` con `200` si no existía y `PATCH /api/users/{id}` con una única forma de usuario. Ver [3.0.0](#300-2026-10-16). |
 | 3.1.0 | 2026-10-16 | Aditivo: `POST /api/roadmaps/import` describe el documento `roadmap` completo (modelo `RoadmapImportDocument`) en lugar de `object`. Sin cambios de comportamiento. Ver [3.1.0](#310-2026-10-16). |
+| 3.2.0 | 2026-10-16 | Aditivo: `POST /api/users` devuelve el mismo usuario que el listado y `PATCH` (con `roadmap_access_ids`). Corrección: `PUT`/`DELETE /api/evidences/modules/{id}` ya no escriben un `404` tras el `401`. Ver [3.2.0](#320-2026-10-16). |
+
+### 3.2.0 (2026-10-16)
+
+Versión **MINOR**: un campo nuevo en una respuesta (aditivo) y la corrección de un
+fallo que la propia documentación ya recogía como incoherencia. Ningún estado,
+campo ni mensaje existente cambia para un cliente que se comporte bien.
+
+- `POST /api/users` (`201`) devuelve ahora el usuario con la misma forma que
+  `GET /api/users` y `PATCH /api/users/{id}`: `can_view_all_roadmaps` efectivo (un
+  admin siempre `1`) y `roadmap_access_ids` (`[]` al crearlo). El modelo de la
+  respuesta pasa de `AdminUser` a `AdminUserWithAccess`. Nunca incluye
+  `password_hash` ni tokens.
+- `PUT` y `DELETE /api/evidences/modules/{id}`: si no se podía resolver el
+  alcance de lectura, la respuesta recibía un `401` y después un `404`
+  sobre el mismo objeto. Ahora se escribe **una sola respuesta**, el `401`
+  `Debes iniciar sesión.`. El orden de consultas no cambia (módulo y después alcance);
+  el fallo estaba en que el manejador escribía el `404` aunque el `401` ya estuviera
+  enviado. Un módulo inexistente o fuera del alcance sigue siendo `404`.
+- Sin cambios de contrato: la validación de `version` y `published_at` de los roadmaps
+  se unificó internamente (ver `VALIDATION.md`) con los mismos mensajes.
+
+Qué hacer en un cliente: nada; puedes leer `roadmap_access_ids` de la respuesta de
+`POST /api/users` en lugar de asumir `[]`.
 
 ### 3.1.0 (2026-10-16)
 
@@ -379,17 +404,12 @@ aplicar el versionado anterior.
 - En `GET|PUT|DELETE /api/evidences/modules/{id}`, `PUT /api/progress/lessons/{id}`
   y `GET|POST /api/quizzes/modules/{id}` los parámetros se validan **antes** de
   comprobar la sesión: un id no válido sin sesión recibe `400`, no `401`.
-- En `PUT|DELETE /api/evidences/modules/{id}`, si `getRoadmapReadScope` falla
-  escribe un `401` y después un `404` sobre la misma respuesta (heredado de la
-  refactorización de dominios, ver `ARCHITECTURE.md`).
 
 ### Comportamientos distintos entre rutas
 
 - `DELETE /api/roadmaps/{id}` es idempotente (`204` si lo borra, `200` con
   `{ message }` si no existía) mientras que módulos, lecciones y evidencias
   responden `404` si no existen. Es una decisión explícita de la 3.0.0.
-- `POST /api/users` devuelve el usuario sin `roadmap_access_ids` (siempre vacío en
-  un usuario recién creado); `GET` y `PATCH /api/users` lo incluyen.
 - `role` y `status` desconocidos se toleran (`user` y sin filtro) en lugar de `400`
   (ver `VALIDATION.md`).
 
@@ -406,10 +426,10 @@ Los contadores (`COUNT`) y `has_evidence` ya se normalizan en los repositorios (
 Hallazgos que **no** se corrigieron aquí (no se cambia ninguna respuesta). La fuga
 de `quiz_bank` y los contadores como texto en PostgreSQL se resolvieron en
 [2.0.0](#200-2026-10-15); el idioma de los errores, el `405` en JSON, el
-`DELETE` de roadmaps y la forma del `PATCH` de usuarios, en [3.0.0](#300-2026-10-16).
+`DELETE` de roadmaps y la forma del `PATCH` de usuarios, en [3.0.0](#300-2026-10-16); el doble `401`+`404` de las evidencias y la forma de
+`POST /api/users`, en [3.2.0](#320-2026-10-16).
 
-1. Resolver el doble `401`+`404` de las evidencias.
-5. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
+1. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
    ningún campo de la API (el servidor devuelve la elegibilidad en
    `GET /api/quizzes/modules/{id}`); se eliminó al adoptar los tipos compartidos.
-6. Añadir `license` al documento OpenAPI si el proyecto se publica.
+2. Añadir `license` al documento OpenAPI si el proyecto se publica.

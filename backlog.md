@@ -712,10 +712,11 @@ Tareas:
   `has_evidence` booleano en PostgreSQL); la 2.0.0 las elimino normalizando en los
   repositorios (ver el item siguiente).
 - Seguimiento (fuera de alcance, ver `API_CONTRACTS.md`): mensajes 401/403/405/429 en ingles y `405` en texto plano;
-  `DELETE /api/roadmaps/:id` da `204` aunque no exista; doble `401`+`404` en
-  `PUT/DELETE /api/evidences/modules/:id`; forma distinta de la respuesta de
-  `PATCH /api/users/:id` segun la accion (esos puntos se resolvieron en la 3.0.0);
-  `validateRoadmapImport` migrado a Zod en la 3.1.0.
+  `DELETE /api/roadmaps/:id` da `204` aunque no exista; forma distinta de la
+  respuesta de `PATCH /api/users/:id` segun la accion (resueltos en la 3.0.0);
+  `validateRoadmapImport` migrado a Zod en la 3.1.0; doble `401`+`404` en
+  `PUT/DELETE /api/evidences/modules/:id` y `roadmap_access_ids` ausente en
+  `POST /api/users` (resueltos en la 3.2.0).
 
 Rama sugerida: `feature/api-contracts`.
 
@@ -1281,6 +1282,19 @@ Estado: hecho (2026-10-16)
 - `PATCH /api/users/{id}` devuelve siempre el mismo usuario con sus accesos.
 - Contrato 3.0.0 (cambio incompatible por el `405`, el `DELETE` y el `PATCH`).
   Detalle en [API_CONTRACTS.md](API_CONTRACTS.md#300-2026-10-16).
+
+### [x] Pendientes de coherencia de la API (evidencias, alta de usuarios y version)
+
+Estado: hecho (2026-10-16)
+
+- `PUT`/`DELETE /api/evidences/modules/{id}` escriben una sola respuesta (`401`) cuando
+  no se puede resolver el alcance de lectura, en vez de `401` y luego `404`.
+- `POST /api/users` devuelve el mismo usuario que el listado y `PATCH`
+  (con `roadmap_access_ids`, sin secretos).
+- El formato de `version` y `published_at` tiene una sola fuente
+  (`lib/domains/content/version.ts` y `roadmapFields.ts`) compartida por el importador,
+  la validación de roadmaps y el seed.
+- Contrato 3.2.0 (MINOR). Detalle en [API_CONTRACTS.md](API_CONTRACTS.md#320-2026-10-16).
 
 ## UI y Branding
 

@@ -307,12 +307,6 @@ sentencias que deban ir dentro: en Postgres irían a otra conexión.
 - **Adaptadores por dialecto (opción B)**: separar cada repositorio en
   `sqlite/` y `postgres/` detrás del mismo puerto. Hoy cada repositorio conserva
   sus ramas `if (db.backend !== 'postgres')`.
-- **`PUT`/`DELETE /api/evidences/modules/[id]`**: si `getRoadmapReadScope` falla,
-  escribe un `401` y después un `404` sobre la misma respuesta (comportamiento
-  heredado, conservado a propósito en esta refactorización).
 - **`entityId: null` en auditoría** se guardaría como el texto `"null"`
   (`String(null)`); hoy ningún llamador lo pasa.
-- Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`). Los esquemas de
-  respuesta ya existen en `lib/contracts`; las incoherencias de la API que
-  documentan (p. ej. el doble `401`+`404` de las evidencias) están en
-  `API_CONTRACTS.md`.
+- Las incoherencias de la API que documenta el contrato están en `API_CONTRACTS.md`.
