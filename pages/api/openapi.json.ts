@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { buildOpenApiDocument } from '../../lib/contracts'
+import { methodNotAllowed } from '../../lib/http/methods'
 
 /**
  * Serves the API contract. Public on purpose: it only describes routes and
@@ -7,8 +8,7 @@ import { buildOpenApiDocument } from '../../lib/contracts'
  */
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET')
   }
 
   return res.status(200).json(buildOpenApiDocument())

@@ -5,14 +5,14 @@ import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { moduleIdQuerySchema, updateModuleBodySchema } from '../../../lib/validation/modules'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { content, progress } = createServices(db)
 
   if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
-    res.setHeader('Allow', 'GET, PUT, DELETE')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET, PUT, DELETE')
   }
 
   const params = parseOrRespond(moduleIdQuerySchema, req.query, res)

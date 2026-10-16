@@ -258,11 +258,15 @@ export function makeContentService(ports: ContentPorts) {
       return { roadmap: await roadmaps.findRecordById(id), topics }
     },
 
-    /** Deleting is idempotent: a missing roadmap still succeeds. */
-    async deleteRoadmap(id: number): Promise<{ title: string | null }> {
+    /**
+     * Deleting is idempotent: a missing roadmap still succeeds, but `deleted`
+     * reports whether a row was actually removed (affected-row count, so no
+     * racy pre-check decides the outcome). `title` is only used for auditing.
+     */
+    async deleteRoadmap(id: number): Promise<{ deleted: boolean; title: string | null }> {
       const title = await roadmaps.findTitleById(id)
-      await roadmaps.delete(id)
-      return { title }
+      const removed = await roadmaps.delete(id)
+      return { deleted: removed > 0, title }
     },
 
     // --- Modules ----------------------------------------------------------

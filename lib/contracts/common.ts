@@ -29,6 +29,11 @@ export const errorBodySchema = z.object({
   issues: z.array(validationIssueSchema).optional()
 })
 
+/** 200 from `DELETE /api/roadmaps/{id}` when the roadmap did not exist. */
+export const messageBodySchema = z.object({
+  message: z.string().meta({ description: 'Texto informativo para mostrar al usuario.' })
+})
+
 /** 409 from `POST /api/roadmaps/import`: the extra `code` tells which conflict happened. */
 export const importConflictBodySchema = z.object({
   error: z.string(),
@@ -47,9 +52,6 @@ export const quizNotEligibleBodySchema = z.object({
   error: z.string(),
   eligibility: attemptEligibilitySchema
 })
-
-/** Plain text body of every 405 (`Allow` header lists the supported methods). */
-export const methodNotAllowedBodySchema = z.literal('Method Not Allowed')
 
 export type ErrorBody = z.infer<typeof errorBodySchema>
 export type ValidationIssue = z.infer<typeof validationIssueSchema>

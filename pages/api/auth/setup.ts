@@ -6,11 +6,11 @@ import { openDb } from '../../../lib/persistence'
 import { createAuthService } from '../../../lib/domains/auth'
 import { setupBodySchema } from '../../../lib/validation/auth'
 import { parseOrRespond } from '../../../lib/validation/http'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'POST')
   }
 
   const db = await openDb()
@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const rawBody = (req.body && typeof req.body === 'object' ? req.body : {}) as { setupToken?: unknown }
   const { setupToken } = rawBody
   if (!validateSetupToken(typeof setupToken === 'string' ? setupToken : undefined)) {
-    return res.status(403).json({ error: 'setup token required' })
+    return res.status(403).json({ error: 'Se requiere el token de configuración inicial.' })
   }
 
   if (!requireSameOrigin(req, res)) return

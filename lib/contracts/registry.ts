@@ -45,8 +45,8 @@ import {
 } from './auth'
 import {
   errorBodySchema,
+  messageBodySchema,
   importConflictBodySchema,
-  methodNotAllowedBodySchema,
   quizNotEligibleBodySchema
 } from './common'
 import {
@@ -152,18 +152,18 @@ function crossCutting(input: OperationInput): Record<number, ContractResponse> {
   }
 
   if (auth === 'user' || auth === 'admin') {
-    extra[401] = error('No hay sesión válida (`authentication required`).')
+    extra[401] = error('No hay sesión válida (`Debes iniciar sesión.`).')
   } else if (auth === 'read') {
     extra[401] = error(
-      'Solo si el servidor define `REQUIRE_AUTH_FOR_READS` y no hay sesión válida (`authentication required`).'
+      'Solo si el servidor define `REQUIRE_AUTH_FOR_READS` y no hay sesión válida (`Debes iniciar sesión.`).'
     )
   }
 
   const forbidden: string[] = []
-  if (auth === 'admin') forbidden.push('`admin role required`: el usuario no es administrador.')
+  if (auth === 'admin') forbidden.push('`Necesitas permisos de administrador.`: el usuario no es administrador.')
   if (MUTATING.has(method)) {
     forbidden.push(
-      'Comprobación de origen: `invalid origin`, `origin not allowed` u `origin check failed` cuando la cabecera `Origin` no coincide con el servidor (o con `ALLOWED_ORIGIN`).'
+      'Comprobación de origen: `El origen de la petición no es válido.`, `Origen de la petición no permitido.` o `No se pudo comprobar el origen de la petición.` cuando la cabecera `Origin` no coincide con el servidor (o con `ALLOWED_ORIGIN`).'
     )
   }
   if (forbidden.length > 0) extra[403] = error(forbidden.join(' '))
@@ -176,7 +176,7 @@ function operation(input: OperationInput): ApiOperation {
 }
 
 const rateLimited = (limit: string): ContractResponse =>
-  error(`Demasiados intentos (${limit}): \`too many attempts, please try again later\`. No se aplica en entorno de test.`)
+  error(`Demasiados intentos (${limit}): \`Demasiados intentos. Inténtalo de nuevo más tarde.\`. No se aplica en entorno de test.`)
 
 const notFound = (message: string): ContractResponse => error(`No existe o no es visible para el usuario. Mensaje: \`${message}\`.`)
 
@@ -215,7 +215,7 @@ export const operations: ApiOperation[] = [
     request: { body: setupRequestBodySchema },
     responses: {
       201: json('Administrador creado y sesión iniciada.', setupResponseSchema),
-      403: error('`setup token required` (token ausente o incorrecto) o error de comprobación de origen.'),
+      403: error('`Se requiere el token de configuración inicial.` (token ausente o incorrecto) o error de comprobación de origen.'),
       409: error('La configuración inicial ya se completó (`La configuración inicial ya se completó.`).'),
       429: rateLimited('3 por minuto y dirección IP'),
       500: error('No se pudo crear el usuario (`No se pudo crear el usuario.`).')
@@ -232,7 +232,7 @@ export const operations: ApiOperation[] = [
     request: { body: loginBodySchema },
     responses: {
       200: { ...json('Sesión iniciada.', loginResponseSchema), headers: { 'Set-Cookie': 'Cookie de sesión `moodle_session`.' } },
-      401: error('Credenciales incorrectas (`invalid credentials`).'),
+      401: error('Credenciales incorrectas (`Credenciales no válidas.`).'),
       429: rateLimited('5 por minuto y dirección IP')
     }
   }),
@@ -350,10 +350,15 @@ export const operations: ApiOperation[] = [
     path: '/api/roadmaps/{id}',
     tag: 'Catálogo',
     summary: 'Eliminar un roadmap',
-    description: 'Idempotente: responde 204 aunque el roadmap no exista (no hay 404).',
+    description:
+      'Idempotente: nunca responde 404. `204` sin cuerpo si el roadmap existía y se ha borrado (registra `roadmap.delete` en la auditoría); ' +
+      '`200` con `{ message }` si no existía (no hay nada que borrar y no se audita).',
     auth: 'admin',
     request: { params: roadmapIdQuerySchema },
-    responses: { 204: noContent('Eliminado (o no existía).') }
+    responses: {
+      200: json('El roadmap no existía; no había nada que borrar.', messageBodySchema),
+      204: noContent('Roadmap borrado.')
+    }
   }),
   operation({
     operationId: 'exportRoadmap',
@@ -572,7 +577,7 @@ export const operations: ApiOperation[] = [
     request: { params: evidenceModuleQuerySchema },
     responses: {
       200: json('Evidencia del alumno (o `null`).', moduleEvidenceResponseSchema),
-      401: error('Sin sesión: `authentication required` o `Debes iniciar sesión.` (cuando el servidor permite lecturas anónimas).'),
+      401: error('Sin sesión (`Debes iniciar sesión.`).'),
       404: notFound('No encontrado.')
     }
   }),
@@ -708,11 +713,11 @@ export const operations: ApiOperation[] = [
     summary: 'Activar/desactivar, cambiar contraseña o acceso a roadmaps de un usuario',
     description:
       'El campo `action` elige la operación: `set_active`, `reset_password` o `set_roadmap_access`. ' +
-      'Desactivar o cambiar la contraseña cierra las sesiones del usuario. Con `set_roadmap_access` la respuesta incluye `roadmap_access_ids`.',
+      'Desactivar o cambiar la contraseña cierra las sesiones del usuario. La respuesta es siempre el mismo usuario con sus campos de acceso a roadmaps (`can_view_all_roadmaps`, `roadmap_access_ids`), sea cual sea la acción.',
     auth: 'admin',
     request: { params: userIdQuerySchema, body: updateUserBodySchema },
     responses: {
-      200: json('Usuario actualizado.', z.union([adminUserWithAccessSchema, adminUserSchema])),
+      200: json('Usuario actualizado.', adminUserWithAccessSchema),
       400: error(
         'Cuerpo no válido (`issues`) o regla de negocio incumplida: no desactivarse a uno mismo, no desactivar al último admin activo, ' +
           'los admin tienen acceso total, roadmaps inexistentes (este caso incluye `issues`).'
@@ -745,9 +750,8 @@ export function methodsByPath(source: readonly ApiOperation[] = operations): Map
 }
 
 export const methodNotAllowedResponse: ContractResponse = {
-  description: 'Método no admitido. Cuerpo de texto plano `Method Not Allowed`; la cabecera `Allow` lista los métodos válidos.',
-  schema: methodNotAllowedBodySchema,
-  contentType: 'text/plain',
+  description: 'Método no admitido (`Método no permitido.`). Cuerpo JSON `{ error }`; la cabecera `Allow` lista los métodos válidos.',
+  schema: errorBodySchema,
   headers: { Allow: 'Métodos admitidos en esta ruta, separados por comas.' }
 }
 

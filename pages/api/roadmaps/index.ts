@@ -8,6 +8,7 @@ import { parseRoadmapCatalogFilters } from '../../../lib/domains/content/filters
 import { roadmapCatalogQuerySchema } from '../../../lib/validation/catalog'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { createRoadmapBodySchema } from '../../../lib/validation/roadmaps'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -45,6 +46,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(201).json(created.roadmap)
   }
 
-  res.setHeader('Allow', 'GET, POST')
-  res.status(405).end('Method Not Allowed')
+  methodNotAllowed(res, 'GET, POST')
 }

@@ -5,11 +5,11 @@ import { requireAdmin } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { evidenceReviewQuerySchema, reviewEvidenceBodySchema } from '../../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../../lib/validation/http'
+import { methodNotAllowed } from '../../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
-    res.setHeader('Allow', 'PUT')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'PUT')
   }
 
   const db = await openDb()

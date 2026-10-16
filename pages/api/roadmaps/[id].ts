@@ -5,14 +5,16 @@ import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { roadmapIdQuerySchema, updateRoadmapBodySchema } from '../../../lib/validation/roadmaps'
+import { methodNotAllowed } from '../../../lib/http/methods'
+
+const ROADMAP_ALREADY_GONE_MESSAGE = 'El roadmap no existía; no había nada que borrar.'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { content, progress } = createServices(db)
 
   if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
-    res.setHeader('Allow', 'GET, PUT, DELETE')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET, PUT, DELETE')
   }
 
   const params = parseOrRespond(roadmapIdQuerySchema, req.query, res)
@@ -55,7 +57,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
 
-    const { title } = await content.deleteRoadmap(id)
+    const { deleted, title } = await content.deleteRoadmap(id)
+    // Idempotent: a roadmap that did not exist answers 200 with a message and
+    // leaves no audit entry, because nothing was deleted.
+    if (!deleted) return res.status(200).json({ message: ROADMAP_ALREADY_GONE_MESSAGE })
+
     await writeAuditLog({
       db,
       req,

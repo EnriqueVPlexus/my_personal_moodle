@@ -24,7 +24,8 @@ export interface RoadmapRepository {
   findTitleById(id: number): Promise<string | null>
   findCategoryLabelById(id: number): Promise<string | null | undefined>
   updateCore(id: number, patch: RoadmapCoreUpdate): Promise<number>
-  delete(id: number): Promise<void>
+  /** Resolves with the number of roadmap rows removed (0 when it did not exist). */
+  delete(id: number): Promise<number>
 }
 
 export interface MetadataRepository {

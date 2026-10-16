@@ -135,3 +135,18 @@ describe('findExistingRoadmapIds', () => {
     await db.close()
   })
 })
+
+describe('deleteRoadmapById', () => {
+  it('returns the number of removed rows over the SQLite compatibility path', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-delete-'))
+    process.chdir(tmp)
+
+    const { openDb } = await import('../lib/persistence')
+    const { deleteRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
+    const db = await openDb()
+    const { lastID } = await db.run('INSERT INTO roadmaps (title) VALUES (?)', ['Para borrar'])
+
+    expect(await deleteRoadmapById(db, lastID!)).toBe(1)
+    expect(await deleteRoadmapById(db, lastID!)).toBe(0)
+  })
+})

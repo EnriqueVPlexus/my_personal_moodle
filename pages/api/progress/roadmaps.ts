@@ -2,11 +2,11 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { createServices } from '../../../lib/container'
 import { requireUser } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET')
   }
 
   const db = await openDb()

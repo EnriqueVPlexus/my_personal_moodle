@@ -4,6 +4,7 @@ import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../
 import { openDb } from '../../../../lib/persistence'
 import { parseOrRespond } from '../../../../lib/validation/http'
 import { quizAttemptBodySchema, quizModuleQuerySchema } from '../../../../lib/validation/quizzes'
+import { methodNotAllowed } from '../../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -54,6 +55,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
   }
 
-  res.setHeader('Allow', 'GET, POST')
-  return res.status(405).end('Method Not Allowed')
+  return methodNotAllowed(res, 'GET, POST')
 }

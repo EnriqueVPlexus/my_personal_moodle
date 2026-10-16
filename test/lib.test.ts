@@ -348,14 +348,14 @@ describe('auth helper', () => {
       method: 'POST',
       headers: { origin: 'http://localhost:3000' }
     }), missingHost)).toBe(false)
-    expect(missingHost.body.error).toBe('origin check failed')
+    expect(missingHost.body.error).toBe('No se pudo comprobar el origen de la petición.')
 
     const invalidOrigin = createResponse()
     expect(requireSameOrigin(createRequest({
       method: 'POST',
       headers: { origin: 'not a url', host: 'localhost:3000' }
     }), invalidOrigin)).toBe(false)
-    expect(invalidOrigin.body.error).toBe('invalid origin')
+    expect(invalidOrigin.body.error).toBe('El origen de la petición no es válido.')
 
     const forwardedHost = createResponse()
     expect(requireSameOrigin(createRequest({
@@ -390,7 +390,7 @@ describe('auth helper', () => {
         'x-forwarded-host': 'evil.example'
       }
     }), spoofed)).toBe(false)
-    expect(spoofed.body.error).toBe('origin not allowed')
+    expect(spoofed.body.error).toBe('Origen de la petición no permitido.')
 
     delete process.env.ALLOWED_ORIGIN
   })

@@ -5,11 +5,11 @@ import { openDb } from '../../../lib/persistence'
 import { createAuthService } from '../../../lib/domains/auth'
 import { loginBodySchema } from '../../../lib/validation/auth'
 import { parseOrRespond } from '../../../lib/validation/http'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'POST')
   }
 
   const db = await openDb()
@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const result = await createAuthService(db).login(email, password)
   if (!result.ok) {
-    return res.status(401).json({ error: 'invalid credentials' })
+    return res.status(401).json({ error: 'Credenciales no válidas.' })
   }
 
   // Clear rate limit after successful login

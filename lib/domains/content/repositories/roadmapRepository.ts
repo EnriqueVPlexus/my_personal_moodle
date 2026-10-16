@@ -162,8 +162,9 @@ export async function findRoadmapCategoryLabelById(db: DatabaseClient, id: numbe
   return row?.label
 }
 
-export async function deleteRoadmapById(db: DatabaseClient, id: number): Promise<void> {
-  await db.run('DELETE FROM roadmaps WHERE id = ?', [id])
+export async function deleteRoadmapById(db: DatabaseClient, id: number): Promise<number> {
+  const result = await db.run('DELETE FROM roadmaps WHERE id = ?', [id])
+  return result.changes ?? 0
 }
 
 export function createRoadmapRepository(db: DatabaseClient): RoadmapRepository {

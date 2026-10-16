@@ -153,6 +153,6 @@ describe('GET /api/openapi.json', () => {
     handler(createRequest({ method: 'POST' }), notAllowed)
     expect(notAllowed.statusCode).toBe(405)
     expect(notAllowed.headers.Allow).toBe('GET')
-    expect(notAllowed.body).toBe('Method Not Allowed')
+    expect(notAllowed.body).toEqual({ error: 'Método no permitido.' })
   })
 })

@@ -5,7 +5,7 @@ const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const user = { id: 2, email: 'user@example.com', role: 'user' as const }
 
 function denyAdmin(res: any) {
-  res.status(403).json({ error: 'admin role required' })
+  res.status(403).json({ error: 'Necesitas permisos de administrador.' })
   return null
 }
 
@@ -113,7 +113,7 @@ describe('GET /api/roadmaps/[id]/export', () => {
     await handler(createRequest({ method: 'GET', query: { id: '7' } }), res)
 
     expect(res.statusCode).toBe(403)
-    expect(res.body).toEqual({ error: 'admin role required' })
+    expect(res.body).toEqual({ error: 'Necesitas permisos de administrador.' })
   })
 
   it('rejects a non-numeric roadmap id', async () => {
