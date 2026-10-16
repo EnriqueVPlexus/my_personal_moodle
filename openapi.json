@@ -4223,11 +4223,11 @@
         },
         "responses": {
           "201": {
-            "description": "Usuario creado.",
+            "description": "Usuario creado, con los mismos campos que en el listado y en `PATCH` (`can_view_all_roadmaps` efectivo y `roadmap_access_ids`, vacío al crearlo).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminUser"
+                  "$ref": "#/components/schemas/AdminUserWithAccess"
                 }
               }
             }
@@ -4537,61 +4537,6 @@
       }
     },
     "schemas": {
-      "AdminUser": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "email": {
-            "type": "string"
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "role": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "is_active": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "can_view_all_roadmaps": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "created_at": {
-            "type": "string",
-            "description": "Fecha y hora como texto (normalmente ISO 8601; en SQLite puede ser `YYYY-MM-DD HH:MM:SS`)."
-          },
-          "updated_at": {
-            "type": "string",
-            "description": "Fecha y hora como texto (normalmente ISO 8601; en SQLite puede ser `YYYY-MM-DD HH:MM:SS`)."
-          }
-        },
-        "required": [
-          "id",
-          "email",
-          "name",
-          "role",
-          "is_active",
-          "can_view_all_roadmaps",
-          "created_at",
-          "updated_at"
-        ]
-      },
       "AdminUserWithAccess": {
         "type": "object",
         "properties": {

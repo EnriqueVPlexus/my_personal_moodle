@@ -161,7 +161,7 @@ function arrangeServices() {
     admin: {
       getDashboard: vi.fn(async () => fx.dashboard),
       listUsers: vi.fn(async () => [fx.adminUserWithAccess]),
-      createUser: vi.fn(async () => ({ status: 'created', id: 2, user: fx.adminUser, role: 'user' })),
+      createUser: vi.fn(async () => ({ status: 'created', id: 2, user: fx.adminUserWithAccess, role: 'user' })),
       updateUser: vi.fn(async () => ({
         status: 'ok',
         user: fx.adminUserWithAccess,

@@ -700,7 +700,7 @@ export const operations: ApiOperation[] = [
     auth: 'admin',
     request: { body: createUserBodySchema },
     responses: {
-      201: json('Usuario creado.', adminUserSchema),
+      201: json('Usuario creado, con los mismos campos que en el listado y en `PATCH` (`can_view_all_roadmaps` efectivo y `roadmap_access_ids`, vacío al crearlo).', adminUserWithAccessSchema),
       409: error('Ya existe un usuario con ese correo (`Ya existe un usuario con ese correo electrónico.`).'),
       500: error('No se pudo crear el usuario (`No se pudo crear el usuario.`).')
     }

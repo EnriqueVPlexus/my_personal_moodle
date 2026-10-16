@@ -245,7 +245,7 @@ describe('admin use cases: users and passwords', () => {
     const { service } = setup([user(1, 'admin')])
 
     expect(await service.createUser({ email: 'new@example.com', password: 'a-valid-password-1' }))
-      .toMatchObject({ status: 'created', role: 'user', id: 2 })
+      .toMatchObject({ status: 'created', role: 'user', id: 2, user: { id: 2, roadmap_access_ids: [] } })
     expect(await service.createUser({ email: 'new@example.com', password: 'a-valid-password-1' }))
       .toEqual({ status: 'duplicate_email' })
   })
