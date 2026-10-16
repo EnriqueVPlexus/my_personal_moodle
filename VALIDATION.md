@@ -32,7 +32,7 @@ común; los handlers importan directamente el archivo que necesitan.
 | `quizzes.ts` | Forma del intento de quiz (`answers`). |
 | `evidences.ts` | Evidencias del usuario, revisión admin y filtros del listado. |
 | `catalog.ts` | Query del catálogo de roadmaps (`q`, filtros, `sort`). |
-| `import.ts` | Sobre de la importación (`action`, `strategy`, `roadmap`). |
+| `import.ts` | Sobre de la importación (`action`, `strategy`, `roadmap`) y su variante de contrato, que describe el documento completo. |
 | `index.ts` | Reexporta todo (los handlers importan del archivo concreto). |
 
 Los tipos de entrada se infieren de los esquemas con `z.infer` y se usan en
@@ -48,8 +48,10 @@ Los esquemas **no duplican** reglas existentes; las invocan:
 - `lib/domains/content/version.ts`: `normalizeRoadmapVersion`, `normalizePublishedAt`.
 - `lib/domains/progress/evidences.ts`: `validateEvidenceInput` (ahora devuelve mensajes en español y
   el campo afectado).
-- `lib/domains/content/import.ts`: `validateRoadmapImport` sigue validando en profundidad el
-  documento del roadmap (ver [Importación](#importación)).
+- `lib/domains/content/importSchema.ts`: esquema Zod del documento del roadmap importado, que
+  reutiliza `normalizeModuleLevel`, `normalizeDurationRange`, `parseDurationWeeks` y
+  `normalizeTopics`; `validateRoadmapImport` (`import.ts`) es un envoltorio fino (ver
+  [Importación](#importación)).
 - `lib/domains/content/search.ts`: `parseRoadmapSearchQuery` decide si `q` es demasiado larga.
 
 Cuando un esquema aplica un normalizador mediante `.transform`, el handler recibe
@@ -107,13 +109,60 @@ Claves adicionales que se conservan: `code` en el `409` de la importación y
 
 ### Importación
 
-`POST /api/roadmaps/import` ya devolvía `issues` con la forma `{ path, message }`,
-por lo que es compatible con el contrato **sin cambios** en `pages/admin/import-roadmap.tsx`.
-El sobre (`action`, `strategy`) se valida con Zod y el documento del roadmap sigue
-validándose en profundidad con `validateRoadmapImport`; ambos responden por
+`POST /api/roadmaps/import` devuelve `issues` con la forma `{ path, message }`, compatible
+con el contrato **sin cambios** en `pages/admin/import-roadmap.tsx`. El sobre
+(`action`, `strategy`) se valida con Zod en `lib/validation/import.ts`; el documento del
+roadmap se valida con `roadmapImportSchema` (`lib/domains/content/importSchema.ts`) a
+través de `validateRoadmapImport(input): { valid, issues, roadmap }`, que solo convierte
+los errores de Zod en `{ path, message }` (`modules[0].quiz[1].answer`; la raíz es `$` y
+una etiqueta vacía de `evaluation_weights` es `?`). Ambos responden por
 `sendValidationIssues`. El `error` de ese caso se mantiene como
-`El roadmap contiene errores.` para no cambiar el texto de la interfaz. Se
-conserva además el `413` si el JSON supera 1 MB.
+`El roadmap contiene errores.` para no cambiar el texto de la interfaz. Se conserva
+además el `413` si el JSON supera 1 MB.
+
+**El sobre deja `roadmap` como `unknown` en tiempo de ejecución**: si no, un documento
+con errores fallaría como error del sobre y no como lista de `issues`. Para el contrato
+existe `roadmapImportBodyContractSchema`, con el documento completo (modelo
+`RoadmapImportDocument` en `openapi.json`).
+
+Estructura del esquema:
+
+- Raíz: textos obligatorios/opcionales con longitud máxima, listas de textos (máximo de
+  elementos, elementos no vacíos), `evaluation_weights` (etiqueta → texto), `version`,
+  `published_at` y `modules` (1 a 100).
+- Enlaces (`official_resources`, `support_videos`): texto o `{ label, url? }`, con `url`
+  `http`/`https`.
+- Módulos: `level` (`beginner`, `intermediate`, `advanced`, `capstone`, sin distinguir
+  mayúsculas y con los alias `beginner-intermediate` e `intermediate-advanced`) y `quiz`.
+- Preguntas: unión discriminada por `type` (`multiple_choice`, que es el valor por
+  defecto, `true_false` y `code_snippet`), de 2 a 6 opciones no vacías, `answer` igual
+  (sin distinguir mayúsculas) a una opción, `true_false` con exactamente 2 opciones,
+  `feedback` como alias de `explanation` y máximo 100 preguntas por módulo.
+- Reglas entre campos (`superRefine`): posiciones repetidas, negativas o no enteras,
+  rango de semanas con mínimo ≤ máximo (`duration_weeks_min`/`_max`, `duration_weeks` o el
+  texto de `duration`), formato `v1.0.0` y fecha ISO.
+- `.transform` produce el `NormalizedRoadmapImport` (textos recortados, `topics` sin
+  duplicados, versión y fecha por defecto, posición por defecto igual al índice, duración
+  total como suma de los módulos si falta la del roadmap).
+
+Decisiones de compatibilidad (el refactor no cambia el comportamiento):
+
+- Zod omite las reglas entre campos y las transformaciones cuando un campo ya falló por
+  tipo. Para que el administrador vea **todos** los problemas de una vez, esas reglas se
+  declaran con `when` (se ejecutan salvo que el valor no sea un objeto) y los límites de
+  tamaño de las listas son comprobaciones propias (el `.max()` de Zod no revisa los
+  elementos de una lista demasiado larga). Las opciones de una pregunta solo se validan
+  una a una si su número es correcto, igual que antes.
+- `test/roadmap-import-characterization.test.ts` fija la salida del validador anterior
+  (`test/fixtures/roadmapImportCases.ts` y `roadmapImportExpected.json`, grabada antes de
+  migrar) para 238 entradas: mismos `path` y `message` y mismo roadmap normalizado.
+- Diferencias conocidas: (1) el **orden** de las `issues` puede variar cuando hay varios
+  errores en campos distintos (Zod recorre los campos en orden y las reglas entre campos y
+  los límites de tamaño van después de los elementos; el conjunto es el mismo y el test los
+  compara ordenados); (2) si una pregunta tiene un `type` no permitido, solo se informa del
+  `type` de esa pregunta (la unión discriminada no puede elegir variante); antes se
+  informaba además de `question`, `answer`, `explanation` y `options` de la misma pregunta.
+  Al corregir el `type` aparecen los demás.
 
 ## Cómo añadir un esquema a una ruta nueva
 
@@ -196,7 +245,6 @@ no leen cuerpo ni query, por lo que no tienen esquema.
 
 ## Fuera de alcance y seguimiento
 
-- Migrar `validateRoadmapImport` a Zod para obtener rutas e issues del mismo origen.
 - Decidir si `role` y `status` desconocidos deben pasar a `400` (hoy se toleran).
 - ~~Esquemas de respuesta y documentación OpenAPI~~: hecho en `lib/contracts` (ver
   `API_CONTRACTS.md`). Los esquemas de este directorio son la fuente de las
@@ -212,5 +260,8 @@ no leen cuerpo ni query, por lo que no tienen esquema.
 - `test/api-validation.test.ts`: cada ruta con entrada inválida devuelve `400` con el
   contrato y no ejecuta consultas de negocio; `405`/`403` no cambian.
 - Los tests existentes de las rutas se actualizaron a los mensajes en español.
+- `test/roadmap-import-characterization.test.ts` y `test/roadmap-import-contract.test.ts`: salida
+  del importador (238 entradas, grabadas con el validador anterior) y descripción del
+  documento completo en OpenAPI.
 - `test/api-consistency.test.ts`: mensajes `401`/`403`/`405` en español, `405` JSON con
   `Allow`, `DELETE` de roadmap idempotente y `PATCH` de usuarios con una sola forma.

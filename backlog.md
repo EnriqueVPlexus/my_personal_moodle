@@ -38,6 +38,7 @@ del producto poco a poco.
 - [x] Contratos API estables: esquemas de respuesta, OpenAPI 3.1 generado
   (`openapi.json`), tipos compartidos y tests de contrato (`API_CONTRACTS.md`).
 - [x] Fuga de respuestas de quizzes y conteos en PostgreSQL (contrato 2.0.0).
+- [x] Importador de roadmaps validado con Zod y documentado en OpenAPI (contrato 3.1.0).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -299,7 +300,8 @@ Tareas:
 - [x] Devolver errores de validacion consistentes sin filtrar detalles internos.
 - Seguimiento (fuera de alcance): mensajes 401/403/405/429 de `lib/http/auth.ts`
   y `lib/http/rateLimit.ts` siguen en ingles; `validateRoadmapImport` sigue sin
-  migrar a Zod. Ver `VALIDATION.md`.
+  migrar a Zod (resuelto, ver "Migrar a Zod la validacion del importador de
+  roadmaps"). Ver `VALIDATION.md`.
 
 Rama sugerida: `feature/input-validation-zod`.
 
@@ -307,6 +309,37 @@ Hecho cuando:
 
 - Las entradas de las APIs principales se validan antes de tocar la base de datos.
 - Los tests cubren payloads validos, invalidos y limites.
+
+### [x] Migrar a Zod la validacion del importador de roadmaps
+
+Estado: hecho (2026-10-16). `validateRoadmapImport` dejo de ser codigo manual:
+el documento se valida con `roadmapImportSchema`
+(`lib/domains/content/importSchema.ts`: textos y listas con limites, enlaces,
+`level`, preguntas de quiz como union discriminada por `type`, reglas entre campos
+en `superRefine` y `.transform` hacia `NormalizedRoadmapImport`) y la funcion es
+un envoltorio fino con la misma firma. El administrador ve los mismos `path` y
+`message` (`modules[0].quiz[1].answer`), fijados por un test de caracterizacion
+de 238 entradas grabado con el validador anterior. El contrato OpenAPI pasa a la
+3.1.0 (MINOR, aditivo) y describe `roadmap` por completo (`RoadmapImportDocument`).
+Detalle, decisiones y diferencias conocidas en [`VALIDATION.md`](VALIDATION.md)
+(seccion Importacion) y [`API_CONTRACTS.md`](API_CONTRACTS.md) (3.1.0).
+
+Tareas:
+
+- [x] Test de caracterizacion del validador anterior antes de migrar.
+- [x] Esquema Zod del roadmap, de los modulos y de las preguntas de quiz.
+- [x] Reglas entre campos y normalizacion con `.transform`.
+- [x] Documento completo en el sobre del contrato; `openapi.json` regenerado (3.1.0).
+- [x] Documentacion tecnica (`VALIDATION.md`, `API_CONTRACTS.md`).
+- Sin documentacion de usuario: no hay cambios visibles en la pantalla de importacion.
+- Seguimiento: ninguno propio; las dos diferencias menores (orden de las `issues`
+  y `type` de pregunta no permitido) estan documentadas en `VALIDATION.md`.
+
+Hecho cuando:
+
+- [x] Los mensajes y rutas de `issues` coinciden con los del validador anterior.
+- [x] Los tests de `413` (mas de 1 MB) y `409` (conflicto) siguen en verde.
+- [x] El contrato OpenAPI describe el documento completo.
 
 ### [x] Separacion de dominios y persistencia
 
@@ -681,7 +714,8 @@ Tareas:
 - Seguimiento (fuera de alcance, ver `API_CONTRACTS.md`): mensajes 401/403/405/429 en ingles y `405` en texto plano;
   `DELETE /api/roadmaps/:id` da `204` aunque no exista; doble `401`+`404` en
   `PUT/DELETE /api/evidences/modules/:id`; forma distinta de la respuesta de
-  `PATCH /api/users/:id` segun la accion; migrar `validateRoadmapImport` a Zod.
+  `PATCH /api/users/:id` segun la accion (esos puntos se resolvieron en la 3.0.0);
+  `validateRoadmapImport` migrado a Zod en la 3.1.0.
 
 Rama sugerida: `feature/api-contracts`.
 

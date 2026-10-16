@@ -8,7 +8,8 @@ endpoint y qué reglas de versionado y deprecación se siguen.
 El contrato describe lo que la API hace hoy, también cuando es incoherente (ver
 [Incoherencias conocidas](#incoherencias-conocidas)). La versión 1.0.0 solo
 documentó; la 2.0.0 corrige una fuga de seguridad y unifica tipos; la 3.0.0
-hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuario
+hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuario;
+la 3.1.0 documenta por completo el documento de `POST /api/roadmaps/import`
 (ver el [Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
@@ -261,6 +262,24 @@ contratos).
 | 1.0.0 | 2026-10-15 | Primer contrato: 27 rutas (26 existentes y `GET /api/openapi.json`), descritas tal y como funcionaban. |
 | 2.0.0 | 2026-10-15 | Corrección de seguridad (módulos y exportación ya no exponen las respuestas de los cuestionarios) y contadores/indicadores con tipo único. Ver [2.0.0](#200-2026-10-15). |
 | 3.0.0 | 2026-10-16 | Coherencia de la API: errores `401`/`403`/`405`/`429` en español, `405` en JSON, `DELETE /api/roadmaps/{id}` con `200` si no existía y `PATCH /api/users/{id}` con una única forma de usuario. Ver [3.0.0](#300-2026-10-16). |
+| 3.1.0 | 2026-10-16 | Aditivo: `POST /api/roadmaps/import` describe el documento `roadmap` completo (modelo `RoadmapImportDocument`) en lugar de `object`. Sin cambios de comportamiento. Ver [3.1.0](#310-2026-10-16). |
+
+### 3.1.0 (2026-10-16)
+
+Versión **MINOR** (cambio aditivo): solo se amplía la documentación, no cambia ningún
+estado, cuerpo ni mensaje.
+
+- El cuerpo de `POST /api/roadmaps/import` describe `roadmap` con el nuevo modelo
+  `RoadmapImportDocument` (campos, longitudes máximas, listas, `level`, enlaces,
+  preguntas de los quizzes por tipo y límites de opciones) en lugar de un `object`.
+- La validación del documento pasó de código manual a un esquema Zod con los mismos
+  `path` y `message` en `issues`. Salvo una diferencia menor y deliberada, que no
+  altera ni estados ni estructura de la respuesta: cuando una pregunta tiene un `type`
+  no permitido, `issues` solo informa de ese `type` (antes añadía los problemas de
+  `question`, `answer`, `explanation` y `options` de la misma pregunta) y el orden de
+  `issues` entre campos distintos puede variar. Ver `VALIDATION.md`, sección Importación.
+
+Qué hacer en un cliente: nada; puedes generar tipos del modelo `RoadmapImportDocument`.
 
 ### 3.0.0 (2026-10-16)
 
@@ -390,9 +409,6 @@ de `quiz_bank` y los contadores como texto en PostgreSQL se resolvieron en
 `DELETE` de roadmaps y la forma del `PATCH` de usuarios, en [3.0.0](#300-2026-10-16).
 
 1. Resolver el doble `401`+`404` de las evidencias.
-2. Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`) para que las
-   solicitudes de importación se documenten por completo en OpenAPI (hoy `roadmap`
-   figura como `object`).
 5. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
    ningún campo de la API (el servidor devuelve la elegibilidad en
    `GET /api/quizzes/modules/{id}`); se eliminó al adoptar los tipos compartidos.
