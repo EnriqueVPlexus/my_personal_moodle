@@ -244,15 +244,24 @@ describe('/api/evidences/modules/[id]', () => {
     expect(res.statusCode).toBe(404)
   })
 
-  it('returns 404 on PUT when the roadmap scope is unavailable', async () => {
+  it('writes a single 401 on PUT when the roadmap scope is unavailable', async () => {
     const db = { get: vi.fn().mockResolvedValueOnce({ id: 7, roadmap_id: 4 }), run: vi.fn() }
     await mockModuleIdApi(db, { scope: null })
     const handler = (await import('../pages/api/evidences/modules/[id]')).default
 
     const res = createResponse()
+    const status = vi.spyOn(res, 'status')
+    const json = vi.spyOn(res, 'json')
+    const end = vi.spyOn(res, 'end')
     await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: { evidence_type: 'note', note: 'Nota' } }), res)
 
-    expect(res.statusCode).toBe(404)
+    expect(status).toHaveBeenCalledTimes(1)
+    expect(status).toHaveBeenCalledWith(401)
+    expect(json).toHaveBeenCalledTimes(1)
+    expect(json).toHaveBeenCalledWith({ error: 'Debes iniciar sesión.' })
+    expect(end).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(401)
+    expect(db.run).not.toHaveBeenCalled()
   })
 
   it('returns 404 on PUT when the scope forbids the roadmap', async () => {
@@ -309,15 +318,23 @@ describe('/api/evidences/modules/[id]', () => {
     expect(res.statusCode).toBe(404)
   })
 
-  it('returns 404 on DELETE when the roadmap scope is unavailable', async () => {
+  it('writes a single 401 on DELETE when the roadmap scope is unavailable', async () => {
     const db = { get: vi.fn().mockResolvedValueOnce({ id: 7, roadmap_id: 4 }), run: vi.fn() }
     await mockModuleIdApi(db, { scope: null })
     const handler = (await import('../pages/api/evidences/modules/[id]')).default
 
     const res = createResponse()
+    const status = vi.spyOn(res, 'status')
+    const json = vi.spyOn(res, 'json')
+    const end = vi.spyOn(res, 'end')
     await handler(createRequest({ method: 'DELETE', query: { id: '7' } }), res)
 
-    expect(res.statusCode).toBe(404)
+    expect(status).toHaveBeenCalledTimes(1)
+    expect(status).toHaveBeenCalledWith(401)
+    expect(json).toHaveBeenCalledTimes(1)
+    expect(json).toHaveBeenCalledWith({ error: 'Debes iniciar sesión.' })
+    expect(end).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(401)
     expect(db.run).not.toHaveBeenCalled()
   })
 
