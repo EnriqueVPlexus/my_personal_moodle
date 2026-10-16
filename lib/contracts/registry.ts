@@ -19,7 +19,7 @@ import {
   reviewEvidenceBodySchema,
   roadmapCatalogQuerySchema,
   roadmapIdQuerySchema,
-  roadmapImportBodySchema,
+  roadmapImportBodyContractSchema,
   saveEvidenceBodySchema,
   setupBodySchema,
   updateLessonBodySchema,
@@ -304,7 +304,7 @@ export const operations: ApiOperation[] = [
       '`action: preview` valida el documento y devuelve lo normalizado (200). `action: publish` con `strategy: create|update` lo guarda ' +
       '(201 al crear, 200 al actualizar). El documento no puede superar 1 MB. Los errores del documento se devuelven como `issues` con 400.',
     auth: 'admin',
-    request: { body: roadmapImportBodySchema },
+    request: { body: roadmapImportBodyContractSchema },
     responses: {
       200: json(
         'Vista previa (`action: preview`) o resultado de actualizar (`strategy: update`).',

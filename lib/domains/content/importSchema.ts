@@ -161,6 +161,7 @@ const link = z
 
 const linkList = z
   .array(link, { error: MSG.linkList })
+  .meta({ description: 'Cada recurso es un texto (su `label`) o un objeto `{ label, url? }`; `url` debe comenzar por http:// o https://.' })
   .optional()
   .transform(value => value ?? [])
 
