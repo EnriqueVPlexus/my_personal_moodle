@@ -1236,6 +1236,18 @@ Tareas:
 - Vista o exportacion de "Mi Portfolio de Evidencias".
 - Generacion de resumen con links a GitHub, demos y notas de modulos superados.
 
+### [x] Coherencia de la API: errores en español, DELETE idempotente y forma única de usuario
+
+Estado: hecho (2026-10-16)
+
+- Los errores `401`/`403`/`405`/`429`, origen, `login` y `setup` están en español
+  de España; el `405` es JSON `{ error }` con `Allow` (`lib/http/methods.ts`).
+- `DELETE /api/roadmaps/{id}`: `204` si borra, `200` con `{ message }` si no
+  existía (solo se audita cuando se borra).
+- `PATCH /api/users/{id}` devuelve siempre el mismo usuario con sus accesos.
+- Contrato 3.0.0 (cambio incompatible por el `405`, el `DELETE` y el `PATCH`).
+  Detalle en [API_CONTRACTS.md](API_CONTRACTS.md#300-2026-10-16).
+
 ## UI y Branding
 
 ### [x] UI Redesign: Header compacto y admin dropdown
