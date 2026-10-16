@@ -299,7 +299,8 @@ Tareas:
   lecciones, progreso, quizzes, evidencias, catalogo e importaciones.
 - [x] Devolver errores de validacion consistentes sin filtrar detalles internos.
 - Seguimiento (fuera de alcance): mensajes 401/403/405/429 de `lib/http/auth.ts`
-  y `lib/http/rateLimit.ts` siguen en ingles; `validateRoadmapImport` sigue sin
+  y `lib/http/rateLimit.ts` siguen en ingles (resuelto en la 3.0.0, ver
+  "Coherencia de la API"); `validateRoadmapImport` sigue sin
   migrar a Zod (resuelto, ver "Migrar a Zod la validacion del importador de
   roadmaps"). Ver `VALIDATION.md`.
 
@@ -364,7 +365,8 @@ Tareas:
 - [x] Servicios de dominio sin dependencia de `next` y tests por dominio con
   repositorios en memoria (`test/domains/`).
 - Seguimiento (fuera de alcance): adaptadores por dialecto (opcion B) detras de
-  los mismos puertos; unificar los mensajes 401/403/405/429. El helper de
+  los mismos puertos; unificar los mensajes 401/403/405/429 (resuelto en la
+  3.0.0). El helper de
   transacciones comun se implemento despues (ver "Reapertura y correccion" en
   "Gestion de conexiones y transacciones"). Ver `ARCHITECTURE.md`.
 
