@@ -21,6 +21,7 @@ export type RoadmapWithCategory = RoadmapRecord & {
   category_label: string | null
 }
 
+/** Public module: what an API response may contain (no `quiz_bank`). */
 export type ModuleRecord = {
   id: number
   roadmap_id: number
@@ -38,11 +39,13 @@ export type ModuleRecord = {
   practical_activity: string | null
   deliverable_evidence: string | null
   evaluation: string | null
-  quiz_bank: string | null
   quiz_pass_percentage: number | null
   quiz_max_attempts: number | null
   quiz_cooldown_minutes: number | null
 }
+
+/** Internal view of a module: the public record plus the quiz answers. Never send it in a response. */
+export type ModuleWithQuizBank = ModuleRecord & { quiz_bank: string | null }
 
 export type LessonRecord = {
   id: number

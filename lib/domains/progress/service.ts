@@ -1,5 +1,6 @@
 import { scopeAllowsRoadmap } from '../auth/policy'
 import type { UnitOfWork } from '../shared/unitOfWork'
+import { toPublicModule } from '../content/publicModule'
 import { buildModuleQuiz, gradeModuleQuiz, toPublicModuleQuiz } from '../content/quizzes'
 import type { ContentReadScope } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType } from './evidences'
@@ -100,7 +101,7 @@ export function makeProgressService(ports: ProgressPorts) {
 
     /** Returns null when the module is hidden from the scope or missing. */
     async getModuleDetail(scope: ContentReadScope, moduleId: number) {
-      const moduleRow = await content.findModule(moduleId)
+      const moduleRow = await content.findModuleWithQuizBank(moduleId)
       if (!moduleRow) return null
       if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return null
       const user = scope.user
@@ -118,7 +119,7 @@ export function makeProgressService(ports: ProgressPorts) {
       const quizSummary = user ? await quizAttempts.getSummary(user.id, moduleRow.id) : null
 
       return {
-        ...moduleRow,
+        ...toPublicModule(moduleRow),
         lessons,
         progress: user ? buildModuleProgress(lessons, true) : null,
         quiz: toPublicModuleQuiz(quiz),
@@ -130,7 +131,7 @@ export function makeProgressService(ports: ProgressPorts) {
 
     /** `userId` is null for anonymous readers, who only see the public quiz. */
     async getModuleQuiz(userId: number | null, moduleId: number) {
-      const moduleRow = await content.findModule(moduleId)
+      const moduleRow = await content.findModuleWithQuizBank(moduleId)
       if (!moduleRow) return null
 
       const quiz = buildModuleQuiz(moduleRow)
@@ -141,7 +142,7 @@ export function makeProgressService(ports: ProgressPorts) {
     },
 
     async submitQuizAttempt(userId: number, moduleId: number, answers: Record<string, unknown>): Promise<QuizAttemptOutcome> {
-      const moduleRow = await content.findModule(moduleId)
+      const moduleRow = await content.findModuleWithQuizBank(moduleId)
       if (!moduleRow) return { status: 'not_found' }
 
       const eligibility = await quizAttempts.checkEligibility(userId, moduleRow)

@@ -377,7 +377,7 @@ describe('content API handlers', () => {
       status: 'in_progress',
       completed_lessons_count: 1
     })
-    expect(res.body.modules[0].has_evidence).toBe(1)
+    expect(res.body.modules[0].has_evidence).toBe(true)
   })
 
   it('lists and creates modules', async () => {

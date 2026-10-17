@@ -144,7 +144,7 @@ describe('Next pages', () => {
           title: 'EC2',
           duration: '1 o 2 semanas',
           objective: 'Deploy compute',
-          has_evidence: 1,
+          has_evidence: true,
           contents: '["AMI","Security groups"]',
           importance: 'Base operativa',
           official_resources: '[{"label":"Amazon EC2","url":"https://aws.amazon.com/ec2/"}]',

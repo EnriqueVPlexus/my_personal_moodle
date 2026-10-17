@@ -5,9 +5,10 @@ Documento técnico de la iniciativa `Contratos API estables y documentados`
 cómo se genera el documento OpenAPI, cómo se comprueba, cómo añadir o cambiar un
 endpoint y qué reglas de versionado y deprecación se siguen.
 
-Es una iniciativa de **documentación y comprobación**: no cambió ningún estado,
-cuerpo ni mensaje de la API. El contrato describe lo que la API hace hoy, también
-cuando es incoherente (ver [Incoherencias conocidas](#incoherencias-conocidas)).
+El contrato describe lo que la API hace hoy, también cuando es incoherente (ver
+[Incoherencias conocidas](#incoherencias-conocidas)). La versión 1.0.0 solo
+documentó; la 2.0.0 corrige una fuga de seguridad y unifica tipos (ver el
+[Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
 
@@ -206,6 +207,23 @@ estructurados.
 Cambiar el contrato sin subir `API_CONTRACT_VERSION` es un error de revisión: el
 test solo obliga a regenerar `openapi.json`, no a subir la versión.
 
+### Correcciones de seguridad
+
+Un campo de respuesta (o una ruta) que **filtra datos sensibles** (respuestas de
+cuestionarios, credenciales, datos de otros usuarios) se puede quitar o restringir
+**sin periodo de deprecación y sin `/api/v2`**: mantenerlo sería mantener la fuga.
+El procedimiento es:
+
+1. Es un cambio incompatible, así que sube el **MAJOR** de `info.version`.
+2. Añade la entrada al [Historial](#historial-del-contrato) y una sección de
+   changelog que diga qué se quitó, por qué y qué deben hacer los clientes.
+3. Añade un test de regresión que compruebe que la respuesta ya no contiene el dato
+   (para cada rol que pueda llamar a la ruta).
+4. No marques la operación como `deprecated`: no hay reemplazo ni periodo de
+   transición.
+
+Cuándo no aplica: si el dato no es sensible, se sigue la deprecación normal.
+
 ### Cuándo introducir `/api/v2`
 
 Solo cuando un cambio incompatible sea inevitable **y** existan clientes que no se
@@ -240,6 +258,41 @@ contratos).
 | Versión | Fecha | Cambio |
 | --- | --- | --- |
 | 1.0.0 | 2026-10-15 | Primer contrato: 27 rutas (26 existentes y `GET /api/openapi.json`), descritas tal y como funcionaban. |
+| 2.0.0 | 2026-10-15 | Corrección de seguridad (módulos y exportación ya no exponen las respuestas de los cuestionarios) y contadores/indicadores con tipo único. Ver [2.0.0](#200-2026-10-15). |
+
+### 2.0.0 (2026-10-15)
+
+Versión **MAJOR** por la cláusula de [Correcciones de seguridad](#correcciones-de-seguridad):
+la primera parte quita un campo que filtraba las respuestas correctas, sin
+periodo de deprecación.
+
+**Seguridad: respuestas de cuestionarios**
+
+- `quiz_bank` **ya no aparece en ninguna respuesta**. Antes lo devolvían a
+  cualquier lector `GET /api/modules`, `GET /api/modules/{id}`,
+  `GET /api/roadmaps/{id}` (lista `modules`) y las respuestas de
+  `POST /api/modules` y `PUT /api/modules/{id}`. Contiene, por cada pregunta, la
+  respuesta correcta.
+- `GET /api/roadmaps/{id}/export` pasa de acceso `read` a **`admin`**. Es una copia
+  de seguridad que reimporta el roadmap y por eso incluye los cuestionarios con su
+  respuesta (`quiz[].answer`); nunca debió ser legible por alumnos ni anónimos. La
+  UI solo ofrecía el botón a administradores. Ahora responde `401` sin sesión y
+  `403` si no eres administrador.
+- Sin cambios: `GET /api/quizzes/modules/{id}` sigue devolviendo las preguntas sin
+  `correct_option_index`; el detalle de módulo mantiene su campo `quiz` público.
+- Qué hacer en un cliente: dejar de leer `quiz_bank` (usar `quiz` del detalle del
+  módulo o `GET /api/quizzes/modules/{id}`) y, si exportas roadmaps, hacerlo con una
+  sesión de administrador.
+
+**Tipos únicos en SQLite y PostgreSQL**
+
+- `module_count` (catálogo), `roadmap_count` (categorías, temas, niveles) y
+  `unclassified_roadmaps` son siempre **números enteros**. En PostgreSQL llegaban
+  como texto (`"4"`).
+- `has_evidence` (módulos de `GET /api/roadmaps/{id}` con sesión) es siempre
+  **booleano**. Antes era `0`/`1` en SQLite y `boolean` en PostgreSQL.
+- Los repositorios normalizan estos valores (`lib/persistence/normalize.ts`): ni la
+  API ni la UI necesitan convertirlos.
 
 ## Incoherencias conocidas
 
@@ -285,37 +338,27 @@ aplicar el versionado anterior.
 
 ### Diferencias SQLite y PostgreSQL
 
-Los repositorios devuelven filas tal cual, así que el JSON depende del motor:
+Los contadores (`COUNT`) y `has_evidence` ya se normalizan en los repositorios (ver
+[2.0.0](#200-2026-10-15)); lo que sigue dependiendo del motor:
 
-- `COUNT(...)` llega como número en SQLite y como **texto numérico** en PostgreSQL
-  (`module_count`, `roadmap_count` de categorías, temas y niveles,
-  `unclassified_roadmaps`). Contrato: `number | string`.
-- `has_evidence` en el detalle de roadmap es `0`/`1` en SQLite y `boolean` en
-  PostgreSQL. Contrato: `number | boolean`.
 - Las fechas son texto: ISO 8601 en lo que genera la aplicación, y el formato de
   `CURRENT_TIMESTAMP` en las columnas con valor por defecto de SQLite.
 
 ## Seguimiento
 
-Hallazgos que **no** se corrigieron aquí (no se cambia ninguna respuesta):
+Hallazgos que **no** se corrigieron aquí (no se cambia ninguna respuesta). La fuga
+de `quiz_bank` y los contadores como texto en PostgreSQL ya están resueltos en
+[2.0.0](#200-2026-10-15).
 
-1. **Posible filtrado de respuestas de cuestionarios** (revisar con prioridad):
-   `GET /api/modules`, `GET /api/modules/{id}` y `PUT /api/modules/{id}` devuelven
-   todas las columnas del módulo, incluida `quiz_bank`, que contiene el texto de
-   las respuestas correctas. `GET /api/quizzes/modules/{id}` sí las oculta; los
-   endpoints de módulos las exponen a cualquier lector.
-2. En PostgreSQL, `RoadmapCard` no muestra el número de módulos porque
-   `module_count` llega como texto y el componente comprueba `typeof ... === 'number'`.
-   Convertir en el repositorio (`Number(...)`) arreglaría este y los demás contadores.
-3. Unificar el idioma y el formato de los errores (`401`/`403`/`405`/`429`), con
+1. Unificar el idioma y el formato de los errores (`401`/`403`/`405`/`429`), con
    un `MAJOR` o una decisión explícita.
-4. Decidir `DELETE /api/roadmaps/{id}` (`204` vs `404`) y el doble `401`+`404` de
+2. Decidir `DELETE /api/roadmaps/{id}` (`204` vs `404`) y el doble `401`+`404` de
    las evidencias.
-5. Hacer que `PATCH /api/users/{id}` devuelva siempre la misma forma de usuario.
-6. Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`) para que las
+3. Hacer que `PATCH /api/users/{id}` devuelva siempre la misma forma de usuario.
+4. Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`) para que las
    solicitudes de importación se documenten por completo en OpenAPI (hoy `roadmap`
    figura como `object`).
-7. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
+5. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
    ningún campo de la API (el servidor devuelve la elegibilidad en
    `GET /api/quizzes/modules/{id}`); se eliminó al adoptar los tipos compartidos.
-8. Añadir `license` al documento OpenAPI si el proyecto se publica.
+6. Añadir `license` al documento OpenAPI si el proyecto se publica.

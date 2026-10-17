@@ -361,12 +361,11 @@ export const operations: ApiOperation[] = [
     path: '/api/roadmaps/{id}/export',
     tag: 'Catálogo',
     summary: 'Exportar un roadmap como JSON',
-    description: 'Descarga el documento normalizado, aceptado de nuevo por la importación.',
-    auth: 'read',
+    description: 'Copia de seguridad solo para administradores: descarga el documento normalizado, aceptado de nuevo por la importación. Incluye las preguntas de los quizzes con su respuesta correcta (`quiz[].answer`), por eso no es accesible para alumnos.',
+    auth: 'admin',
     request: { params: roadmapIdQuerySchema },
     responses: {
       200: attachment('Documento del roadmap (`<slug>.json`).', 'application/json', roadmapDocumentSchema),
-      403: error('El lector no tiene acceso al roadmap (`Acceso denegado a este roadmap`), o error de `REQUIRE_AUTH_FOR_READS`/origen.'),
       404: notFound('Roadmap no encontrado')
     }
   }),

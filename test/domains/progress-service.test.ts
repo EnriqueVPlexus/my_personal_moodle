@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildModuleProgress } from '../../lib/domains/progress/moduleProgress'
 import { resolveRoadmapStatus } from '../../lib/domains/progress/rules'
 import { makeProgressService, type ProgressPorts } from '../../lib/domains/progress/service'
-import type { ModuleRecord, RoadmapWithCategory } from '../../lib/domains/content/types'
+import type { ModuleWithQuizBank, RoadmapWithCategory } from '../../lib/domains/content/types'
 import type { UserPortfolio } from '../../lib/domains/progress/portfolio'
 
 const quizBank = JSON.stringify([
@@ -10,7 +10,7 @@ const quizBank = JSON.stringify([
   { question: 'Q2?', answer: 'B', options: ['A', 'B', 'C'], explanation: 'e2' }
 ])
 
-function moduleRecord(overrides: Partial<ModuleRecord> = {}): ModuleRecord {
+function moduleRecord(overrides: Partial<ModuleWithQuizBank> = {}): ModuleWithQuizBank {
   return {
     id: 7, roadmap_id: 4, position: 1, title: 'Docker', duration: null, duration_weeks_min: null,
     duration_weeks_max: null, level: null, objective: null, contents: null, importance: null,
@@ -90,13 +90,13 @@ describe('module progress calculation', () => {
 describe('quiz attempt flow', () => {
   const eligible = { allowed: true, pass_percentage: 70 }
 
-  function quizPorts(overrides: { eligibility?: object; module?: ModuleRecord | undefined; unitOfWork?: Overrides['unitOfWork'] } = {}) {
+  function quizPorts(overrides: { eligibility?: object; module?: ModuleWithQuizBank | undefined; unitOfWork?: Overrides['unitOfWork'] } = {}) {
     const save = vi.fn(async (_userId: number, _module: unknown, _answers: unknown, grade: object) => ({
       ...grade, submitted_at: '2026-01-01T00:00:00.000Z'
     }))
     const touch = vi.fn().mockResolvedValue(undefined)
     const service = setup({
-      content: { findModule: async () => ('module' in overrides ? overrides.module : moduleRecord()) },
+      content: { findModuleWithQuizBank: async () => ('module' in overrides ? overrides.module : moduleRecord()) },
       progress: { touchRoadmapProgress: touch },
       quizAttempts: {
         checkEligibility: async () => (overrides.eligibility ?? eligible) as never,
@@ -184,7 +184,7 @@ describe('learner views', () => {
   it('hides a module from learners whose scope excludes its roadmap', async () => {
     const touch = vi.fn()
     const service = setup({
-      content: { findModule: async () => moduleRecord() },
+      content: { findModuleWithQuizBank: async () => moduleRecord() },
       progress: { touchRoadmapProgress: touch }
     })
 
@@ -194,7 +194,7 @@ describe('learner views', () => {
 
   it('builds the module detail with progress and a public quiz for signed-in learners', async () => {
     const service = setup({
-      content: { findModule: async () => moduleRecord() },
+      content: { findModuleWithQuizBank: async () => moduleRecord() },
       progress: { touchRoadmapProgress: async () => undefined },
       learnerViews: { listModuleLessons: async () => [{ id: 1, title: 'A', completed: 1, progress_time_spent_seconds: 10 }] },
       quizAttempts: { getSummary: async () => ({ attempts_count: 0 }) }
@@ -208,11 +208,13 @@ describe('learner views', () => {
       quiz_summary: { attempts_count: 0 }
     })
     expect(JSON.stringify(detail?.quiz)).not.toContain('correct_option_index')
+    expect(JSON.stringify(detail)).not.toContain('quiz_bank')
+    expect(JSON.stringify(detail)).not.toContain('correct_option_index')
   })
 
   it('gives anonymous readers the module without progress or summary', async () => {
     const service = setup({
-      content: { findModule: async () => moduleRecord() },
+      content: { findModuleWithQuizBank: async () => moduleRecord() },
       learnerViews: { listModuleLessons: async () => [] }
     })
 

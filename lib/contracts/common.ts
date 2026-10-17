@@ -60,14 +60,10 @@ export type AttemptEligibility = z.infer<typeof attemptEligibilitySchema>
 // --- Helpers ---------------------------------------------------------------
 
 /**
- * A `COUNT(...)` taken straight from the database: a number on SQLite, a
- * numeric string on PostgreSQL (the `pg` driver returns `bigint` as text).
+ * A `COUNT(...)` aggregate. Repositories normalize it to a JSON number on
+ * both databases (the `pg` driver returns `bigint` as text; see
+ * lib/persistence/normalize.ts), so clients never receive numeric text.
  */
-export const countSchema = z.union([z.number(), z.string()]).meta({
-  description: 'Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).'
-})
-
-/** A flag stored as 0/1 on SQLite and as a boolean on PostgreSQL. */
-export const flagSchema = z.union([z.number(), z.boolean()]).meta({
-  description: 'Indicador: `0`/`1` en SQLite, `boolean` en PostgreSQL.'
+export const countSchema = z.number().int().min(0).meta({
+  description: 'Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL.'
 })

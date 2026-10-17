@@ -8,6 +8,7 @@ import type {
   ModuleCoreInsert,
   ModuleCoreUpdate,
   ModuleRecord,
+  ModuleWithQuizBank,
   NormalizedRoadmapImport,
   RoadmapCoreUpdate,
   RoadmapImportStrategy,
@@ -46,6 +47,8 @@ export interface ModuleRepository {
   findByRoadmapId(roadmapId: number | string): Promise<ModuleRecord[]>
   findByRoadmapIds(roadmapIds: Array<number | string>): Promise<ModuleRecord[]>
   findById(id: number | string): Promise<ModuleRecord | undefined>
+  /** Internal: includes `quiz_bank`. Only for quiz building and grading. */
+  findQuizSourceById(id: number | string): Promise<ModuleWithQuizBank | undefined>
   insert(data: ModuleCoreInsert): Promise<number>
   updateCore(id: number | string, patch: ModuleCoreUpdate): Promise<number>
   delete(id: number | string): Promise<number>

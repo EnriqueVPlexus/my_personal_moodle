@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cantera Hub API",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "Contrato de la API HTTP de Cantera Hub. Generado desde `lib/contracts` (`npm run contracts:generate`); no editar a mano. Describe el comportamiento actual: los mensajes de error son texto en español salvo los de autenticación, origen y límite de intentos, que están en inglés. Reglas de versionado y compatibilidad: `API_CONTRACTS.md`."
   },
   "servers": [
@@ -1560,7 +1560,7 @@
           "Catálogo"
         ],
         "summary": "Exportar un roadmap como JSON",
-        "description": "Descarga el documento normalizado, aceptado de nuevo por la importación.\n\nLectura: pública salvo que el servidor defina `REQUIRE_AUTH_FOR_READS`.",
+        "description": "Copia de seguridad solo para administradores: descarga el documento normalizado, aceptado de nuevo por la importación. Incluye las preguntas de los quizzes con su respuesta correcta (`quiz[].answer`), por eso no es accesible para alumnos.\n\nRequiere sesión de administrador.",
         "parameters": [
           {
             "name": "id",
@@ -1603,7 +1603,7 @@
             }
           },
           "401": {
-            "description": "Solo si el servidor define `REQUIRE_AUTH_FOR_READS` y no hay sesión válida (`authentication required`).",
+            "description": "No hay sesión válida (`authentication required`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1613,7 +1613,7 @@
             }
           },
           "403": {
-            "description": "El lector no tiene acceso al roadmap (`Acceso denegado a este roadmap`), o error de `REQUIRE_AUTH_FOR_READS`/origen.",
+            "description": "`admin role required`: el usuario no es administrador.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1653,12 +1653,11 @@
           }
         },
         "security": [
-          {},
           {
             "sessionCookie": []
           }
         ],
-        "x-auth": "read"
+        "x-auth": "admin"
       }
     },
     "/api/modules": {
@@ -4826,11 +4825,10 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
                 }
               },
               "required": [
@@ -4852,11 +4850,10 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
                 }
               },
               "required": [
@@ -4875,11 +4872,10 @@
                   "type": "string"
                 },
                 "roadmap_count": {
-                  "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
                 }
               },
               "required": [
@@ -4954,11 +4950,10 @@
             }
           },
           "unclassified_roadmaps": {
-            "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-            "type": [
-              "number",
-              "string"
-            ]
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
           }
         },
         "required": [
@@ -5044,11 +5039,10 @@
             "description": "Fecha y hora como texto (normalmente ISO 8601; en SQLite puede ser `YYYY-MM-DD HH:MM:SS`)."
           },
           "module_count": {
-            "description": "Contador: número en SQLite, texto numérico en PostgreSQL (`bigint`).",
-            "type": [
-              "number",
-              "string"
-            ]
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Contador: siempre un entero (número JSON) con SQLite y con PostgreSQL."
           },
           "category": {
             "anyOf": [
@@ -5698,12 +5692,6 @@
               "null"
             ]
           },
-          "quiz_bank": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "quiz_pass_percentage": {
             "type": [
               "number",
@@ -5769,7 +5757,6 @@
           "practical_activity",
           "deliverable_evidence",
           "evaluation",
-          "quiz_bank",
           "quiz_pass_percentage",
           "quiz_max_attempts",
           "quiz_cooldown_minutes",
@@ -6087,12 +6074,6 @@
               "null"
             ]
           },
-          "quiz_bank": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "quiz_pass_percentage": {
             "type": [
               "number",
@@ -6129,7 +6110,6 @@
           "practical_activity",
           "deliverable_evidence",
           "evaluation",
-          "quiz_bank",
           "quiz_pass_percentage",
           "quiz_max_attempts",
           "quiz_cooldown_minutes"
@@ -6649,12 +6629,6 @@
               "null"
             ]
           },
-          "quiz_bank": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "quiz_pass_percentage": {
             "type": [
               "number",
@@ -6674,11 +6648,8 @@
             ]
           },
           "has_evidence": {
-            "description": "Solo con sesión iniciada.",
-            "type": [
-              "number",
-              "boolean"
-            ]
+            "description": "Solo con sesión iniciada. Siempre booleano, con SQLite y con PostgreSQL.",
+            "type": "boolean"
           },
           "progress": {
             "anyOf": [
@@ -6767,7 +6738,6 @@
           "practical_activity",
           "deliverable_evidence",
           "evaluation",
-          "quiz_bank",
           "quiz_pass_percentage",
           "quiz_max_attempts",
           "quiz_cooldown_minutes"

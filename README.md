@@ -111,7 +111,14 @@ detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
   por ejemplo [Swagger Editor](https://editor.swagger.io), o impórtalo en Postman
   o Insomnia.
 - Reglas de versionado y cómo evoluciona: `API_CONTRACTS.md`. La versión del
-  contrato es `info.version` (semver).
+  contrato es `info.version` (semver) y hoy es **2.0.0**.
+- Novedades de la 2.0.0 (detalle en el historial de `API_CONTRACTS.md`):
+  `quiz_bank` ya no se expone en ninguna respuesta (las preguntas públicas están
+  en `GET /api/quizzes/modules/{id}` y en el campo `quiz` del detalle de módulo,
+  sin la respuesta correcta); `GET /api/roadmaps/{id}/export` es solo para
+  administradores; los contadores (`module_count`, `roadmap_count`,
+  `unclassified_roadmaps`) son siempre números y `has_evidence` es siempre
+  booleano, con SQLite y con PostgreSQL.
 
 ### Cómo llamar a la API
 
@@ -162,7 +169,7 @@ comprueba que esta tabla incluye todas las rutas. El detalle completo está en
 | `GET /api/roadmaps/{id}` | Lectura | Detalle de un roadmap con sus módulos y progreso |
 | `PUT /api/roadmaps/{id}` | Admin | Actualizar un roadmap |
 | `DELETE /api/roadmaps/{id}` | Admin | Eliminar un roadmap |
-| `GET /api/roadmaps/{id}/export` | Lectura | Exportar un roadmap como JSON |
+| `GET /api/roadmaps/{id}/export` | Admin | Exportar un roadmap como JSON (copia de seguridad, incluye los cuestionarios con su respuesta) |
 | `GET /api/modules` | Lectura | Listar módulos |
 | `POST /api/modules` | Admin | Crear un módulo |
 | `GET /api/modules/{id}` | Lectura | Detalle de un módulo con lecciones, progreso y cuestionario |

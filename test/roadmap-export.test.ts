@@ -92,8 +92,7 @@ describe('roadmap JSON export', () => {
     vi.resetModules()
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
     vi.doMock('../lib/http/auth', () => ({
-      getRoadmapReadScope: vi.fn().mockResolvedValue({ allRoadmaps: true, roadmapIds: [] }),
-      scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
+      requireAdmin: vi.fn().mockResolvedValue({ id: 1, email: 'admin@example.com', role: 'admin' })
     }))
 
     const handler = (await import('../pages/api/roadmaps/[id]/export')).default
@@ -108,6 +107,26 @@ describe('roadmap JSON export', () => {
     expect(res.body.title).toBe('IA para DevOps')
     expect(res.body.modules).toHaveLength(1)
 
+    await db.close()
+  })
+
+  it('refuses the export (quiz answers included) to non-admin callers', async () => {
+    const db = await setupDb()
+    vi.resetModules()
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({
+      requireAdmin: vi.fn(async (_req: unknown, res: any) => {
+        res.status(403).json({ error: 'admin role required' })
+        return null
+      })
+    }))
+
+    const handler = (await import('../pages/api/roadmaps/[id]/export')).default
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET', query: { id: '7' } }), res)
+
+    expect(res.statusCode).toBe(403)
+    expect(JSON.stringify(res.body)).not.toContain('IA para DevOps')
     await db.close()
   })
 })

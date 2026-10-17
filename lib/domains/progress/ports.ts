@@ -1,5 +1,5 @@
 import type { AttemptEligibility, ModuleQuizSource, ModuleQuizSummary, QuizGrade } from '../content/quizzes'
-import type { ModuleRecord, RoadmapWithCategory, TopicRecord } from '../content/types'
+import type { ModuleRecord, ModuleWithQuizBank, RoadmapWithCategory, TopicRecord } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType, ModuleEvidence } from './evidences'
 import type { PortfolioItem, UserPortfolio } from './portfolio'
 import type {
@@ -82,6 +82,8 @@ export interface PortfolioRepository {
 export interface ContentReader {
   findRoadmap(id: number): Promise<RoadmapWithCategory | undefined>
   findModule(id: number): Promise<ModuleRecord | undefined>
+  /** Internal: includes `quiz_bank`. Only for quiz building and grading. */
+  findModuleWithQuizBank(id: number): Promise<ModuleWithQuizBank | undefined>
   getRoadmapTopics(roadmapId: number): Promise<TopicRecord[]>
 }
 

@@ -42,7 +42,6 @@ export const moduleRecord = {
   practical_activity: null,
   deliverable_evidence: null,
   evaluation: null,
-  quiz_bank: null,
   quiz_pass_percentage: null,
   quiz_max_attempts: null,
   quiz_cooldown_minutes: null
@@ -93,7 +92,7 @@ export const roadmapDetail = {
   ...roadmapRecord,
   category: { key: 'cloud', label: 'Cloud' },
   topics: [{ key: 'aws', label: 'AWS' }],
-  modules: [{ ...moduleRecord, has_evidence: 1, progress: roadmapProgress.modules[0] }],
+  modules: [{ ...moduleRecord, has_evidence: true, progress: roadmapProgress.modules[0] }],
   progress: roadmapProgress
 }
 

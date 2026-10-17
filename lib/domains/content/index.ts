@@ -4,6 +4,7 @@ export type {
   ContentReadScope,
   LessonRecord,
   ModuleRecord,
+  ModuleWithQuizBank,
   RoadmapRecord,
   RoadmapWithCategory
 } from './types'

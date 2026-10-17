@@ -61,6 +61,7 @@ export function createServices(db: DatabaseClient) {
     content: {
       findRoadmap: id => findRoadmapById(db, id),
       findModule: id => modules.findById(id),
+      findModuleWithQuizBank: id => modules.findQuizSourceById(id),
       getRoadmapTopics: roadmapId => metadata.getTopics(roadmapId)
     },
     unitOfWork: {

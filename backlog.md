@@ -37,6 +37,7 @@ del producto poco a poco.
   dominio (`ARCHITECTURE.md`).
 - [x] Contratos API estables: esquemas de respuesta, OpenAPI 3.1 generado
   (`openapi.json`), tipos compartidos y tests de contrato (`API_CONTRACTS.md`).
+- [x] Fuga de respuestas de quizzes y conteos en PostgreSQL (contrato 2.0.0).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -674,12 +675,10 @@ Tareas:
   quizzes, evidencias, portfolio, usuarios admin, dashboard, auditoria e
   importacion).
 - [x] Mantener compatibilidad durante la migracion SQLite/PostgreSQL: el
-  contrato refleja las diferencias reales (contadores como texto y `has_evidence`
-  booleano en PostgreSQL).
-- Seguimiento (fuera de alcance, ver `API_CONTRACTS.md`): `GET/PUT /api/modules`
-  devuelven la columna `quiz_bank` con las respuestas correctas (revisar con
-  prioridad); `module_count` llega como texto en PostgreSQL y `RoadmapCard` no lo
-  muestra; mensajes 401/403/405/429 en ingles y `405` en texto plano;
+  contrato reflejo primero las diferencias reales (contadores como texto y
+  `has_evidence` booleano en PostgreSQL); la 2.0.0 las elimino normalizando en los
+  repositorios (ver el item siguiente).
+- Seguimiento (fuera de alcance, ver `API_CONTRACTS.md`): mensajes 401/403/405/429 en ingles y `405` en texto plano;
   `DELETE /api/roadmaps/:id` da `204` aunque no exista; doble `401`+`404` en
   `PUT/DELETE /api/evidences/modules/:id`; forma distinta de la respuesta de
   `PATCH /api/users/:id` segun la accion; migrar `validateRoadmapImport` a Zod.
@@ -694,6 +693,38 @@ Hecho cuando:
   `openapi.json` al dia).
 - [x] Los cambios incompatibles requieren una decision explicita (`/api/v2`,
   `MAJOR` de `info.version` y deprecacion minima de 90 dias).
+
+### [x] Fuga de respuestas de quizzes y conteos en PostgreSQL
+
+Estado: hecho (2026-10-15). Dos defectos detectados al documentar el contrato:
+
+- **Seguridad**: los repositorios de modulos usaban `SELECT *`, asi que
+  `quiz_bank` (con la respuesta correcta de cada pregunta) llegaba a cualquier
+  lector por `GET /api/modules`, `GET /api/modules/:id`, `GET /api/roadmaps/:id`
+  y las respuestas de `POST`/`PUT` de modulos. Ahora los repositorios devuelven una
+  proyeccion publica de columnas explicitas y solo `findQuizSourceById` lee el
+  banco, para construir y corregir quizzes. Ademas
+  `GET /api/roadmaps/:id/export`, que incluye los quizzes con su respuesta, era
+  legible por cualquier lector: ahora es solo para admin (es una copia de seguridad
+  que se reimporta).
+- **PostgreSQL**: `pg` devuelve `COUNT`/`SUM` como texto, por lo que `module_count`
+  no se mostraba en `RoadmapCard` en produccion. Los repositorios normalizan
+  contadores a numero y `has_evidence` a booleano en ambos motores
+  (`lib/persistence/normalize.ts`); se revirtieron los parches de la UI.
+
+El contrato sube a `2.0.0` (MAJOR) con una clausula nueva de "Correcciones de
+seguridad" en la politica de versionado. Detalle y changelog en
+[`API_CONTRACTS.md`](API_CONTRACTS.md#200-2026-10-15).
+
+Hecho cuando:
+
+- [x] Ninguna respuesta de la API contiene `quiz_bank` ni `correct_option_index`
+  (tests de regresion para anonimo, alumno y admin, en SQLite y contra PostgreSQL
+  real).
+- [x] El export de roadmaps es solo admin y sigue incluyendo los quizzes.
+- [x] Contadores y `has_evidence` tienen un solo tipo en SQLite y PostgreSQL
+  (tests unitarios del normalizador y de integracion con PostgreSQL efimero).
+- [x] `openapi.json` regenerado y changelog 2.0.0 en `API_CONTRACTS.md`.
 
 ### [ ] Observabilidad, backups y recuperacion
 

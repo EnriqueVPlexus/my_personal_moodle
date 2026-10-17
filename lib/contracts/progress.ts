@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { EVIDENCE_REVIEW_STATUSES, EVIDENCE_TYPES } from '../domains/progress/evidences'
-import { attemptEligibilitySchema, flagSchema, timestampSchema } from './common'
+import { attemptEligibilitySchema, timestampSchema } from './common'
 import { categoryRefSchema, lessonRecordSchema, moduleRecordSchema, roadmapRecordSchema, topicRefSchema } from './content'
 
 const optionalText = z.string().nullable().optional()
@@ -70,7 +70,7 @@ export const roadmapDetailProgressSchema = z.object({
 
 /** Module row of a roadmap detail; `has_evidence` and `progress` only carry data for signed-in learners. */
 export const roadmapDetailModuleSchema = moduleRecordSchema.extend({
-  has_evidence: flagSchema.optional().meta({ description: 'Solo con sesión iniciada.' }),
+  has_evidence: z.boolean().optional().meta({ description: 'Solo con sesión iniciada. Siempre booleano, con SQLite y con PostgreSQL.' }),
   progress: roadmapModuleProgressSchema.nullable().optional()
 })
 
