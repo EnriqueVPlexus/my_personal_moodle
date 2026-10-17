@@ -5,12 +5,12 @@ const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const user = { id: 2, email: 'user@example.com', role: 'user' as const }
 
 function denyAdmin(res: any) {
-  res.status(403).json({ error: 'admin role required' })
+  res.status(403).json({ error: 'Necesitas permisos de administrador.' })
   return null
 }
 
 function denyUser(res: any) {
-  res.status(401).json({ error: 'authentication required' })
+  res.status(401).json({ error: 'Debes iniciar sesión.' })
   return null
 }
 
@@ -34,7 +34,7 @@ async function mockModuleIdApi(
   vi.doMock('../lib/http/auth', () => ({
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.scope === null) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return null
       }
       // scopeAllows: false means the scope grants no roadmap (the real policy decides)

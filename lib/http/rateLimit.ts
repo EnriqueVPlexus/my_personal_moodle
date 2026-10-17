@@ -42,7 +42,7 @@ export async function rateLimit(
   )
 
   if (!allowed) {
-    res.status(429).json({ error: 'too many attempts, please try again later' })
+    res.status(429).json({ error: 'Demasiados intentos. Inténtalo de nuevo más tarde.' })
     return false
   }
 

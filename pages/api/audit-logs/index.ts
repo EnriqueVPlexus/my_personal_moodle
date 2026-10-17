@@ -2,13 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { createAuditService } from '../../../lib/domains/audit'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET')
   }
 
   if (!(await requireAdmin(req, res, db))) return

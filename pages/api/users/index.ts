@@ -5,6 +5,7 @@ import { requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { createUserBodySchema } from '../../../lib/validation/users'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -41,6 +42,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(201).json(outcome.user)
   }
 
-  res.setHeader('Allow', 'GET, POST')
-  return res.status(405).end('Method Not Allowed')
+  return methodNotAllowed(res, 'GET, POST')
 }

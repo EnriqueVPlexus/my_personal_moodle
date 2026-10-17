@@ -9,7 +9,7 @@ async function mockPortfolioApi(options: { user?: any; portfolio?: any } = {}) {
   vi.doMock('../lib/http/auth', () => ({
     requireUser: vi.fn((_req: any, res: any) => {
       if (options.user === null) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return null
       }
       return options.user ?? user

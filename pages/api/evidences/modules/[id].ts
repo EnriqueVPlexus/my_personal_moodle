@@ -4,6 +4,7 @@ import { getRoadmapReadScope, requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { evidenceModuleQuerySchema, saveEvidenceBodySchema } from '../../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../../lib/validation/http'
+import { methodNotAllowed } from '../../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -45,6 +46,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(204).end()
   }
 
-  res.setHeader('Allow', 'GET, PUT, DELETE')
-  return res.status(405).end('Method Not Allowed')
+  return methodNotAllowed(res, 'GET, PUT, DELETE')
 }

@@ -380,7 +380,7 @@ describe('Next pages', () => {
     vi.resetModules()
     setRouter('/login')
     mockAuth()
-    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'invalid credentials' }, 401))
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'Credenciales no válidas.' }, 401))
 
     const InvalidLoginPage = (await import('../pages/login')).default
     render(<InvalidLoginPage />)

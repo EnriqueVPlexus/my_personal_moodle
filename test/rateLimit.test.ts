@@ -44,7 +44,7 @@ describe('database-backed rate limiter', () => {
     const blocked = await rateLimit(db, req, blockedRes, { maxAttempts: 3, windowMs: 60_000, scope: 'test' })
     expect(blocked).toBe(false)
     expect(blockedRes.status).toHaveBeenCalledWith(429)
-    expect(blockedRes.json).toHaveBeenCalledWith({ error: 'too many attempts, please try again later' })
+    expect(blockedRes.json).toHaveBeenCalledWith({ error: 'Demasiados intentos. Inténtalo de nuevo más tarde.' })
   })
 
   it('resets the counter after the window expires', async () => {

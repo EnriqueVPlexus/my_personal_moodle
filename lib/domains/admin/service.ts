@@ -33,7 +33,7 @@ export type UserWithAccess = AdminUserRecord & { roadmap_access_ids: number[] }
 export type UpdateUserOutcome =
   | { status: 'not_found' }
   | { status: 'rejected'; violation: UserRuleViolation }
-  | { status: 'ok'; user: AdminUserRecord | UserWithAccess | undefined | null; audit: AuditDescriptor }
+  | { status: 'ok'; user: UserWithAccess | null; audit: AuditDescriptor }
 
 export type CreateUserOutcome =
   | { status: 'created'; id: number; user: AdminUserRecord | undefined; role: 'admin' | 'user' }
@@ -135,7 +135,7 @@ export function makeAdminService(ports: AdminPorts, now: () => Date = () => new 
 
         return {
           status: 'ok',
-          user: await users.findById(userId),
+          user: await userWithRoadmapAccess(userId),
           audit: { action: isActive ? 'user.activate' : 'user.deactivate', details: { email: target.email } }
         }
       }
@@ -152,7 +152,7 @@ export function makeAdminService(ports: AdminPorts, now: () => Date = () => new 
 
         return {
           status: 'ok',
-          user: await users.findById(userId),
+          user: await userWithRoadmapAccess(userId),
           audit: { action: 'user.reset_password', details: { email: target.email } }
         }
       }

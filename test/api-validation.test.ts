@@ -168,7 +168,7 @@ describe('API input validation contract', () => {
     vi.doMock('../lib/http/auth', async () => ({
       ...(await vi.importActual('../lib/http/auth') as object),
       requireAdmin: vi.fn((_req: unknown, res: any) => {
-        res.status(403).json({ error: 'admin role required' })
+        res.status(403).json({ error: 'Necesitas permisos de administrador.' })
         return null
       })
     }))
@@ -176,7 +176,7 @@ describe('API input validation contract', () => {
     const res = createResponse()
     await handler(createRequest({ method: 'POST', body: undefined }), res)
     expect(res.statusCode).toBe(403)
-    expect(res.body).toEqual({ error: 'admin role required' })
+    expect(res.body).toEqual({ error: 'Necesitas permisos de administrador.' })
   })
 
   it('passes parsed numeric ids to the repositories', async () => {

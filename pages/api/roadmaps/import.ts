@@ -6,12 +6,12 @@ import { openDb } from '../../../lib/persistence'
 import { validateRoadmapImport } from '../../../lib/domains/content/import'
 import { parseOrRespond, sendValidationIssues } from '../../../lib/validation/http'
 import { MAX_IMPORT_BYTES, roadmapImportBodySchema } from '../../../lib/validation/import'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'POST')
   }
   const admin = await requireAdmin(req, res, db)
   if (!admin) return

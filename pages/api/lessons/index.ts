@@ -5,6 +5,7 @@ import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { createLessonBodySchema, lessonListQuerySchema } from '../../../lib/validation/lessons'
 import { parseOrRespond } from '../../../lib/validation/http'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -39,6 +40,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(201).json(created.lesson)
   }
 
-  res.setHeader('Allow', 'GET, POST')
-  res.status(405).end('Method Not Allowed')
+  methodNotAllowed(res, 'GET, POST')
 }

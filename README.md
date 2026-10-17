@@ -111,7 +111,12 @@ detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
   por ejemplo [Swagger Editor](https://editor.swagger.io), o impórtalo en Postman
   o Insomnia.
 - Reglas de versionado y cómo evoluciona: `API_CONTRACTS.md`. La versión del
-  contrato es `info.version` (semver) y hoy es **2.0.0**.
+  contrato es `info.version` (semver) y hoy es **3.0.0**.
+- Novedades de la 3.0.0: todos los errores están en español (el texto es para
+  personas, decide por el estado HTTP); `405` es JSON `{ "error": "Método no permitido." }`
+  con `Allow`; `DELETE /api/roadmaps/{id}` responde `204` si borra y `200` con
+  `{ "message": ... }` si el roadmap no existía; `PATCH /api/users/{id}` devuelve
+  siempre la misma forma de usuario (con `roadmap_access_ids`).
 - Novedades de la 2.0.0 (detalle en el historial de `API_CONTRACTS.md`):
   `quiz_bank` ya no se expone en ninguna respuesta (las preguntas públicas están
   en `GET /api/quizzes/modules/{id}` y en el campo `quiz` del detalle de módulo,
@@ -136,7 +141,7 @@ detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
 - **Errores**: casi todos son JSON `{ "error": "<mensaje>" }`. Los de validación
   (`400`) añaden `issues: [{ "path": "title", "message": "..." }]`. Otros códigos
   llevan campos extra: `409` de importación (`code`) y `429` de cuestionarios
-  (`eligibility`). `405` es texto plano `Method Not Allowed` con la cabecera
+  (`eligibility`). `405` es JSON `{ "error": "Método no permitido." }` con la cabecera
   `Allow`. El texto de `error` es para personas; no lo uses para decidir la lógica
   del cliente. Más detalle en `API_CONTRACTS.md` y `VALIDATION.md`.
 - **Tipos**: los tipos TypeScript de las respuestas se importan de
@@ -219,7 +224,9 @@ comprueba que esta tabla incluye todas las rutas. El detalle completo está en
 | `GET /api/openapi.json` | Pública | Documento OpenAPI 3.1 de esta API |
 
 `PATCH /api/users/{id}` elige la operación con `action` (`set_active`,
-`reset_password` o `set_roadmap_access`). El importador acepta un objeto con
+`reset_password` o `set_roadmap_access`) y siempre devuelve el mismo usuario, con
+`can_view_all_roadmaps` y `roadmap_access_ids`. `DELETE /api/roadmaps/{id}` es
+idempotente: `204` si lo borra y `200` con `{ "message" }` si no existía. El importador acepta un objeto con
 `title`, `modules` y, opcionalmente, `description`, `duration`, `category`,
 `topics`, `objectives`, `methodology` y `evaluation_weights`; al actualizar se
 conservan los módulos no incluidos y el progreso ya registrado. Guías rápidas con

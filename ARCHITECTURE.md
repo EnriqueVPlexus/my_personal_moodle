@@ -307,16 +307,12 @@ sentencias que deban ir dentro: en Postgres irían a otra conexión.
 - **Adaptadores por dialecto (opción B)**: separar cada repositorio en
   `sqlite/` y `postgres/` detrás del mismo puerto. Hoy cada repositorio conserva
   sus ramas `if (db.backend !== 'postgres')`.
-- **Mensajes `401`/`403`/`405`/`429` en inglés** (`authentication required`,
-  `admin role required`, `Method Not Allowed`, `too many attempts…`,
-  `setup token required`, errores de origen): se mantienen tal cual.
 - **`PUT`/`DELETE /api/evidences/modules/[id]`**: si `getRoadmapReadScope` falla,
   escribe un `401` y después un `404` sobre la misma respuesta (comportamiento
   heredado, conservado a propósito en esta refactorización).
-- **`DELETE /api/roadmaps/[id]`** responde `204` aunque el roadmap no exista.
 - **`entityId: null` en auditoría** se guardaría como el texto `"null"`
   (`String(null)`); hoy ningún llamador lo pasa.
 - Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`). Los esquemas de
   respuesta ya existen en `lib/contracts`; las incoherencias de la API que
-  documentan (idioma de errores, `204` al borrar roadmaps, etc.) están en
+  documentan (p. ej. el doble `401`+`404` de las evidencias) están en
   `API_CONTRACTS.md`.

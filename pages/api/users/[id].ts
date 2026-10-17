@@ -6,6 +6,7 @@ import { openDb } from '../../../lib/persistence'
 import type { UserRuleViolation } from '../../../lib/domains/admin'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { updateUserBodySchema, userIdQuerySchema } from '../../../lib/validation/users'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
 const VIOLATION_MESSAGES: Record<UserRuleViolation, string> = {
   cannot_deactivate_self: 'No puedes desactivar tu propia cuenta.',
@@ -18,8 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const db = await openDb()
 
   if (req.method !== 'PATCH') {
-    res.setHeader('Allow', 'PATCH')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'PATCH')
   }
 
   const admin = await requireAdmin(req, res, db)
@@ -54,5 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     details: outcome.audit.details
   })
 
+  // Same shape for every action: the user with roadmap access fields.
+  if (!outcome.user) return res.status(404).json({ error: 'Usuario no encontrado.' })
   return res.status(200).json(outcome.user)
 }

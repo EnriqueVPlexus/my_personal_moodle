@@ -7,8 +7,9 @@ endpoint y qué reglas de versionado y deprecación se siguen.
 
 El contrato describe lo que la API hace hoy, también cuando es incoherente (ver
 [Incoherencias conocidas](#incoherencias-conocidas)). La versión 1.0.0 solo
-documentó; la 2.0.0 corrige una fuga de seguridad y unifica tipos (ver el
-[Historial](#historial-del-contrato)).
+documentó; la 2.0.0 corrige una fuga de seguridad y unifica tipos; la 3.0.0
+hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuario
+(ver el [Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
 
@@ -78,11 +79,11 @@ Niveles de acceso:
 mismo tipo (una entrada explícita en `responses` gana a la automática):
 
 - `400` si hay `params`, `query` o `body` (contrato `{ error, issues? }`).
-- `401` en `user`, `admin` y `read`; `403` `admin role required` en `admin`.
+- `401` en `user`, `admin` y `read`; `403` `Necesitas permisos de administrador.` en `admin`.
 - `403` de comprobación de origen en cualquier método que modifica (`POST`,
   `PUT`, `PATCH`, `DELETE`).
 
-El generador añade además el `405` (`Method Not Allowed`, texto plano) con la
+El generador añade además el `405` (JSON `{ error: 'Método no permitido.' }`) con la
 cabecera `Allow` de la ruta, calculada con los métodos del registro.
 
 ### Cómo se genera el OpenAPI
@@ -259,6 +260,51 @@ contratos).
 | --- | --- | --- |
 | 1.0.0 | 2026-10-15 | Primer contrato: 27 rutas (26 existentes y `GET /api/openapi.json`), descritas tal y como funcionaban. |
 | 2.0.0 | 2026-10-15 | Corrección de seguridad (módulos y exportación ya no exponen las respuestas de los cuestionarios) y contadores/indicadores con tipo único. Ver [2.0.0](#200-2026-10-15). |
+| 3.0.0 | 2026-10-16 | Coherencia de la API: errores `401`/`403`/`405`/`429` en español, `405` en JSON, `DELETE /api/roadmaps/{id}` con `200` si no existía y `PATCH /api/users/{id}` con una única forma de usuario. Ver [3.0.0](#300-2026-10-16). |
+
+### 3.0.0 (2026-10-16)
+
+Versión **MAJOR**. La [política](#versionado) dice que el **texto** de `error` es
+para personas y puede reformularse sin ser incompatible, así que traducir los
+mensajes por sí solo habría sido un cambio menor (PATCH/MINOR). Lo que fuerza el
+MAJOR son tres cambios de **estructura o de estado** que sí rompen a un cliente
+que ya funcionaba:
+
+- `405` pasa de texto plano (`Method Not Allowed`) a JSON `{ "error": "Método no permitido." }`
+  (cambia el tipo y formato del cuerpo). La cabecera `Allow` no cambia.
+- `DELETE /api/roadmaps/{id}` con un roadmap inexistente pasa de `204` a `200` con
+  `{ "message": "El roadmap no existía; no había nada que borrar." }` (cambia un
+  estado HTTP existente). Si existía sigue siendo `204` sin cuerpo.
+- `PATCH /api/users/{id}` devuelve siempre el usuario con sus campos de acceso
+  (`can_view_all_roadmaps` efectivo y `roadmap_access_ids`), sea cual sea la
+  acción. Antes `set_active` y `reset_password` devolvían el registro sin
+  `roadmap_access_ids` y con `can_view_all_roadmaps` tal y como estaba guardado
+  (para un admin, `0` en vez de `1`).
+
+**Mensajes en español** (no incompatible por sí solo, ver arriba; el `Allow`, los
+estados y los campos estructurados no cambian):
+
+| Antes | Ahora |
+| --- | --- |
+| `authentication required` | `Debes iniciar sesión.` |
+| `admin role required` | `Necesitas permisos de administrador.` |
+| `invalid origin` | `El origen de la petición no es válido.` |
+| `origin not allowed` | `Origen de la petición no permitido.` |
+| `origin check failed` | `No se pudo comprobar el origen de la petición.` |
+| `too many attempts, please try again later` | `Demasiados intentos. Inténtalo de nuevo más tarde.` |
+| `setup token required` | `Se requiere el token de configuración inicial.` |
+| `invalid credentials` | `Credenciales no válidas.` |
+| `Method Not Allowed` (texto plano) | `Método no permitido.` (JSON `{ error }`) |
+
+Qué hacer en un cliente: no decidas la lógica por el texto de `error` (usa el
+estado HTTP); trata el `405` como JSON; en `DELETE` de roadmaps acepta `200` y
+`204` como éxito; en `PATCH /api/users/{id}` lee siempre la misma forma de
+usuario. La UI del repositorio ya cumple las tres cosas.
+
+**Auditoría de `DELETE` roadmap**: solo se escribe `roadmap.delete` cuando se
+borró una fila (el servicio usa el número de filas afectadas del `DELETE`, sin una
+comprobación previa que pudiera competir con otra petición). Una repetición
+idempotente no genera registros.
 
 ### 2.0.0 (2026-10-15)
 
@@ -301,15 +347,8 @@ aplicar el versionado anterior.
 
 ### Errores y mensajes
 
-- Los `401`, `403`, `405` y `429` de `lib/http` están en **inglés**
-  (`authentication required`, `admin role required`, `invalid origin`,
-  `origin not allowed`, `origin check failed`, `too many attempts, please try again later`),
-  igual que `setup token required` e `invalid credentials`. El resto de errores
-  está en español.
-- `405` es texto plano (`Method Not Allowed`), no el JSON `{ error }` del resto.
-- `GET /api/evidences/modules/{id}` responde `401` con `Debes iniciar sesión.`
-  (español) cuando el servidor permite lecturas anónimas; en los demás casos el
-  `401` es `authentication required`.
+- Desde la [3.0.0](#300-2026-10-16) todos los errores de la API están en español
+  y el `405` es el JSON `{ error }` del resto (con `Allow`).
 - Un fallo inesperado no capturado devuelve el `500` por defecto de Next (no JSON).
   Solo `POST /api/roadmaps`, `POST /api/users`, `POST /api/auth/setup` y
   `PUT /api/evidences/{id}/review` devuelven un `500` JSON propio.
@@ -327,12 +366,11 @@ aplicar el versionado anterior.
 
 ### Comportamientos distintos entre rutas
 
-- `DELETE /api/roadmaps/{id}` responde `204` aunque el roadmap no exista; módulos,
-  lecciones y evidencias responden `404`.
-- `PATCH /api/users/{id}` devuelve el usuario sin `roadmap_access_ids` salvo con
-  `set_roadmap_access`; `GET /api/users` siempre lo incluye. `POST /api/users` no
-  lo incluye. `can_view_all_roadmaps` es el valor guardado en unas respuestas y el
-  efectivo (los admin siempre `1`) en otras.
+- `DELETE /api/roadmaps/{id}` es idempotente (`204` si lo borra, `200` con
+  `{ message }` si no existía) mientras que módulos, lecciones y evidencias
+  responden `404` si no existen. Es una decisión explícita de la 3.0.0.
+- `POST /api/users` devuelve el usuario sin `roadmap_access_ids` (siempre vacío en
+  un usuario recién creado); `GET` y `PATCH /api/users` lo incluyen.
 - `role` y `status` desconocidos se toleran (`user` y sin filtro) en lugar de `400`
   (ver `VALIDATION.md`).
 
@@ -347,15 +385,12 @@ Los contadores (`COUNT`) y `has_evidence` ya se normalizan en los repositorios (
 ## Seguimiento
 
 Hallazgos que **no** se corrigieron aquí (no se cambia ninguna respuesta). La fuga
-de `quiz_bank` y los contadores como texto en PostgreSQL ya están resueltos en
-[2.0.0](#200-2026-10-15).
+de `quiz_bank` y los contadores como texto en PostgreSQL se resolvieron en
+[2.0.0](#200-2026-10-15); el idioma de los errores, el `405` en JSON, el
+`DELETE` de roadmaps y la forma del `PATCH` de usuarios, en [3.0.0](#300-2026-10-16).
 
-1. Unificar el idioma y el formato de los errores (`401`/`403`/`405`/`429`), con
-   un `MAJOR` o una decisión explícita.
-2. Decidir `DELETE /api/roadmaps/{id}` (`204` vs `404`) y el doble `401`+`404` de
-   las evidencias.
-3. Hacer que `PATCH /api/users/{id}` devuelva siempre la misma forma de usuario.
-4. Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`) para que las
+1. Resolver el doble `401`+`404` de las evidencias.
+2. Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`) para que las
    solicitudes de importación se documenten por completo en OpenAPI (hoy `roadmap`
    figura como `object`).
 5. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a

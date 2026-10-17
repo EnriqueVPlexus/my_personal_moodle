@@ -93,7 +93,7 @@ function arrangeServices() {
       getCatalogMetadata: vi.fn(async () => fx.catalogMetadata),
       createRoadmap: vi.fn(async () => ({ id: 1, roadmap: fx.roadmapRecord, topics: ['AWS'] })),
       updateRoadmap: vi.fn(async () => ({ roadmap: fx.roadmapRecord, topics: ['AWS'] })),
-      deleteRoadmap: vi.fn(async () => ({ title: 'AWS' })),
+      deleteRoadmap: vi.fn(async () => ({ deleted: true, title: 'AWS' })),
       listModules: vi.fn(async () => [fx.moduleRecord]),
       createModule: vi.fn(async () => ({ id: 3, module: fx.moduleRecord })),
       updateModule: vi.fn(async () => ({ module: fx.moduleRecord })),
@@ -164,7 +164,7 @@ function arrangeServices() {
       createUser: vi.fn(async () => ({ status: 'created', id: 2, user: fx.adminUser, role: 'user' })),
       updateUser: vi.fn(async () => ({
         status: 'ok',
-        user: fx.adminUser,
+        user: fx.adminUserWithAccess,
         audit: { action: 'user.deactivate', details: { email: 'ana@example.com' } }
       }))
     }
@@ -275,6 +275,7 @@ const calls: Array<[string, Call]> = [
   ['update roadmap', { operationId: 'updateRoadmap', status: 200, req: { body: { title: 'AWS' } } }],
   ['update roadmap missing', { operationId: 'updateRoadmap', status: 404, arrange: () => { state.services.content.updateRoadmap = vi.fn(async () => null) }, req: { body: { title: 'AWS' } } }],
   ['delete roadmap', { operationId: 'deleteRoadmap', status: 204 }],
+  ['delete missing roadmap', { operationId: 'deleteRoadmap', status: 200, arrange: () => { state.services.content.deleteRoadmap = vi.fn(async () => ({ deleted: false, title: null })) } }],
   ['export roadmap', { operationId: 'exportRoadmap', status: 200 }],
   ['export roadmap without session', { operationId: 'exportRoadmap', status: 401, role: null }],
   ['export roadmap as learner', { operationId: 'exportRoadmap', status: 403, role: 'user' }],
@@ -369,10 +370,10 @@ describe('API handler responses match the contract registry', () => {
 
   it('documents the exact message of the error responses it checks', async () => {
     const res = await run({ operationId: 'login', status: 401, role: null, arrange: () => { state.auth.login = vi.fn(async () => ({ ok: false })) }, req: { body: { email: 'a@b.c', password: 'x' } } })
-    expect(res.body).toEqual({ error: 'invalid credentials' })
+    expect(res.body).toEqual({ error: 'Credenciales no válidas.' })
 
     const forbidden = await run({ operationId: 'getAdminDashboard', status: 403, role: 'user' })
-    expect(forbidden.body).toEqual({ error: 'admin role required' })
+    expect(forbidden.body).toEqual({ error: 'Necesitas permisos de administrador.' })
   })
 
   it('serves the portfolio as an attachment with a Markdown content type', async () => {
@@ -381,7 +382,7 @@ describe('API handler responses match the contract registry', () => {
     expect(res.headers['Content-Disposition']).toMatch(/^attachment; filename="portfolio-.+\.md"$/)
   })
 
-  it('answers 405 with plain text and the registry methods in Allow, on every path', async () => {
+  it('answers 405 with the JSON error contract and the registry methods in Allow, on every path', async () => {
     for (const [path, methods] of methodsByPath()) {
       arrangeServices()
       arrangeSession('admin')
@@ -390,7 +391,7 @@ describe('API handler responses match the contract registry', () => {
       await handler(createRequest({ method: 'OPTIONS', query: { id: '1' }, headers: COOKIE }), res)
 
       expect(res.statusCode, path).toBe(405)
-      expect(res.body, path).toBe('Method Not Allowed')
+      expect(res.body, path).toEqual({ error: 'Método no permitido.' })
       const allow = String(res.headers.Allow).split(',').map(method => method.trim().toLowerCase()).sort()
       expect(allow, path).toEqual([...methods].sort())
     }

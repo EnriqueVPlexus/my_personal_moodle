@@ -52,8 +52,8 @@ function sessionToken(req: NextApiRequest): string | undefined {
 }
 
 const FAILURE_RESPONSES: Record<AuthFailure, { status: number; error: string }> = {
-  unauthenticated: { status: 401, error: 'authentication required' },
-  forbidden: { status: 403, error: 'admin role required' }
+  unauthenticated: { status: 401, error: 'Debes iniciar sesión.' },
+  forbidden: { status: 403, error: 'Necesitas permisos de administrador.' }
 }
 
 function respondFailure(res: NextApiResponse, reason: AuthFailure) {
@@ -105,7 +105,7 @@ export function requireSameOrigin(req: NextApiRequest, res: NextApiResponse) {
   try {
     originHost = new URL(origin).host
   } catch {
-    res.status(403).json({ error: 'invalid origin' })
+    res.status(403).json({ error: 'El origen de la petición no es válido.' })
     return false
   }
 
@@ -115,20 +115,20 @@ export function requireSameOrigin(req: NextApiRequest, res: NextApiResponse) {
   const allowedHosts = getAllowedOriginHosts()
   if (allowedHosts) {
     if (allowedHosts.includes(originHost)) return true
-    res.status(403).json({ error: 'origin not allowed' })
+    res.status(403).json({ error: 'Origen de la petición no permitido.' })
     return false
   }
 
   const forwardedHost = getHeaderValue(req.headers['x-forwarded-host'])
   const host = forwardedHost || getHeaderValue(req.headers.host)
   if (!host) {
-    res.status(403).json({ error: 'origin check failed' })
+    res.status(403).json({ error: 'No se pudo comprobar el origen de la petición.' })
     return false
   }
 
   if (originHost === host) return true
 
-  res.status(403).json({ error: 'origin not allowed' })
+  res.status(403).json({ error: 'Origen de la petición no permitido.' })
   return false
 }
 

@@ -5,7 +5,7 @@ const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const normalUser = { id: 2, email: 'user@example.com', role: 'user' as const, is_active: 1 }
 
 function denyAdmin(res: any) {
-  res.status(403).json({ error: 'admin role required' })
+  res.status(403).json({ error: 'Necesitas permisos de administrador.' })
   return null
 }
 
@@ -23,7 +23,7 @@ async function mockContentApi(
     }),
     requireReadAccess: vi.fn((_req: any, res: any) => {
       if (options.read === false) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return false
       }
       return true
@@ -31,7 +31,7 @@ async function mockContentApi(
     getUserFromRequest: vi.fn().mockResolvedValue(options.user === undefined ? null : options.user),
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.read === false) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return null
       }
       return {
@@ -44,7 +44,7 @@ async function mockContentApi(
     requireUser: vi.fn((_req: any, res: any) => {
       const actor = options.user === undefined ? null : options.user
       if (!actor) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return null
       }
       return actor
@@ -92,7 +92,7 @@ async function mockAuthApi(
     getUserFromRequest: vi.fn().mockResolvedValue(options.currentUser === undefined ? admin : options.currentUser),
     requireSameOrigin: vi.fn((_req: any, res: any) => {
       if (options.sameOrigin === false) {
-        res.status(403).json({ error: 'origin not allowed' })
+        res.status(403).json({ error: 'Origen de la petición no permitido.' })
         return false
       }
       return true
@@ -482,6 +482,7 @@ describe('users API edge cases', () => {
   it('validates user admin actions and protects sensitive states', async () => {
     const db = {
       run: vi.fn().mockResolvedValue({ changes: 1 }), // Default return value for UPDATEs/DELETEs
+      all: vi.fn().mockResolvedValue([]), // roadmap access ids of the returned user
       get: vi.fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 1, email: 'admin@example.com', role: 'admin', is_active: 1 })

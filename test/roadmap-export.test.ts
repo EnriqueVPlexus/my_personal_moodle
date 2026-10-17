@@ -116,7 +116,7 @@ describe('roadmap JSON export', () => {
     vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
     vi.doMock('../lib/http/auth', () => ({
       requireAdmin: vi.fn(async (_req: unknown, res: any) => {
-        res.status(403).json({ error: 'admin role required' })
+        res.status(403).json({ error: 'Necesitas permisos de administrador.' })
         return null
       })
     }))

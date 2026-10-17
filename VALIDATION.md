@@ -154,7 +154,9 @@ conserva además el `413` si el JSON supera 1 MB.
 2. Mensajes de validación en español de España; el resto del código en inglés.
 3. Contrato `{ error: string, issues?: Array<{ path, message }> }`, compatible con
    el frontend actual porque `error` sigue siendo un texto legible.
-4. 401/403/405 y los mensajes de `lib/http/auth.ts` quedan fuera de alcance.
+4. Los mensajes de `401`/`403`/`405`/`429`, `lib/http/auth.ts`, el rate limit y los de
+   `login`/`setup` también están en español de España desde la 3.0.0 del contrato
+   (`405` en JSON `{ error }` mediante `lib/http/methods.ts`).
 5. Los identificadores se parsean con una única regla: entero positivo (acepta
    número o cadena numérica; con parámetros repetidos gana el primero). Se eliminan
    los `getId` locales y el uso de `Number(...)`, y se pasa el `id` numérico a
@@ -194,8 +196,6 @@ no leen cuerpo ni query, por lo que no tienen esquema.
 
 ## Fuera de alcance y seguimiento
 
-- Unificar y traducir los mensajes `401`/`403`/`405`/`429` de `lib/http/auth.ts`,
-  `lib/http/rateLimit.ts` y `setup token required` (ahora en inglés).
 - Migrar `validateRoadmapImport` a Zod para obtener rutas e issues del mismo origen.
 - Decidir si `role` y `status` desconocidos deben pasar a `400` (hoy se toleran).
 - ~~Esquemas de respuesta y documentación OpenAPI~~: hecho en `lib/contracts` (ver
@@ -212,3 +212,5 @@ no leen cuerpo ni query, por lo que no tienen esquema.
 - `test/api-validation.test.ts`: cada ruta con entrada inválida devuelve `400` con el
   contrato y no ejecuta consultas de negocio; `405`/`403` no cambian.
 - Los tests existentes de las rutas se actualizaron a los mensajes en español.
+- `test/api-consistency.test.ts`: mensajes `401`/`403`/`405` en español, `405` JSON con
+  `Allow`, `DELETE` de roadmap idempotente y `PATCH` de usuarios con una sola forma.

@@ -291,12 +291,15 @@ describe('roadmap use cases', () => {
     })).rejects.toBe(failure)
   })
 
-  it('deleting is idempotent and reports the previous title', async () => {
-    const remove = vi.fn().mockResolvedValue(undefined)
+  it('deleting is idempotent: it reports whether a row was removed and the previous title', async () => {
+    const remove = vi.fn().mockResolvedValue(0)
     const service = setup({ roadmaps: { findTitleById: async () => null, delete: remove } })
 
-    expect(await service.deleteRoadmap(3)).toEqual({ title: null })
+    expect(await service.deleteRoadmap(3)).toEqual({ deleted: false, title: null })
     expect(remove).toHaveBeenCalledWith(3)
+
+    const existing = setup({ roadmaps: { findTitleById: async () => 'AWS', delete: vi.fn().mockResolvedValue(1) } })
+    expect(await existing.deleteRoadmap(3)).toEqual({ deleted: true, title: 'AWS' })
   })
 })
 

@@ -4,12 +4,12 @@ import { requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { parseOrRespond } from '../../../../lib/validation/http'
 import { lessonProgressBodySchema, lessonProgressQuerySchema } from '../../../../lib/validation/progress'
+import { methodNotAllowed } from '../../../../lib/http/methods'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   if (req.method !== 'PUT') {
-    res.setHeader('Allow', 'PUT')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'PUT')
   }
 
   const params = parseOrRespond(lessonProgressQuerySchema, req.query, res)
