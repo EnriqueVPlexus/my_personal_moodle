@@ -38,7 +38,8 @@ curl "http://localhost:3000/api/modules?roadmap_id=1"
 curl http://localhost:3000/api/modules/1
 ```
 
-Respuesta esperada: datos del módulo y una propiedad `lessons` ordenada por `id`.
+Respuesta esperada: datos del módulo y una propiedad `lessons` ordenada por `id`, más `progress`, `quiz`
+(público, sin respuestas correctas) y `quiz_summary` (`null` sin sesión). Si no existe o no es visible, `404`.
 
 ## Crear Módulo
 
@@ -54,6 +55,8 @@ Campos requeridos:
 
 - `title`
 - `roadmap_id`
+
+Opcionales: `level`, `duration`, `duration_weeks_min` y `duration_weeks_max`. Responde `201` con el módulo creado.
 
 ## Actualizar Módulo
 
@@ -73,4 +76,6 @@ Requiere admin:
 curl -i -b cookies.txt -X DELETE http://localhost:3000/api/modules/1
 ```
 
-Una eliminación correcta devuelve `204 No Content`.
+Una eliminación correcta devuelve `204 No Content`; si el módulo no existe, `404`.
+
+Contrato completo (parámetros, respuestas y errores) en `openapi.json` y `API_CONTRACTS.md`.

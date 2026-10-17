@@ -6,6 +6,7 @@ import { bodyObject, optionalPositiveInt, optionalText, positiveInt, queryObject
 export const moduleIdQuerySchema = queryObject({ id: positiveInt('id') })
 export const moduleListQuerySchema = queryObject({ // An empty `?roadmap_id=` has always meant "no filter".
   roadmap_id: z.preprocess(value => (value === '' ? undefined : value), optionalPositiveInt('roadmap_id'))
+    .meta({ type: 'integer', minimum: 1, description: 'Filtra por roadmap. Vacío equivale a sin filtro.' })
 })
 
 const moduleShape = {

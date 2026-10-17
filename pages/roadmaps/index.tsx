@@ -7,6 +7,7 @@ import RoadmapForm from '../../components/RoadmapForm'
 import Link from 'next/link'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
+import type { CatalogMetadata, CatalogRoadmap } from '../../lib/contracts'
 import {
   parseRoadmapCatalogFilters,
   ROADMAP_DURATION_FILTERS,
@@ -14,24 +15,9 @@ import {
   RoadmapCatalogFilters
 } from '../../lib/domains/content/filters'
 
-type Roadmap = {
-  id: number
-  title: string
-  description?: string
-  module_count?: number
-  category?: { key: string; label: string } | null
-  topics?: Array<{ key: string; label: string }>
-  user_progress_status?: string
-}
 
-type FilterOption = { key: string; label?: string; roadmap_count: number }
-type CatalogMetadata = {
-  categories: FilterOption[]
-  topics: FilterOption[]
-  levels: FilterOption[]
-  duration_ranges?: FilterOption[]
-  progress_statuses?: FilterOption[]
-}
+type Roadmap = CatalogRoadmap
+type FilterOption = Pick<CatalogMetadata['categories'][number], 'key' | 'roadmap_count'> & { label?: string }
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -160,7 +146,7 @@ export default function RoadmapsPage() {
     if (!metadata || !router.isReady) return
     const validCategories = new Set(metadata.categories.map(item => item.key))
     const validTopics = new Set(metadata.topics.map(item => item.key))
-    const validLevels = new Set(metadata.levels.filter(item => item.roadmap_count > 0).map(item => item.key))
+    const validLevels = new Set(metadata.levels.filter(item => Number(item.roadmap_count) > 0).map(item => item.key))
     const validProgressStatuses = new Set((metadata.progress_statuses ?? []).map(item => item.key))
     const canonicalFilters = {
       ...filters,
@@ -363,7 +349,7 @@ export default function RoadmapsPage() {
               />
               <FilterGroup
                 title="Nivel"
-                options={(metadata?.levels ?? []).filter(item => item.roadmap_count > 0).map(item => ({ ...item, label: levelLabel(item.key) }))}
+                options={(metadata?.levels ?? []).filter(item => Number(item.roadmap_count) > 0).map(item => ({ ...item, label: levelLabel(item.key) }))}
                 selected={filters.levels}
                 onToggle={value => toggleFilter('levels', value)}
               />
@@ -374,7 +360,7 @@ export default function RoadmapsPage() {
                 onToggle={value => toggleFilter('durations', value)}
                 hideCounts={!metadata?.duration_ranges}
               />
-              {metadata?.progress_statuses && metadata.progress_statuses.some(item => item.roadmap_count > 0) ? (
+              {metadata?.progress_statuses && metadata.progress_statuses.some(item => Number(item.roadmap_count) > 0) ? (
                 <FilterGroup
                   title="Estado mi progreso"
                   options={metadata.progress_statuses}
@@ -426,7 +412,7 @@ export default function RoadmapsPage() {
                   <Link key={r.id} href={`/roadmaps/${r.id}`} className="block">
                     <RoadmapCard
                       title={r.title}
-                      description={r.description}
+                      description={r.description ?? undefined}
                       moduleCount={r.module_count}
                       category={r.category?.label}
                       topics={r.topics?.map(topic => topic.label)}

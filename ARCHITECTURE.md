@@ -20,6 +20,7 @@ pages/api (handler)  ->  service  ->  port  <-  repository  ->  persistence
 | --- | --- | --- | --- |
 | Handler | `pages/api/**` | Comprueba el método, valida (`lib/validation`), autentica/autoriza, llama a **un** servicio y responde. | `lib/container`, `lib/http/*`, `lib/validation/*`, `lib/persistence` (solo `openDb`), tipos y funciones puras de `lib/domains/*`. |
 | Adaptador HTTP | `lib/http/` | Traduce `NextApiRequest`/`NextApiResponse` a datos planos y al revés (cookies, origen, IP, 401/403/429). Es la **única** capa de dominio/infraestructura que importa `next` (además de `lib/validation/http.ts`, que escribe la respuesta de error de validación). | `lib/domains/*`, `lib/persistence`. |
+| Contrato | `lib/contracts/` | Describe el borde HTTP: esquemas de **respuesta**, registro de rutas y generador OpenAPI. Reutiliza los esquemas de `lib/validation` para las solicitudes. No ejecuta nada en tiempo de petición (solo `GET /api/openapi.json` lo serializa). Ver `API_CONTRACTS.md`. | `zod`, `lib/validation/*` y constantes puras de `lib/domains/*`. **Nadie de `lib/domains`, `lib/http` ni `lib/persistence` lo importa**; handlers, UI (solo `import type`) y tests sí. |
 | Servicio | `lib/domains/<d>/service.ts` | Casos de uso y reglas de negocio. Recibe sus puertos por parámetro. | Sus propios `ports`/`types`, y funciones/tipos **puros** de otros dominios. Nunca `next`, SQL ni `lib/persistence`. |
 | Puerto | `lib/domains/<d>/ports.ts` | Interfaces TypeScript de lo que el servicio necesita (repositorios, lectores de otros dominios). | Solo `types`. |
 | Repositorio | `lib/domains/<d>/repositories/` | **Única implementación** de cada puerto. Contiene el SQL (ramas SQLite/Postgres incluidas). | `lib/persistence`, `types`/`ports` de su dominio. |
@@ -31,6 +32,7 @@ Reglas que se pueden comprobar con `rg` (y que se verifican en la entrega):
 ```bash
 rg -n "db\.(all|get|run|exec)|DATABASE_URL|as PostgresDb" pages/api   # vacío
 rg -n "from 'next'" lib/domains                                       # vacío
+rg -n "contracts" lib/domains lib/http lib/persistence                # vacío
 ```
 
 ## Mapa de dominios
@@ -38,6 +40,7 @@ rg -n "from 'next'" lib/domains                                       # vacío
 ```text
 lib/
   container.ts              Composición: createServices(db) -> { auth, audit, content, progress, admin }.
+  contracts/                Contrato de la API: respuestas Zod, registro de rutas, generador OpenAPI (ver API_CONTRACTS.md).
   http/                     Adaptadores HTTP (único código de lib que conoce Next).
     auth.ts                 Cookie de sesión, origen, requireAdmin/requireUser/requireReadAccess, getRoadmapReadScope.
     audit.ts                writeAuditLog: construye { ip, userAgent } desde la petición.
@@ -150,7 +153,11 @@ saben qué driver hay debajo.
    `requireAdmin`/`requireUser`/`getRoadmapReadScope` → llamar al servicio →
    mapear el resultado a estado y cuerpo → `writeAuditLog` si es una acción
    sensible.
-8. **Tests**: un test de servicio con repositorios en memoria (sin Next ni BD) y,
+8. **Contrato**: añade el esquema de respuesta y la entrada del registro
+   (`lib/contracts`), un caso en `test/api-contracts.test.ts`, sube
+   `API_CONTRACT_VERSION` si procede y ejecuta `npm run contracts:generate`
+   (pasos detallados en `API_CONTRACTS.md`).
+9. **Tests**: un test de servicio con repositorios en memoria (sin Next ni BD) y,
    si hay SQL nuevo, un test de repositorio.
 
 Si necesitas contexto de la petición dentro del dominio (IP, user agent, usuario),
@@ -237,6 +244,7 @@ sentencias que deban ir dentro: en Postgres irían a otra conexión.
 | Servicios | `test/domains/*.test.ts` | Repositorios falsos en memoria. Sin Next, sin base de datos. Cubren reglas de negocio y flujos (p. ej. cálculo de progreso de módulo, agregación de metadatos del catálogo, reglas de administración de usuarios, flujo del intento de quiz: 429, 422 y rango de respuestas). |
 | Repositorios | `test/*Repository*.test.ts`, `test/*.postgres.test.ts` | SQLite real en un directorio temporal; y variantes con `pg` simulado para el SQL de Postgres. |
 | Handlers | `test/api-*.test.ts` y similares | `vi.doMock` de `lib/persistence`, `lib/http/auth` y `lib/http/audit`; comprueban estados, cuerpos y orden de llamadas. |
+| Contratos | `test/contracts-openapi.test.ts`, `test/api-contracts.test.ts` | Cobertura del registro frente a `pages/api`, `openapi.json` al día y cada handler (servicios simulados; auth, origen y límite reales) contra el esquema de cada estado. Ver `API_CONTRACTS.md`. |
 | Adaptadores HTTP | `test/lib.test.ts`, `test/rateLimit.test.ts` | Peticiones simuladas contra `lib/http/*`. |
 | Integración | `test/postgres-integration/` | PostgreSQL real efímero (`npm run test:integration`). Incluye las transacciones: Kysely y SQL crudo en el mismo `ROLLBACK`, cliente liberado y transacciones concurrentes. |
 
@@ -292,4 +300,7 @@ sentencias que deban ir dentro: en Postgres irían a otra conexión.
 - **`DELETE /api/roadmaps/[id]`** responde `204` aunque el roadmap no exista.
 - **`entityId: null` en auditoría** se guardaría como el texto `"null"`
   (`String(null)`); hoy ningún llamador lo pasa.
-- Migrar `validateRoadmapImport` a Zod y esquemas de respuesta (ver `VALIDATION.md`).
+- Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`). Los esquemas de
+  respuesta ya existen en `lib/contracts`; las incoherencias de la API que
+  documentan (idioma de errores, `204` al borrar roadmaps, etc.) están en
+  `API_CONTRACTS.md`.

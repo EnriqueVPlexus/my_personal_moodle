@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from 'react'
+import type { ModuleEvidence as ModuleEvidenceContract } from '../lib/contracts'
 
-export type ModuleEvidence = {
-  id: number
-  evidence_type: 'github' | 'demo' | 'document' | 'note'
-  url?: string | null
-  note?: string | null
-  review_status?: 'pendiente' | 'aprobado' | 'requiere_cambios'
-  admin_comment?: string | null
-  reviewed_at?: string | null
-  created_at: string
-  updated_at: string
-}
+export type ModuleEvidence = ModuleEvidenceContract
 
 type Props = {
   moduleId: number
@@ -32,7 +23,7 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
-function reviewBadge(status: ModuleEvidence['review_status']) {
+function reviewBadge(status?: ModuleEvidence['review_status']) {
   if (status === 'aprobado') return { label: 'Aprobado', class: 'bg-emerald-100 text-emerald-800' }
   if (status === 'requiere_cambios') return { label: 'Requiere cambios', class: 'bg-amber-100 text-amber-800' }
   return { label: 'Pendiente de revisión', class: 'bg-sky-100 text-sky-800' }

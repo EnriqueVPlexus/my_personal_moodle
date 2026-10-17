@@ -4,27 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import Layout from '../components/Layout'
 import { branding } from '../lib/branding'
-
-type UserRoadmapProgress = {
-  roadmap_id: number
-  title: string
-  description?: string | null
-  duration?: string | null
-  last_activity_at: string
-  completed_lessons_count: number
-  total_lessons: number
-  total_modules: number
-  time_spent_seconds: number
-  progress_percentage: number
-  status: 'started' | 'in_progress' | 'paused' | 'completed'
-  next_href: string
-  next_step_label: string
-  current_module_title?: string | null
-  quiz_attempts_count: number
-  average_quiz_percentage?: number | null
-  best_quiz_percentage?: number | null
-  last_quiz_percentage?: number | null
-}
+import type { UserRoadmapProgress } from '../lib/contracts'
 
 function formatStudyTime(totalSeconds: number) {
   if (!totalSeconds) return '0 min'

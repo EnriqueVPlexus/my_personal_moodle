@@ -4,17 +4,10 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
+import type { AuditLogEntryContract } from '../../lib/contracts'
 
-type AuditRow = {
-  id: number
-  actor_email?: string | null
-  action: string
-  entity_type: string
-  entity_id?: string | null
-  details?: string | null
-  ip_address?: string | null
-  created_at: string
-}
+type AuditRow = AuditLogEntryContract
+
 
 function parseDetails(details?: string | null) {
   if (!details) return ''

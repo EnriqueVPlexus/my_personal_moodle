@@ -1,0 +1,321 @@
+# Contratos De La API
+
+Documento técnico de la iniciativa `Contratos API estables y documentados`
+(rama `feature/api-contracts`). Explica cómo se define el contrato de la API HTTP,
+cómo se genera el documento OpenAPI, cómo se comprueba, cómo añadir o cambiar un
+endpoint y qué reglas de versionado y deprecación se siguen.
+
+Es una iniciativa de **documentación y comprobación**: no cambió ningún estado,
+cuerpo ni mensaje de la API. El contrato describe lo que la API hace hoy, también
+cuando es incoherente (ver [Incoherencias conocidas](#incoherencias-conocidas)).
+
+Si solo quieres consumir la API, lee la sección `API` de `README.md`.
+
+## Fuente única de verdad
+
+Todo sale de esquemas Zod. De ellos se derivan el documento OpenAPI, los tipos de
+TypeScript y los tests de contrato:
+
+```text
+lib/validation (entradas)  ─┐
+                            ├─>  lib/contracts/registry.ts  ─┬─>  openapi.json  (npm run contracts:generate)
+lib/contracts (respuestas) ─┘                                ├─>  GET /api/openapi.json
+                                                             ├─>  tipos  (z.infer, `import type`)
+                                                             └─>  tests de contrato
+```
+
+| Archivo | Responsabilidad |
+| --- | --- |
+| `lib/contracts/common.ts` | Cuerpos de error (`{ error, issues? }`, `409` de importación, `429` de cuestionarios, `405`), `countSchema` y `flagSchema` para las diferencias SQLite/PostgreSQL. |
+| `lib/contracts/auth.ts`, `content.ts`, `progress.ts`, `admin.ts` | Esquemas de **respuesta** por dominio, con los tipos `z.infer` exportados. |
+| `lib/contracts/models.ts` | Nombres de los modelos que acaban en `components.schemas` del OpenAPI. |
+| `lib/contracts/registry.ts` | Registro de rutas: método, ruta, acceso, solicitud y respuestas por estado. |
+| `lib/contracts/openapi.ts` | Generador del documento OpenAPI 3.1 y `API_CONTRACT_VERSION`. |
+| `lib/contracts/index.ts` | Punto de entrada público (esquemas, tipos, registro y generador). |
+| `openapi.json` | Documento generado y versionado en git. No se edita a mano. |
+| `scripts/generate-openapi.ts` | Escribe `openapi.json` (`npm run contracts:generate`). |
+| `pages/api/openapi.json.ts` | Sirve el documento en `GET /api/openapi.json`. |
+
+Las solicitudes **reutilizan** los esquemas de `lib/validation` (los mismos que
+validan en el handler); no se duplican. Para que se documenten bien, esos esquemas
+llevan `.meta({ ... })` en los campos que Zod no sabe describir (ids con
+`transform`, `z.unknown()` validados después). Es solo metadato de documentación:
+no cambia qué se acepta.
+
+### Regla de dependencia
+
+`lib/contracts` depende de `zod`, de `lib/validation` y de constantes puras de
+`lib/domains` (los valores de los enumerados). **Ningún dominio, repositorio ni
+`lib/http` importa `lib/contracts`**: el contrato describe el borde HTTP, no lo
+gobierna. Handlers y UI pueden importarlo; la UI solo con `import type` (no debe
+arrastrar Zod al navegador).
+
+## El registro de rutas
+
+Cada ruta de `pages/api/**` tiene una entrada por método en
+`lib/contracts/registry.ts`, creada con `operation({ ... })`:
+
+| Campo | Significado |
+| --- | --- |
+| `operationId`, `method`, `path`, `tag` | Identidad. `path` usa `{id}` (no `[id]`). |
+| `summary`, `description` | Texto en español para el visor OpenAPI. |
+| `auth` | `public`, `read`, `user` o `admin` (ver abajo). |
+| `request` | `params`, `query` y `body` (esquemas de `lib/validation`). |
+| `responses` | Estados documentados: esquema, tipo de contenido y cabeceras. |
+| `deprecated` | Opcional. Ver [Deprecación](#deprecación). |
+
+Niveles de acceso:
+
+| `auth` | Significado |
+| --- | --- |
+| `public` | Sin sesión. |
+| `read` | Pública salvo que el servidor defina `REQUIRE_AUTH_FOR_READS`; con él exige sesión (`401`). Un usuario con acceso restringido solo ve sus roadmaps. |
+| `user` | Cualquier usuario activo con sesión. |
+| `admin` | Usuario con rol `admin`. |
+
+`operation()` añade por sí mismo los estados que comparten todas las rutas de un
+mismo tipo (una entrada explícita en `responses` gana a la automática):
+
+- `400` si hay `params`, `query` o `body` (contrato `{ error, issues? }`).
+- `401` en `user`, `admin` y `read`; `403` `admin role required` en `admin`.
+- `403` de comprobación de origen en cualquier método que modifica (`POST`,
+  `PUT`, `PATCH`, `DELETE`).
+
+El generador añade además el `405` (`Method Not Allowed`, texto plano) con la
+cabecera `Allow` de la ruta, calculada con los métodos del registro.
+
+### Cómo se genera el OpenAPI
+
+`lib/contracts/openapi.ts` usa `z.toJSONSchema` de Zod 4 (target
+`draft-2020-12`, compatible con OpenAPI 3.1). **No se añadió ninguna dependencia.**
+
+- Se usa `io: 'input'` para solicitudes **y** respuestas. Para solicitudes, porque
+  describe lo que el cliente puede enviar (antes de los `transform`). Para
+  respuestas, porque no tienen `transform` y evita el `additionalProperties: false`
+  que añadiría el modo `output`: un cliente debe ignorar los campos que no conozca.
+- `unrepresentable: 'any'`: lo que no tiene equivalente en JSON Schema queda como
+  `{}` (por eso los campos `z.unknown()` llevan `.meta`).
+- Los modelos con nombre (`lib/contracts/models.ts`) se extraen a
+  `components.schemas` y se referencian con `$ref`.
+- La salida es determinista (orden estable); por eso se puede comparar con el
+  archivo versionado.
+
+`GET /api/openapi.json` es **público**: solo describe rutas y esquemas (los
+mensajes de error ya los ve cualquiera que use la API) y no contiene datos ni
+secretos; un test comprueba que no aparecen `password_hash` ni `token_hash`.
+Si la API pasara a documentar rutas internas, habría que restringirlo a `admin`.
+
+Comprobar que el documento es OpenAPI válido (sin añadir dependencia):
+
+```bash
+npx @redocly/cli lint openapi.json
+```
+
+El resultado esperado es válido, con dos avisos conocidos: falta `license` y las
+rutas `/api/evidences/modules/{id}` y `/api/evidences/{id}/review` se consideran
+ambiguas (Next resuelve por especificidad de segmento; no hay conflicto real).
+
+## Tipos compartidos
+
+Los tipos de respuesta se infieren de los esquemas y se importan de
+`lib/contracts`:
+
+```ts
+import type { CatalogRoadmap, RoadmapDetailResponse } from '../lib/contracts'
+```
+
+Los usan las pantallas del catálogo, detalle de roadmap y módulo, progreso,
+cuestionarios, evidencias, portfolio, usuarios admin, dashboard, auditoría e
+importación, en lugar de interfaces locales. Los tipos de entrada siguen saliendo
+de `lib/validation` (`z.infer`).
+
+## Tests
+
+| Test | Qué comprueba |
+| --- | --- |
+| `test/contracts-openapi.test.ts` | Cada archivo de `pages/api` tiene entrada en el registro (y al revés); ids únicos; parámetros de ruta declarados; `openapi.json` está al día (`run npm run contracts:generate`); los `$ref` resuelven; sin secretos; `GET /api/openapi.json`; la marca de deprecación; la tabla de `README.md` incluye todas las rutas. |
+| `test/api-contracts.test.ts` | Cada handler, con servicios simulados, escribe cuerpos que **parsean** contra el esquema del estado correspondiente y **sin campos no documentados**. Auth, origen y límite de intentos son los reales. Comprueba el `405` y su `Allow` en todas las rutas y que se cubre el éxito de cada operación. |
+
+Los servicios simulados devuelven datos con la forma de las filas reales (y usan
+las funciones puras del dominio cuando existen), de modo que un cambio en la
+respuesta que no se refleje en el registro hace fallar el test.
+
+## Cómo añadir o cambiar un endpoint
+
+1. Sigue los pasos de `ARCHITECTURE.md` (esquema de entrada, servicio, handler).
+2. **Respuesta**: añade o ajusta el esquema en `lib/contracts/<dominio>.ts` (y su
+   tipo `z.infer`). Si es un modelo reutilizable, regístralo en
+   `lib/contracts/models.ts`.
+3. **Registro**: añade la entrada con `operation({ ... })` en `registry.ts` con
+   `auth`, `request` (reutilizando los esquemas de `lib/validation`) y los estados
+   que el handler puede devolver. Describe el comportamiento **real**.
+4. **Test de contrato**: añade un caso por estado relevante a `calls` en
+   `test/api-contracts.test.ts` y el cargador del handler en `handlers`. Si la ruta
+   es nueva, el test de cobertura del registro te avisará de lo que falte.
+5. **Versión**: aplica la tabla de [Versionado](#versionado) y cambia
+   `API_CONTRACT_VERSION` en `lib/contracts/openapi.ts`; añade una línea al
+   [Historial](#historial-del-contrato).
+6. `npm run contracts:generate` y confirma `openapi.json` junto al código.
+7. Si añadiste una ruta, súbela también a la tabla de endpoints de `README.md`.
+8. Verifica: `npm run lint`, `npx tsc --noEmit`, `npm run test:unit`.
+
+Para quitar o cambiar una ruta existente, primero decide si es un cambio
+incompatible (ver abajo).
+
+## Versionado
+
+La versión del contrato es `info.version` del documento (`API_CONTRACT_VERSION`) y
+sigue **semver**. Se actualiza en el mismo cambio que modifica el contrato.
+
+### Qué es un cambio incompatible (rompe clientes)
+
+- Quitar o renombrar una ruta, un método o un campo de respuesta.
+- Cambiar el tipo, el formato o la nulabilidad de un campo de respuesta.
+- Hacer obligatorio un campo de solicitud, o **endurecer** lo que se acepta
+  (nuevos límites, valores antes tolerados que pasan a `400`).
+- Cambiar el estado HTTP de un resultado existente (por ejemplo `204` a `404`).
+- Endurecer el acceso (de `read` a `user`, de `user` a `admin`).
+- Quitar un valor de un enumerado de solicitud o cambiar el significado de uno
+  existente.
+- Quitar o cambiar un campo de error del que dependan los clientes (`issues`,
+  `code`, `eligibility`).
+
+### Qué es un cambio aditivo (permitido sin versión nueva de la ruta)
+
+- Añadir una ruta o un método nuevos.
+- Añadir un campo **opcional** a una solicitud.
+- Añadir un campo a una respuesta (los clientes deben ignorar los campos que no
+  conozcan; por eso las respuestas no declaran `additionalProperties: false`).
+- Relajar el acceso o ampliar lo que se acepta.
+- Añadir un valor a un enumerado de solicitud. Un valor nuevo en un enumerado de
+  **respuesta** también es aditivo, pero exige subir la versión menor y avisarlo
+  en el historial, porque un cliente estricto podría no esperarlo.
+
+El **texto** de `error` es para personas y puede reformularse sin que sea un
+cambio incompatible; el contrato son los códigos de estado y los campos
+estructurados.
+
+### Qué sube la versión
+
+| Cambio | Versión |
+| --- | --- |
+| Incompatible (solo con decisión explícita y `/api/v2`, ver abajo) | **MAJOR** |
+| Aditivo (ruta, campo opcional, estado nuevo documentado) | **MINOR** |
+| Solo documentación: descripciones, corrección del contrato para que refleje lo que la API ya hacía | **PATCH** |
+
+Cambiar el contrato sin subir `API_CONTRACT_VERSION` es un error de revisión: el
+test solo obliga a regenerar `openapi.json`, no a subir la versión.
+
+### Cuándo introducir `/api/v2`
+
+Solo cuando un cambio incompatible sea inevitable **y** existan clientes que no se
+puedan actualizar a la vez que el servidor (hoy el único cliente es la propia UI,
+que se despliega junto a la API; por eso no hay rutas versionadas). Entonces:
+
+1. Se abre una decisión explícita (backlog o issue) que lista los clientes afectados.
+2. Las rutas nuevas viven en `pages/api/v2/**` con su propia entrada en el registro
+   (`/api/v2/...`). Las de `/api/...` siguen intactas y pasan por la deprecación.
+3. Se sube el MAJOR de `info.version`.
+
+Se prefiere el **prefijo en la ruta** a una cabecera de versión: es visible en
+los registros y en el visor OpenAPI, funciona con cualquier cliente y con cachés, y
+encaja con el enrutado por archivos de Next. Una cabecera sería menos invasiva en
+las URL, pero esconde la versión y complica el registro (la misma ruta con dos
+contratos).
+
+### Deprecación
+
+1. Anuncia el cambio en el [Historial](#historial-del-contrato) y sube la versión
+   menor.
+2. Marca la operación en el registro:
+   `deprecated: { since: '1.4.0', sunset: '2027-03-01', replacement: '`GET /api/v2/...`' }`.
+   El OpenAPI la publica como `deprecated: true` con la fecha y el reemplazo.
+3. Mantén la ruta funcionando **al menos 90 días**, o hasta comprobar (UI,
+   auditoría, registros) que ningún cliente conocido la usa.
+4. Retírala en el siguiente MAJOR (o, si no se llegó a publicar una versión nueva,
+   con una decisión explícita). Quita su entrada del registro y regenera.
+
+## Historial del contrato
+
+| Versión | Fecha | Cambio |
+| --- | --- | --- |
+| 1.0.0 | 2026-10-15 | Primer contrato: 27 rutas (26 existentes y `GET /api/openapi.json`), descritas tal y como funcionaban. |
+
+## Incoherencias conocidas
+
+El contrato las documenta **tal cual**. Arreglarlas cambia respuestas y exige
+aplicar el versionado anterior.
+
+### Errores y mensajes
+
+- Los `401`, `403`, `405` y `429` de `lib/http` están en **inglés**
+  (`authentication required`, `admin role required`, `invalid origin`,
+  `origin not allowed`, `origin check failed`, `too many attempts, please try again later`),
+  igual que `setup token required` e `invalid credentials`. El resto de errores
+  está en español.
+- `405` es texto plano (`Method Not Allowed`), no el JSON `{ error }` del resto.
+- `GET /api/evidences/modules/{id}` responde `401` con `Debes iniciar sesión.`
+  (español) cuando el servidor permite lecturas anónimas; en los demás casos el
+  `401` es `authentication required`.
+- Un fallo inesperado no capturado devuelve el `500` por defecto de Next (no JSON).
+  Solo `POST /api/roadmaps`, `POST /api/users`, `POST /api/auth/setup` y
+  `PUT /api/evidences/{id}/review` devuelven un `500` JSON propio.
+- `POST /api/quizzes/modules/{id}` responde `400` con `issues` (cuerpo no válido)
+  o sin `issues` (respuestas incompletas): el mismo estado con dos formas.
+
+### Orden de comprobaciones
+
+- En `GET|PUT|DELETE /api/evidences/modules/{id}`, `PUT /api/progress/lessons/{id}`
+  y `GET|POST /api/quizzes/modules/{id}` los parámetros se validan **antes** de
+  comprobar la sesión: un id no válido sin sesión recibe `400`, no `401`.
+- En `PUT|DELETE /api/evidences/modules/{id}`, si `getRoadmapReadScope` falla
+  escribe un `401` y después un `404` sobre la misma respuesta (heredado de la
+  refactorización de dominios, ver `ARCHITECTURE.md`).
+
+### Comportamientos distintos entre rutas
+
+- `DELETE /api/roadmaps/{id}` responde `204` aunque el roadmap no exista; módulos,
+  lecciones y evidencias responden `404`.
+- `PATCH /api/users/{id}` devuelve el usuario sin `roadmap_access_ids` salvo con
+  `set_roadmap_access`; `GET /api/users` siempre lo incluye. `POST /api/users` no
+  lo incluye. `can_view_all_roadmaps` es el valor guardado en unas respuestas y el
+  efectivo (los admin siempre `1`) en otras.
+- `role` y `status` desconocidos se toleran (`user` y sin filtro) en lugar de `400`
+  (ver `VALIDATION.md`).
+
+### Diferencias SQLite y PostgreSQL
+
+Los repositorios devuelven filas tal cual, así que el JSON depende del motor:
+
+- `COUNT(...)` llega como número en SQLite y como **texto numérico** en PostgreSQL
+  (`module_count`, `roadmap_count` de categorías, temas y niveles,
+  `unclassified_roadmaps`). Contrato: `number | string`.
+- `has_evidence` en el detalle de roadmap es `0`/`1` en SQLite y `boolean` en
+  PostgreSQL. Contrato: `number | boolean`.
+- Las fechas son texto: ISO 8601 en lo que genera la aplicación, y el formato de
+  `CURRENT_TIMESTAMP` en las columnas con valor por defecto de SQLite.
+
+## Seguimiento
+
+Hallazgos que **no** se corrigieron aquí (no se cambia ninguna respuesta):
+
+1. **Posible filtrado de respuestas de cuestionarios** (revisar con prioridad):
+   `GET /api/modules`, `GET /api/modules/{id}` y `PUT /api/modules/{id}` devuelven
+   todas las columnas del módulo, incluida `quiz_bank`, que contiene el texto de
+   las respuestas correctas. `GET /api/quizzes/modules/{id}` sí las oculta; los
+   endpoints de módulos las exponen a cualquier lector.
+2. En PostgreSQL, `RoadmapCard` no muestra el número de módulos porque
+   `module_count` llega como texto y el componente comprueba `typeof ... === 'number'`.
+   Convertir en el repositorio (`Number(...)`) arreglaría este y los demás contadores.
+3. Unificar el idioma y el formato de los errores (`401`/`403`/`405`/`429`), con
+   un `MAJOR` o una decisión explícita.
+4. Decidir `DELETE /api/roadmaps/{id}` (`204` vs `404`) y el doble `401`+`404` de
+   las evidencias.
+5. Hacer que `PATCH /api/users/{id}` devuelva siempre la misma forma de usuario.
+6. Migrar `validateRoadmapImport` a Zod (ver `VALIDATION.md`) para que las
+   solicitudes de importación se documenten por completo en OpenAPI (hoy `roadmap`
+   figura como `object`).
+7. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
+   ningún campo de la API (el servidor devuelve la elegibilidad en
+   `GET /api/quizzes/modules/{id}`); se eliminó al adoptar los tipos compartidos.
+8. Añadir `license` al documento OpenAPI si el proyecto se publica.

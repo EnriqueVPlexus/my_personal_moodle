@@ -49,7 +49,7 @@ export function positiveInt(label: string) {
       return z.NEVER
     }
     return id
-  })
+  }).meta({ type: 'integer', minimum: 1, description: 'Identificador numérico positivo.' })
 }
 
 export function optionalPositiveInt(label: string) {

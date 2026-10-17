@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
-import type { NormalizedRoadmapImport, RoadmapImportIssue } from '../../lib/domains/content/import'
+import type { ImportPreviewResponse, ValidationIssue } from '../../lib/contracts'
 
 const exampleRoadmap = {
   title: 'Roadmap de ejemplo',
@@ -29,13 +29,13 @@ const exampleRoadmap = {
   }]
 }
 
-type Preview = { roadmap: NormalizedRoadmapImport; existing: { id: number; title: string } | null }
+type Preview = ImportPreviewResponse
 
 export default function ImportRoadmapPage() {
   const { isAdmin, loading } = useAuth()
   const [jsonText, setJsonText] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
-  const [issues, setIssues] = useState<RoadmapImportIssue[]>([])
+  const [issues, setIssues] = useState<ValidationIssue[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [resultId, setResultId] = useState<number | null>(null)

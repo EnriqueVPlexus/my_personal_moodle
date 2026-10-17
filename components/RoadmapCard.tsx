@@ -3,7 +3,7 @@ import React from 'react'
 type Props = {
   title: string
   description?: string
-  moduleCount?: number
+  moduleCount?: number | string
   category?: string | null
   topics?: string[]
 }

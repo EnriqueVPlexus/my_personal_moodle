@@ -36,8 +36,8 @@ const roadmapShape = {
   topics: topicsField,
   duration_weeks_min: weeksField,
   duration_weeks_max: weeksField,
-  version: z.unknown().optional(),
-  published_at: z.unknown().optional()
+  version: z.unknown().meta({ type: 'string', description: 'Versión con formato `v1.0.0`.' }).optional(),
+  published_at: z.unknown().meta({ type: 'string', description: 'Fecha de publicación (ISO 8601).' }).optional()
 }
 
 const INVALID_VERSION = 'La versión del roadmap no es válida (formato v1.0.0).'

@@ -170,12 +170,14 @@ lib/
     audit/                  Registro de auditoría.
                             (cada dominio: service.ts, ports.ts, types.ts, repositories/, index.ts)
   validation/               Esquemas Zod y contrato de error de la API (ver VALIDATION.md).
+  contracts/                Respuestas Zod, registro de rutas y generador OpenAPI (ver API_CONTRACTS.md).
   branding.ts               Branding configurable por entorno.
 
 test/                       Suite Vitest, helpers y guías curl.
 styles/                     Tailwind y estilos globales.
 public/brand/               Assets de marca por defecto.
-scripts/                    Utilidades de mantenimiento.
+scripts/                    Utilidades de mantenimiento (incluye generate-openapi.ts).
+openapi.json                Contrato OpenAPI 3.1 generado (npm run contracts:generate).
 ```
 
 ## UI y Branding
@@ -287,6 +289,7 @@ Comandos útiles:
 ```bash
 npm run test:unit
 npm run test:coverage
+npm run contracts:generate   # regenera openapi.json
 npm run build
 ```
 
@@ -299,46 +302,26 @@ dominio) y los errores siguen un contrato único: `400` con
 `error` es el mensaje del primer problema, porque la interfaz lo muestra tal cual.
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
-`VALIDATION.md`.
+`VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
+`lib/contracts` (`API_CONTRACTS.md`).
 
 ## Endpoints Relevantes
 
-Consulta y contenido:
+La lista de endpoints ya no se mantiene a mano: el contrato de la API se genera
+desde `lib/contracts` y cubre todas las rutas de `pages/api`.
 
-- `GET /api/roadmaps`
-- `GET /api/roadmaps?q=&category=&topic=&level=&duration=&sort=`
-- `GET /api/roadmaps/:id`
-- `GET /api/roadmaps/metadata`
-- `POST /api/roadmaps`
-- `PUT /api/roadmaps/:id`
-- `DELETE /api/roadmaps/:id`
-- `GET /api/modules`
-- `GET /api/modules?roadmap_id=1`
-- `GET /api/modules/:id`
-- `POST /api/modules`
-- `PUT /api/modules/:id`
-- `DELETE /api/modules/:id`
-- `GET /api/lessons?module_id=1`
-- `GET /api/lessons/:id`
-- `POST /api/lessons`
-- `PUT /api/lessons/:id`
-- `DELETE /api/lessons/:id`
-- `PUT /api/progress/lessons/:id`
-- `GET /api/progress/roadmaps`
+- `openapi.json` (raíz del repositorio): documento OpenAPI 3.1 con parámetros,
+  cuerpos, respuestas y errores de cada ruta. `npm run contracts:generate` lo
+  regenera y un test falla si está desactualizado.
+- `GET /api/openapi.json`: el mismo documento, público y de solo lectura.
+- `API_CONTRACTS.md`: cómo se define el contrato, cómo añadir un endpoint, reglas
+  de versionado y deprecación, e incoherencias conocidas.
+- Tabla de endpoints por dominio y guía para consumidores: sección `API` de
+  `README.md`.
 
-Auth, usuarios y auditoría:
-
-- `GET /api/auth/setup-status`
-- `POST /api/auth/setup`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `GET /api/users`
-- `POST /api/users`
-- `PATCH /api/users/:id`
-- `GET /api/audit-logs`
-
-Las escrituras requieren sesión admin y pasan por comprobación de origen. Los identificadores de ruta (`:id`) deben ser enteros positivos y cualquier entrada inválida devuelve `400` (ver `Validación De Entradas`).
+Las escrituras pasan por comprobación de origen, los identificadores de ruta
+(`:id`) deben ser enteros positivos y cualquier entrada inválida devuelve `400`
+(ver `Validación De Entradas`).
 
 ## Seguridad Operativa
 

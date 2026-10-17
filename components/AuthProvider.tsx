@@ -1,11 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import type { AuthUserContract } from '../lib/contracts'
 
-export type ClientUser = {
-  id: number
-  email: string
-  name?: string | null
-  role: 'admin' | 'user'
-}
+export type ClientUser = AuthUserContract
 
 type AuthContextValue = {
   user: ClientUser | null
