@@ -2,7 +2,7 @@
 
 CanteraHub es una aplicación web para gestionar una cantera interna de aprendizaje técnico. Permite publicar roadmaps formativos, organizar módulos, enlazar recursos oficiales, definir prácticas con evidencia entregable y gobernar el acceso mediante roles.
 
-La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**, además de una base SQLite local que se migra y se alimenta automáticamente al arrancar.
+La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**, además de PostgreSQL local en Docker para desarrollo. SQLite sigue disponible como alternativa.
 
 ## Funcionalidad
 
@@ -26,7 +26,7 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 - Next.js 15 con Pages Router.
 - React 18 y TypeScript.
 - Tailwind CSS.
-- SQLite local con `sqlite` y `sqlite3`.
+- PostgreSQL local en Docker y SQLite como alternativa.
 - API Routes de Next.js.
 - Vitest, Testing Library y cobertura V8.
 - ESLint con configuración de Next.js.
@@ -41,12 +41,13 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 ```bash
 npm install
 cp .env.example .env.local
+npm run db:dev:up
 npm run dev
 ```
 
 La aplicación se abre normalmente en `http://localhost:3000`. Si el puerto está ocupado, Next.js usará otro disponible.
 
-La base de datos local se crea en `data/dev.db`. Al abrir la app por primera vez se ejecutan migraciones, se siembran los roadmaps incluidos y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial.
+Por defecto, `.env.example` configura PostgreSQL local en Docker. `npm run db:dev:up` levanta el contenedor persistente y aplica las migraciones; al abrir la app por primera vez se siembran los roadmaps incluidos y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial. Para usar SQLite, deja `DATABASE_URL` vacía en `.env.local`; los datos se guardan en `data/dev.db`.
 
 ## Setup Inicial
 

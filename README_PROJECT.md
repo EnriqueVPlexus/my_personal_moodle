@@ -20,6 +20,19 @@ npm install
 cp .env.example .env.local
 ```
 
+1. Arranca PostgreSQL local y aplica las migraciones:
+
+```bash
+npm run db:dev:up
+```
+
+La base de desarrollo usa un volumen Docker persistente independiente de la
+base efímera de tests. Para detener el contenedor sin borrar los datos:
+
+```bash
+npm run db:dev:down
+```
+
 1. Arranca el servidor:
 
 ```bash
@@ -28,9 +41,10 @@ npm run dev
 
 1. Abre `http://localhost:3000`.
 
-Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
-Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
-el proyecto de Supabase configurado en `.env.local`.
+Por defecto, `.env.example` configura PostgreSQL local en Docker. La aplicación
+elige SQLite (`data/dev.db`) si `DATABASE_URL` está vacía; si apunta a una
+instancia PostgreSQL, usa esa base. No uses las credenciales locales del compose
+en producción.
 
 El código está organizado por dominios con servicios, puertos y repositorios;
 ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -192,12 +206,17 @@ openapi.json                Contrato OpenAPI 3.1 generado (npm run contracts:gen
 
 `lib/persistence/` crea y migra estas tablas. El backend se selecciona así:
 
-- Desarrollo y tests: SQLite local cuando `DATABASE_URL` no existe.
+- Desarrollo: PostgreSQL local persistente en Docker cuando `DATABASE_URL`
+  apunta a `localhost:55433`; SQLite local cuando `DATABASE_URL` está vacía.
+- Tests de integración: PostgreSQL efímero separado en Docker (`55432`).
 - Supabase/producción: PostgreSQL cuando `DATABASE_URL` existe.
 
 No se deben configurar ambos backends para compartir datos automáticamente:
-SQLite es una base local independiente y PostgreSQL es la fuente central del
-entorno remoto.
+SQLite, PostgreSQL local y PostgreSQL remoto son bases independientes.
+
+Para usar SQLite en desarrollo, deja `DATABASE_URL` vacía en `.env.local`.
+Para reiniciar completamente la base PostgreSQL local y borrar sus datos,
+ejecuta `docker compose -f docker-compose.dev.yml down -v` de forma explícita.
 
 Variables mínimas para PostgreSQL:
 
