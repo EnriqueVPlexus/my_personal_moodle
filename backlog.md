@@ -81,6 +81,8 @@ hoja de ruta: 9, versionado completo de roadmaps.
 - Usar una rama tematica por cambio con impacto funcional o de infraestructura.
 - Nombrar las ramas como `feature/<tema>` o `chore/<tema>` cuando no haya
   comportamiento de usuario.
+- Integrar en `develop` (rama por defecto) y llevar `develop` a `main` solo
+  cuando lo integrado este probado (ver `WORKFLOW.md`).
 - Mantener `main` siempre integrable y fusionar solo despues de tests, lint y
   build.
 - Agrupar en una misma rama las tareas pequeñas que forman una sola unidad

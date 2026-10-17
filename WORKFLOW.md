@@ -145,14 +145,29 @@ Ejemplos:
 
 No hace falta meter todo el backlog en una sola PR.
 
+## Ramas permanentes
+
+- `develop`: rama de integracion y rama por defecto del repositorio. Todas las
+  ramas de trabajo salen de aqui y vuelven aqui mediante PR.
+- `main`: rama estable. Solo recibe PRs desde `develop` cuando lo integrado
+  esta probado (tests, lint, build y verificacion manual si aplica).
+- `chore/audit-fix-force` fue la rama de integracion hasta el 2026-10-17; queda
+  sustituida por `develop`.
+
 ## Flujo recomendado
 
-1. Actualizar `main`.
-2. Crear una rama desde `main`.
+1. Actualizar `develop` (`git checkout develop && git pull`).
+2. Crear una rama desde `develop`.
 3. Implementar una fase pequena y completa.
 4. Ejecutar pruebas relevantes.
-5. Abrir PR o mergear cuando el cambio sea entendible y estable.
-6. Volver a `main` y repetir con la siguiente fase.
+5. Abrir PR contra `develop` cuando el cambio sea entendible y estable.
+6. Volver a `develop` y repetir con la siguiente fase.
+7. Cuando un conjunto de cambios este probado en `develop`, abrir un PR
+   `develop` -> `main` y fusionarlo con merge commit.
+
+Tras fusionar `develop` en `main`, `main` no debe recibir commits directos; si
+hace falta un arreglo urgente, se abre en una rama desde `main`, se fusiona en
+`main` y despues se lleva tambien a `develop`.
 
 ## Recomendacion para este proyecto
 
