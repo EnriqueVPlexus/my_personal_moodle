@@ -39,6 +39,13 @@ del producto poco a poco.
   (`openapi.json`), tipos compartidos y tests de contrato (`API_CONTRACTS.md`).
 - [x] Fuga de respuestas de quizzes y conteos en PostgreSQL (contrato 2.0.0).
 - [x] Importador de roadmaps validado con Zod y documentado en OpenAPI (contrato 3.1.0).
+- [x] Transacciones reutilizables (`DatabaseClient.transaction()` y puerto
+  `UnitOfWork`) en las operaciones de varias escrituras.
+- [x] Coherencia de la API: errores 401/403/405/429 en espanol, `405` en JSON,
+  DELETE de roadmap idempotente y forma unica de usuario (contrato 3.0.0).
+- [x] Pendientes de coherencia: un unico `401` en evidencias, alta de usuarios
+  con `roadmap_access_ids` y reglas de version compartidas (contrato 3.2.0).
+- [x] Errores 500 en JSON para toda la API con `withApiErrors` (contrato 3.3.0).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -46,15 +53,15 @@ La base funcional principal ya esta implementada. Los siguientes pasos se
 centran en convertir la aplicacion en una plataforma web multiusuario con
 PostgreSQL central, manteniendo SQLite para desarrollo y tests.
 
-1. Capa de acceso SQL estructurada.
-2. Validacion de entradas y contratos con `zod`.
-3. Separacion de dominios: autenticacion, contenido, progreso,
+1. [x] Capa de acceso SQL estructurada.
+2. [x] Validacion de entradas y contratos con `zod`.
+3. [x] Separacion de dominios: autenticacion, contenido, progreso,
    administracion y persistencia.
-4. Migraciones formales de PostgreSQL.
-5. Tests de integracion contra PostgreSQL real.
-6. Gestion de conexiones y transacciones.
-7. Contratos API estables y documentados.
-8. Observabilidad, backups y recuperacion.
+4. [x] Migraciones formales de PostgreSQL.
+5. [x] Tests de integracion contra PostgreSQL real.
+6. [x] Gestion de conexiones y transacciones.
+7. [x] Contratos API estables y documentados.
+8. [ ] Observabilidad, backups y recuperacion (pausado hasta decidir hosting).
 9. Versionado completo de roadmaps.
 10. PWA con manifest y service worker.
 
@@ -62,6 +69,12 @@ Cada punto debe mantener compatibilidad con SQLite local salvo que el propio
 objetivo requiera PostgreSQL. La migracion `feature/migration_2_postgresql`
 ya esta integrada en `main`; los detalles pendientes de esa integracion se
 mantienen en los bloques tecnicos de abajo.
+
+Integracion (2026-10-17): los puntos 1 a 7 y las correcciones derivadas estan
+fusionados en `main` mediante la cadena de PRs #3 a #12 (sobre
+`chore/audit-fix-force`) y el PR #14 (`chore/audit-fix-force` -> `main`).
+Contrato API vigente: 3.3.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
+hoja de ruta: 9, versionado completo de roadmaps.
 
 ## Estrategia de ramas
 
