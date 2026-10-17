@@ -111,7 +111,10 @@ detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
   por ejemplo [Swagger Editor](https://editor.swagger.io), o impórtalo en Postman
   o Insomnia.
 - Reglas de versionado y cómo evoluciona: `API_CONTRACTS.md`. La versión del
-  contrato es `info.version` (semver) y hoy es **3.2.0**.
+  contrato es `info.version` (semver) y hoy es **3.3.0**.
+- Novedades de la 3.3.0: un fallo inesperado del servidor responde siempre `500` con
+  JSON `{ "error": "Error interno del servidor." }` (antes, el `500` por defecto de
+  Next, que no era JSON). El detalle solo se registra en el servidor.
 - Novedades de la 3.2.0: `POST /api/users` devuelve el mismo usuario que el listado y
   `PATCH` (con `roadmap_access_ids`, vacío al crearlo); `PUT`/`DELETE`
   `/api/evidences/modules/{id}` sin sesión responden solo `401`.
@@ -145,7 +148,8 @@ detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
   (`400`) añaden `issues: [{ "path": "title", "message": "..." }]`. Otros códigos
   llevan campos extra: `409` de importación (`code`) y `429` de cuestionarios
   (`eligibility`). `405` es JSON `{ "error": "Método no permitido." }` con la cabecera
-  `Allow`. El texto de `error` es para personas; no lo uses para decidir la lógica
+  `Allow`. Un fallo inesperado (`500`) también es JSON
+  `{ "error": "Error interno del servidor." }`. El texto de `error` es para personas; no lo uses para decidir la lógica
   del cliente. Más detalle en `API_CONTRACTS.md` y `VALIDATION.md`.
 - **Tipos**: los tipos TypeScript de las respuestas se importan de
   `lib/contracts` (`import type { ... } from '../lib/contracts'`).

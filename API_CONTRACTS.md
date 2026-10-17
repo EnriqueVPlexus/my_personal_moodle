@@ -11,7 +11,8 @@ documentó; la 2.0.0 corrige una fuga de seguridad y unifica tipos; la 3.0.0
 hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuario;
 la 3.1.0 documenta por completo el documento de `POST /api/roadmaps/import`;
 la 3.2.0 hace que `POST /api/users` devuelva `roadmap_access_ids` y corrige el doble
-`401`+`404` de las evidencias (ver el [Historial](#historial-del-contrato)).
+`401`+`404` de las evidencias; la 3.3.0 hace que todo fallo inesperado responda un
+`500` JSON `{ error }` (ver el [Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
 
@@ -153,15 +154,18 @@ respuesta que no se refleje en el registro hace fallar el test.
 3. **Registro**: añade la entrada con `operation({ ... })` en `registry.ts` con
    `auth`, `request` (reutilizando los esquemas de `lib/validation`) y los estados
    que el handler puede devolver. Describe el comportamiento **real**.
-4. **Test de contrato**: añade un caso por estado relevante a `calls` en
+4. **Handler envuelto**: toda ruta exporta `export default withApiErrors(handler)`
+   (`lib/http/errors.ts`); el `500` de fallos inesperados ya está documentado para
+   todas las operaciones y `test/api-routes-wrapped.test.ts` falla si falta.
+5. **Test de contrato**: añade un caso por estado relevante a `calls` en
    `test/api-contracts.test.ts` y el cargador del handler en `handlers`. Si la ruta
    es nueva, el test de cobertura del registro te avisará de lo que falte.
-5. **Versión**: aplica la tabla de [Versionado](#versionado) y cambia
+6. **Versión**: aplica la tabla de [Versionado](#versionado) y cambia
    `API_CONTRACT_VERSION` en `lib/contracts/openapi.ts`; añade una línea al
    [Historial](#historial-del-contrato).
-6. `npm run contracts:generate` y confirma `openapi.json` junto al código.
-7. Si añadiste una ruta, súbela también a la tabla de endpoints de `README.md`.
-8. Verifica: `npm run lint`, `npx tsc --noEmit`, `npm run test:unit`.
+7. `npm run contracts:generate` y confirma `openapi.json` junto al código.
+8. Si añadiste una ruta, súbela también a la tabla de endpoints de `README.md`.
+9. Verifica: `npm run lint`, `npx tsc --noEmit`, `npm run test:unit`.
 
 Para quitar o cambiar una ruta existente, primero decide si es un cambio
 incompatible (ver abajo).
@@ -265,6 +269,33 @@ contratos).
 | 3.0.0 | 2026-10-16 | Coherencia de la API: errores `401`/`403`/`405`/`429` en español, `405` en JSON, `DELETE /api/roadmaps/{id}` con `200` si no existía y `PATCH /api/users/{id}` con una única forma de usuario. Ver [3.0.0](#300-2026-10-16). |
 | 3.1.0 | 2026-10-16 | Aditivo: `POST /api/roadmaps/import` describe el documento `roadmap` completo (modelo `RoadmapImportDocument`) en lugar de `object`. Sin cambios de comportamiento. Ver [3.1.0](#310-2026-10-16). |
 | 3.2.0 | 2026-10-16 | Aditivo: `POST /api/users` devuelve el mismo usuario que el listado y `PATCH` (con `roadmap_access_ids`). Corrección: `PUT`/`DELETE /api/evidences/modules/{id}` ya no escriben un `404` tras el `401`. Ver [3.2.0](#320-2026-10-16). |
+| 3.3.0 | 2026-10-17 | Aditivo: todas las rutas documentan el `500` JSON `{ error: "Error interno del servidor." }` para fallos inesperados (antes, el `500` por defecto de Next, sin JSON). Ver [3.3.0](#330-2026-10-17). |
+
+### 3.3.0 (2026-10-17)
+
+Versión **MINOR**. Ningún estado, campo ni mensaje existente deja de funcionar: un
+fallo inesperado ya devolvía `500`; lo que cambia es que el cuerpo pasa a ser el
+JSON `{ error }` del resto de la API en lugar de la respuesta de Next, que no era
+JSON y que un cliente no podía interpretar. Por la [política](#qué-sube-la-versión)
+no es **MAJOR** (no se cambia el estado ni se quita ni cambia un campo del que
+dependiera un cliente) ni solo **PATCH** (aparece un estado documentado nuevo en cada
+operación); es un estado nuevo documentado, es decir, **MINOR**.
+
+- Todos los manejadores de `pages/api` pasan por `withApiErrors`
+  (`lib/http/errors.ts`): una excepción o promesa rechazada responde `500` con
+  `{ "error": "Error interno del servidor." }`. El error real solo se registra en el
+  servidor (método y ruta, sin la query) y nunca llega al cliente (ni mensaje, ni
+  traza, ni SQL). Si las cabeceras ya se habían enviado no se escribe nada más.
+- Cada operación del registro documenta ese `500` (`crossCutting`). `POST /api/roadmaps`,
+  `POST /api/users` y `POST /api/auth/setup` conservan su `500` de dominio
+  (`No se pudo crear el roadmap.`/`No se pudo crear el usuario.`), que no es una excepción
+  sino un resultado `failed` del servicio.
+- `PUT /api/evidences/{id}/review` deja de tener un `500` propio
+  (`Error al revisar la evidencia.`): usa el mensaje genérico unificado. El texto de
+  `error` es para personas, así que no es un cambio incompatible.
+
+Qué hacer en un cliente: ante un `500`, lee `error` como en cualquier otro error; no
+dependas de su texto.
 
 ### 3.2.0 (2026-10-16)
 
@@ -393,9 +424,8 @@ aplicar el versionado anterior.
 
 - Desde la [3.0.0](#300-2026-10-16) todos los errores de la API están en español
   y el `405` es el JSON `{ error }` del resto (con `Allow`).
-- Un fallo inesperado no capturado devuelve el `500` por defecto de Next (no JSON).
-  Solo `POST /api/roadmaps`, `POST /api/users`, `POST /api/auth/setup` y
-  `PUT /api/evidences/{id}/review` devuelven un `500` JSON propio.
+- Desde la [3.3.0](#330-2026-10-17) los fallos inesperados devuelven el `500` JSON
+  `{ error: "Error interno del servidor." }` en todas las rutas.
 - `POST /api/quizzes/modules/{id}` responde `400` con `issues` (cuerpo no válido)
   o sin `issues` (respuestas incompletas): el mismo estado con dos formas.
 
@@ -427,7 +457,8 @@ Hallazgos que **no** se corrigieron aquí (no se cambia ninguna respuesta). La f
 de `quiz_bank` y los contadores como texto en PostgreSQL se resolvieron en
 [2.0.0](#200-2026-10-15); el idioma de los errores, el `405` en JSON, el
 `DELETE` de roadmaps y la forma del `PATCH` de usuarios, en [3.0.0](#300-2026-10-16); el doble `401`+`404` de las evidencias y la forma de
-`POST /api/users`, en [3.2.0](#320-2026-10-16).
+`POST /api/users`, en [3.2.0](#320-2026-10-16); el `500` no JSON, en
+[3.3.0](#330-2026-10-17).
 
 1. El tipo local `quiz_eligibility` de la pantalla de módulo no correspondía a
    ningún campo de la API (el servidor devuelve la elegibilidad en
