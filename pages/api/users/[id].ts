@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { requireAdmin } from '../../../lib/http/auth'
@@ -15,7 +16,7 @@ const VIOLATION_MESSAGES: Record<UserRuleViolation, string> = {
   unknown_roadmaps: 'Algún roadmap indicado no existe.'
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method !== 'PATCH') {
@@ -58,3 +59,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!outcome.user) return res.status(404).json({ error: 'Usuario no encontrado.' })
   return res.status(200).json(outcome.user)
 }
+
+export default withApiErrors(handler)

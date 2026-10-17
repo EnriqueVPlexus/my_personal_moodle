@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../../lib/http/errors'
 import { createServices } from '../../../../lib/container'
 import { getRoadmapReadScope, requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
@@ -6,7 +7,7 @@ import { evidenceModuleQuerySchema, saveEvidenceBodySchema } from '../../../../l
 import { parseOrRespond } from '../../../../lib/validation/http'
 import { methodNotAllowed } from '../../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const params = parseOrRespond(evidenceModuleQuerySchema, req.query, res)
   if (!params) return
@@ -59,3 +60,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return methodNotAllowed(res, 'GET, PUT, DELETE')
 }
+
+export default withApiErrors(handler)

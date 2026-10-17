@@ -171,6 +171,14 @@ function arrangeServices() {
   }
 }
 
+/** Makes `target[method]` reject with an error whose message must never reach the client. */
+function throwFrom(target: Record<string, any>, method: string) {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  target[method] = vi.fn(async () => {
+    throw new Error('secret SQL detail')
+  })
+}
+
 function parseWire(body: unknown) {
   return JSON.parse(JSON.stringify(body))
 }
@@ -351,6 +359,15 @@ const calls: Array<[string, Call]> = [
   ['update user with unknown roadmaps', { operationId: 'updateUser', status: 400, arrange: () => { state.services.admin.updateUser = vi.fn(async () => ({ status: 'rejected', violation: 'unknown_roadmaps' })) }, req: { body: { action: 'set_roadmap_access', can_view_all_roadmaps: false, roadmap_ids: [99] } } }],
   ['update user missing', { operationId: 'updateUser', status: 404, arrange: () => { state.services.admin.updateUser = vi.fn(async () => ({ status: 'not_found' })) }, req: { body: { action: 'set_active', is_active: true } } }],
 
+  // Unexpected failures: a throwing service must still answer the JSON 500 contract.
+  ['dashboard throws', { operationId: 'getAdminDashboard', status: 500, arrange: () => throwFrom(state.services.admin, 'getDashboard') }],
+  ['list users throws', { operationId: 'listUsers', status: 500, arrange: () => throwFrom(state.services.admin, 'listUsers') }],
+  ['catalog search throws', { operationId: 'listRoadmaps', status: 500, role: null, arrange: () => throwFrom(state.services.content, 'searchCatalog') }],
+  ['export roadmap throws', { operationId: 'exportRoadmap', status: 500, arrange: () => throwFrom(state.services.content, 'exportRoadmap') }],
+  ['import roadmap throws', { operationId: 'importRoadmap', status: 500, arrange: () => throwFrom(state.services.content, 'importRoadmap'), req: { body: { action: 'publish', strategy: 'create', roadmap: importDoc } } }],
+  ['login throws', { operationId: 'login', status: 500, role: null, arrange: () => throwFrom(state.auth, 'login'), req: { body: { email: 'a@b.c', password: 'x' } } }],
+  ['portfolio throws', { operationId: 'getPortfolio', status: 500, role: 'user', arrange: () => throwFrom(state.services.progress, 'getPortfolio') }],
+
   // Contract
   ['openapi document', { operationId: 'getOpenApiDocument', status: 200, role: null }]
 ]
@@ -366,6 +383,13 @@ describe('API handler responses match the contract registry', () => {
 
   it.each(calls)('%s', async (_name, call) => {
     await run(call)
+  })
+
+  it('answers unexpected failures with the generic JSON message and logs the real error', async () => {
+    const res = await run({ operationId: 'getAdminDashboard', status: 500, arrange: () => throwFrom(state.services.admin, 'getDashboard') })
+    expect(res.body).toEqual({ error: 'Error interno del servidor.' })
+    expect(JSON.stringify(res.body)).not.toContain('secret')
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('GET'), expect.objectContaining({ message: 'secret SQL detail' }))
   })
 
   it('documents the exact message of the error responses it checks', async () => {

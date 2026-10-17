@@ -138,7 +138,8 @@ const noContent = (description: string): ContractResponse => ({ description })
 
 /**
  * Adds the statuses every operation of the same kind shares (400 validation,
- * 401/403 auth, 403 origin). Explicit entries in `responses` win.
+ * 401/403 auth, 403 origin, 500 unexpected failure). Explicit entries in
+ * `responses` win (e.g. the domain-specific 500 of the create endpoints).
  */
 function crossCutting(input: OperationInput): Record<number, ContractResponse> {
   const { auth, method } = input
@@ -167,6 +168,10 @@ function crossCutting(input: OperationInput): Record<number, ContractResponse> {
     )
   }
   if (forbidden.length > 0) extra[403] = error(forbidden.join(' '))
+
+  extra[500] = error(
+    'Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.'
+  )
 
   return { ...extra, ...input.responses }
 }
@@ -633,7 +638,6 @@ export const operations: ApiOperation[] = [
     responses: {
       200: json('Evidencia revisada.', moduleEvidenceSchema),
       404: notFound('Evidencia no encontrada'),
-      500: error('Error inesperado al revisar (`Error al revisar la evidencia.`).')
     }
   }),
   operation({

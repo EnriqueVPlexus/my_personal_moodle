@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../../lib/http/errors'
 import { requireAdmin } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
 import { createServices } from '../../../../lib/container'
@@ -7,7 +8,7 @@ import { parseOrRespond } from '../../../../lib/validation/http'
 import { roadmapIdQuerySchema } from '../../../../lib/validation/roadmaps'
 import { methodNotAllowed } from '../../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return methodNotAllowed(res, 'GET')
   }
@@ -34,3 +35,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   return res.status(200).json(exportData)
 }
+
+export default withApiErrors(handler)

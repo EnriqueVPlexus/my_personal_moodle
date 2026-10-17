@@ -524,7 +524,7 @@ describe('PUT /api/evidences/[id]/review', () => {
     }), res)
 
     expect(res.statusCode).toBe(500)
-    expect(res.body).toEqual({ error: 'Error al revisar la evidencia.' })
+    expect(res.body).toEqual({ error: 'Error interno del servidor.' })
     expect(JSON.stringify(res.body)).not.toContain('boom')
     expect(consoleError).toHaveBeenCalled()
   })

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../../lib/http/errors'
 import { createServices } from '../../../../lib/container'
 import { getUserFromRequest, requireReadAccess, requireUser } from '../../../../lib/http/auth'
 import { openDb } from '../../../../lib/persistence'
@@ -6,7 +7,7 @@ import { parseOrRespond } from '../../../../lib/validation/http'
 import { quizAttemptBodySchema, quizModuleQuerySchema } from '../../../../lib/validation/quizzes'
 import { methodNotAllowed } from '../../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const params = parseOrRespond(quizModuleQuerySchema, req.query, res)
   if (!params) return
@@ -57,3 +58,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return methodNotAllowed(res, 'GET, POST')
 }
+
+export default withApiErrors(handler)

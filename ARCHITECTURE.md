@@ -18,8 +18,8 @@ pages/api (handler)  ->  service  ->  port  <-  repository  ->  persistence
 
 | Capa | Dónde vive | Qué hace | Puede importar |
 | --- | --- | --- | --- |
-| Handler | `pages/api/**` | Comprueba el método, valida (`lib/validation`), autentica/autoriza, llama a **un** servicio y responde. | `lib/container`, `lib/http/*`, `lib/validation/*`, `lib/persistence` (solo `openDb`), tipos y funciones puras de `lib/domains/*`. |
-| Adaptador HTTP | `lib/http/` | Traduce `NextApiRequest`/`NextApiResponse` a datos planos y al revés (cookies, origen, IP, 401/403/429). Es la **única** capa de dominio/infraestructura que importa `next` (además de `lib/validation/http.ts`, que escribe la respuesta de error de validación). | `lib/domains/*`, `lib/persistence`. |
+| Handler | `pages/api/**` | Envuelto en `withApiErrors` (fallos inesperados → `500` JSON), comprueba el método, valida (`lib/validation`), autentica/autoriza, llama a **un** servicio y responde. | `lib/container`, `lib/http/*`, `lib/validation/*`, `lib/persistence` (solo `openDb`), tipos y funciones puras de `lib/domains/*`. |
+| Adaptador HTTP | `lib/http/` | Traduce `NextApiRequest`/`NextApiResponse` a datos planos y al revés (cookies, origen, IP, 401/403/429, 405 y el `500` de `withApiErrors` en `errors.ts`). Es la **única** capa de dominio/infraestructura que importa `next` (además de `lib/validation/http.ts`, que escribe la respuesta de error de validación). | `lib/domains/*`, `lib/persistence`. |
 | Contrato | `lib/contracts/` | Describe el borde HTTP: esquemas de **respuesta**, registro de rutas y generador OpenAPI. Reutiliza los esquemas de `lib/validation` para las solicitudes. No ejecuta nada en tiempo de petición (solo `GET /api/openapi.json` lo serializa). Ver `API_CONTRACTS.md`. | `zod`, `lib/validation/*` y constantes puras de `lib/domains/*`. **Nadie de `lib/domains`, `lib/http` ni `lib/persistence` lo importa**; handlers, UI (solo `import type`) y tests sí. |
 | Servicio | `lib/domains/<d>/service.ts` | Casos de uso y reglas de negocio. Recibe sus puertos por parámetro. | Sus propios `ports`/`types`, y funciones/tipos **puros** de otros dominios. Nunca `next`, SQL ni `lib/persistence`. |
 | Puerto | `lib/domains/<d>/ports.ts` | Interfaces TypeScript de lo que el servicio necesita (repositorios, lectores de otros dominios). | Solo `types`. |
@@ -165,10 +165,19 @@ saben qué driver hay debajo.
    (`null`, `{ status: 'not_found' }`, uniones discriminadas) en lugar de tocar
    `res`. Pon aquí cualquier regla de negocio.
 6. **Contenedor**: si el puerto es nuevo, conéctalo en `lib/container.ts`.
-7. **Handler**: método → validar con `parseOrRespond` → autenticar con
-   `requireAdmin`/`requireUser`/`getRoadmapReadScope` → llamar al servicio →
-   mapear el resultado a estado y cuerpo → `writeAuditLog` si es una acción
-   sensible.
+7. **Handler**: define `async function handler(req, res)` y expórtalo con
+   `export default withApiErrors(handler)` (`lib/http/errors.ts`). Dentro, el
+   orden es: método (`methodNotAllowed`) → validar con `parseOrRespond` →
+   autenticar con `requireAdmin`/`requireUser`/`getRoadmapReadScope` → llamar al
+   servicio → mapear el resultado a estado y cuerpo → `writeAuditLog` si es una
+   acción sensible. No hace falta `try/catch` para los fallos inesperados:
+   `withApiErrors` los registra (método y ruta) y responde
+   `500 { error: 'Error interno del servidor.' }` sin filtrar el detalle; si ya se
+   enviaron las cabeceras no escribe otra vez. Captura solo los errores que sepas
+   mapear a un estado concreto (p. ej. `DuplicateEmailError` → `409`).
+   `test/api-routes-wrapped.test.ts` falla si una ruta de `pages/api` no está
+   envuelta. Un `export const config` (p. ej. el límite del cuerpo) sigue siendo un
+   export nombrado independiente del envoltorio.
 8. **Contrato**: añade el esquema de respuesta y la entrada del registro
    (`lib/contracts`), un caso en `test/api-contracts.test.ts`, sube
    `API_CONTRACT_VERSION` si procede y ejecuta `npm run contracts:generate`

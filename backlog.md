@@ -1298,6 +1298,21 @@ Estado: hecho (2026-10-16)
   la validación de roadmaps y el seed.
 - Contrato 3.2.0 (MINOR). Detalle en [API_CONTRACTS.md](API_CONTRACTS.md#320-2026-10-16).
 
+### [x] Errores 500 en JSON para toda la API
+
+Estado: hecho (2026-10-17)
+
+- Nuevo envoltorio `withApiErrors` (`lib/http/errors.ts`) aplicado a las 27 rutas de
+  `pages/api`: una excepción o promesa rechazada responde `500` con
+  `{ "error": "Error interno del servidor." }`, registra el error real en servidor
+  (método y ruta) y no escribe nada si las cabeceras ya se enviaron.
+- `test/api-routes-wrapped.test.ts` falla si una ruta nueva no está envuelta.
+- `PUT /api/evidences/{id}/review` usa el mensaje unificado; `POST /api/roadmaps`,
+  `POST /api/users` y `POST /api/auth/setup` conservan su `500` de dominio
+  (`No se pudo crear ...`).
+- Contrato 3.3.0 (MINOR): el `500` se documenta en todas las operaciones. Detalle en
+  [API_CONTRACTS.md](API_CONTRACTS.md#330-2026-10-17).
+
 ## UI y Branding
 
 ### [x] UI Redesign: Header compacto y admin dropdown

@@ -303,7 +303,7 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.2.0).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.3.0).
 
 Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
 `DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
@@ -313,7 +313,10 @@ esquema Zod (`lib/domains/content/importSchema.ts`) y mantiene los mismos errore
 campo que ve el administrador. La 3.2.0 hace que `POST /api/users` devuelva también
 `roadmap_access_ids`, corrige el doble `401`+`404` de `PUT`/`DELETE`
 `/api/evidences/modules/{id}` y comparte el formato de `version` y `published_at` entre
-el importador, los roadmaps y el seed.
+el importador, los roadmaps y el seed. La 3.3.0 envuelve todos los handlers de
+`pages/api` con `withApiErrors` (`lib/http/errors.ts`): un fallo inesperado responde
+el `500` JSON `{ error: 'Error interno del servidor.' }` en lugar del `500` no JSON de
+Next, y el detalle solo se registra en el servidor.
 
 Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
 ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para

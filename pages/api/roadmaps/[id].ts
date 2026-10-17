@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
@@ -9,7 +10,7 @@ import { methodNotAllowed } from '../../../lib/http/methods'
 
 const ROADMAP_ALREADY_GONE_MESSAGE = 'El roadmap no existía; no había nada que borrar.'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { content, progress } = createServices(db)
 
@@ -74,3 +75,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(204).end()
   }
 }
+
+export default withApiErrors(handler)

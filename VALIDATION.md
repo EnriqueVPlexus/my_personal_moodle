@@ -105,8 +105,12 @@ Respuesta `400` de validación:
   (máximo 20). `path` usa la notación `campo`, `lista[0].campo`; es `''` cuando el
   problema afecta al cuerpo completo.
 - Nunca se incluyen trazas, SQL ni mensajes de excepciones. Los errores `500`
-  devuelven un texto genérico en español (p. ej. `evidences/[id]/review.ts` ya no
-  devuelve `error.message`; el detalle se registra en el servidor).
+  devuelven un texto genérico en español: toda excepción no controlada en
+  `pages/api` la captura `withApiErrors` (`lib/http/errors.ts`) y responde
+  `{ error: 'Error interno del servidor.' }`; el detalle se registra en el servidor
+  con el método y la ruta. Solo `POST /api/roadmaps`, `POST /api/users` y
+  `POST /api/auth/setup` devuelven un `500` propio (`No se pudo crear ...`) cuando
+  el servicio informa `failed`.
 - Los mensajes de usuario de `400`/`404`/`409` de las rutas tocadas están en español.
   Código, identificadores y comentarios siguen en inglés.
 
@@ -240,7 +244,8 @@ Decisiones de compatibilidad (el refactor no cambia el comportamiento):
 - `roadmaps/[id]` ya no pasa el `id` como cadena a `scopeAllowsRoadmap`.
 - `users/[id]`: `is_active` y `can_view_all_roadmaps` deben ser booleanos reales
   (antes `Boolean(undefined)` desactivaba al usuario) y el `id` debe ser positivo.
-- `evidences/[id]/review` no filtra `error.message` en el `500`.
+- `evidences/[id]/review` no filtra `error.message` en el `500` (desde la 3.3.0 usa
+  el mensaje genérico de `withApiErrors`).
 
 ## Rutas sin entrada que validar
 

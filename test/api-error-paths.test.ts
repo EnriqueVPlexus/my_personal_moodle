@@ -452,11 +452,17 @@ describe('users API edge cases', () => {
     await users(createRequest({ method: 'POST', body: { email: 'user@example.com', password: 'valid-password-123' } }), duplicate)
     expect(duplicate.statusCode).toBe(409)
 
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     db.run.mockRejectedValueOnce(new Error('boom'))
-    await expect(users(createRequest({
+    const unexpected = createResponse()
+    await users(createRequest({
       method: 'POST',
       body: { email: 'user@example.com', password: 'valid-password-123' }
-    }), createResponse())).rejects.toThrow('boom')
+    }), unexpected)
+    expect(unexpected.statusCode).toBe(500)
+    expect(unexpected.body).toEqual({ error: 'Error interno del servidor.' })
+    expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
 
     db.run.mockResolvedValueOnce({ lastID: 3 })
     const created = createResponse()

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { createSession, requireSameOrigin, validateSetupToken } from '../../../lib/http/auth'
 import { rateLimit, clearRateLimit } from '../../../lib/http/rateLimit'
@@ -8,7 +9,7 @@ import { setupBodySchema } from '../../../lib/validation/auth'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return methodNotAllowed(res, 'POST')
   }
@@ -53,3 +54,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   })
   return res.status(201).json({ user: { id: userId, email, name, role: 'admin' } })
 }
+
+export default withApiErrors(handler)
