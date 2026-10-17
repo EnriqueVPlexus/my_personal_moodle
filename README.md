@@ -2,7 +2,7 @@
 
 CanteraHub es una aplicación web para gestionar una cantera interna de aprendizaje técnico. Permite publicar roadmaps formativos, organizar módulos, enlazar recursos oficiales, definir prácticas con evidencia entregable y gobernar el acceso mediante roles.
 
-La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**, además de PostgreSQL local en Docker para desarrollo. SQLite sigue disponible como alternativa.
+La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**. El entorno local usa PostgreSQL persistente en Docker como base real; SQLite sigue disponible para pruebas y como origen de la migración.
 
 ## Funcionalidad
 
@@ -47,7 +47,7 @@ npm run dev
 
 La aplicación se abre normalmente en `http://localhost:3000`. Si el puerto está ocupado, Next.js usará otro disponible.
 
-Por defecto, `.env.example` configura PostgreSQL local en Docker. `npm run db:dev:up` levanta el contenedor persistente y aplica las migraciones; al abrir la app por primera vez se siembran los roadmaps incluidos y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial. Para usar SQLite, deja `DATABASE_URL` vacía en `.env.local`; los datos se guardan en `data/dev.db`.
+Por defecto, `.env.example` configura PostgreSQL local en Docker. `npm run db:dev:up` levanta el contenedor persistente y aplica las migraciones; al abrir la app por primera vez se siembran los roadmaps incluidos si la base está vacía y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial. Los datos existentes de `data/dev.db` ya se copiaron a esta PostgreSQL local. Desde ahora, los cambios se guardan en PostgreSQL; SQLite no se sincroniza automáticamente. Las sesiones activas no se copian, así que hay que iniciar sesión de nuevo. Para usar SQLite de forma aislada, deja `DATABASE_URL` vacía en `.env.local`.
 
 ## Setup Inicial
 
@@ -276,7 +276,7 @@ pages/             Pages Router, pantallas y API routes.
 public/brand/      Logo por defecto.
 styles/            Tailwind y estilos globales.
 test/              Tests, helpers y guías curl.
-data/dev.db        SQLite local generado en desarrollo.
+data/dev.db        SQLite legacy conservada como origen de la migración.
 ```
 
 ## Auditoría De Dependencias

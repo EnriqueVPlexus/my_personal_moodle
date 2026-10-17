@@ -66,7 +66,7 @@ tests.
 9. Versionado completo de roadmaps.
 10. PWA con manifest y service worker.
 11. [x] PostgreSQL local persistente con Docker para desarrollo.
-12. [ ] Validar la migracion de datos desde SQLite a PostgreSQL.
+12. [x] Validar la migracion de datos desde SQLite a PostgreSQL.
 
 Cada punto debe mantener compatibilidad con SQLite salvo que el propio
 objetivo requiera PostgreSQL. La migracion `feature/migration_2_postgresql`
@@ -1582,30 +1582,35 @@ Hecho cuando:
 - Existe una guia de despliegue reproducible.
 - La contraseña admin por defecto deja de ser un riesgo.
 
-### [ ] Validar la migración de datos desde SQLite a PostgreSQL
+### [x] Validar la migración de datos desde SQLite a PostgreSQL
 
-Estado: en curso. El importador ya existe (`npm run migrate:postgres`) y
-permite simular o aplicar la copia desde `data/dev.db`. La simulación local
-detectó 3 roadmaps, 34 módulos, 3 usuarios, 1 registro de progreso de roadmap
-y 6 registros de auditoría en SQLite; la base PostgreSQL Docker de desarrollo
-está vacía. No se han copiado datos. La simulación actual no informa los
-recuentos previstos de inserción cuando el destino está vacío, así que hace
-falta mejorar esa validación antes de aplicar.
+Estado: completado (2026-10-17). Los datos de `data/dev.db` se copiaron a
+`app_dev`, la PostgreSQL local persistente que queda como base real de
+desarrollo. La simulación fue ejecutada primero; después la importación se
+aplicó en una transacción. Recuento confirmado en ambas bases: 3 roadmaps,
+34 módulos, 3 usuarios, 1 registro de progreso de roadmap y 6 registros de
+auditoría; las demás tablas de contenido/progreso tenían 0 filas. No hubo
+relaciones sin mapear ni huérfanas. Se omitió 1 sesión activa deliberadamente
+(requerirá iniciar sesión de nuevo); `rate_limits` tenía 0 filas y se excluyó
+por ser estado transitorio. SQLite quedó intacta y se conserva como copia
+histórica, sin sincronización automática. Una segunda simulación detectó el
+contenido ya existente y no prevé altas duplicadas.
 
 Tareas:
 
-- Mejorar la simulación para mostrar qué filas se crearían y validar las
+- [x] Mejorar la simulación para mostrar qué filas se crearían y validar las
   relaciones que se importarían, incluso con un destino vacío.
-- Probar la aplicación completa contra una PostgreSQL Docker desechable y
-  verificar recuentos y relaciones antes de tocar la base persistente.
-- Aplicar la migración a la base local de desarrollo solo tras revisar los
+- [x] Probar la aplicación completa contra una PostgreSQL Docker desechable y
+  verificar recuentos, relaciones e idempotencia antes de tocar la base
+  persistente.
+- [x] Aplicar la migración a la base local de desarrollo tras revisar los
   recuentos y confirmar que es el origen/destino esperado.
 
 Hecho cuando:
 
-- Los datos relevantes y sus relaciones se importan sin pérdida.
-- La simulación predice y la verificación posterior confirma los recuentos.
-- La importación no modifica el origen SQLite y es segura frente a duplicados.
+- [x] Los datos relevantes y sus relaciones se importan sin pérdida.
+- [x] La simulación predice y la verificación posterior confirma los recuentos.
+- [x] La importación no modifica el origen SQLite y es segura frente a duplicados.
 
 ## Notas de producto
 

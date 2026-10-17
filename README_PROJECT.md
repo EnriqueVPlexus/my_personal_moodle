@@ -43,15 +43,19 @@ npm run dev
 
 Por defecto, `.env.example` configura PostgreSQL local en Docker. La aplicación
 elige SQLite (`data/dev.db`) si `DATABASE_URL` está vacía; si apunta a una
-instancia PostgreSQL, usa esa base. No uses las credenciales locales del compose
-en producción.
+instancia PostgreSQL, usa esa base. En este entorno, la base Docker persistente
+es la base real de desarrollo. Los datos de `data/dev.db` se copiaron a ella;
+SQLite se conserva como origen histórico y no se sincroniza automáticamente.
+Las sesiones y los límites de tasa no se copian. No uses las credenciales
+locales del compose en producción.
 
 El código está organizado por dominios con servicios, puertos y repositorios;
 ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
 **Todos los dominios ya están migrados** por repositorios tipados
-(`lib/domains/<dominio>/repositories/`), manteniendo SQLite local y PostgreSQL remoto:
+(`lib/domains/<dominio>/repositories/`), manteniendo compatibilidad entre
+SQLite y PostgreSQL:
 roadmaps, módulos, lecciones, auditoría, usuarios, progreso
 (`lib/domains/progress/repositories/progressRepository.ts`, incluyendo el CTE con función ventana de
 `listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
@@ -229,15 +233,18 @@ SUPABASE_PROJECT_REF=PROJECT_REF
 La contraseña de la base de datos y cualquier clave privada deben permanecer
 en `.env.local` o en los secretos del proveedor de despliegue.
 
-Para copiar datos de una SQLite existente a PostgreSQL, usa primero la
-simulación:
+Para copiar datos de una SQLite existente a PostgreSQL, aplica antes el
+esquema formal en el destino (`npm run migrate:up`) y usa primero la simulación.
+La simulación abre SQLite en modo solo lectura y no escribe en PostgreSQL;
+informa de registros nuevos, conservados, preparados para copiar y relaciones
+sin mapear:
 
 ```bash
 npm run migrate:postgres
 ```
 
-El comando no modifica PostgreSQL y omite las sesiones activas. Revisa los
-recuentos antes de aplicar la copia con:
+El comando omite las sesiones activas. Revisa todos los recuentos y resuelve
+cualquier relación sin mapear antes de aplicar la copia con:
 
 ```bash
 npm run migrate:postgres -- --apply
@@ -245,6 +252,15 @@ npm run migrate:postgres -- --apply
 
 No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
 comparar antes los IDs y recuentos de ambas bases.
+
+Migración local realizada el 2026-10-17 desde `data/dev.db` hacia `app_dev`:
+3 roadmaps, 34 módulos, 3 usuarios, 1 registro de progreso de roadmap y 6
+registros de auditoría. No había categorías, temas, lecciones, evidencias,
+intentos de quiz, accesos ni progreso de lección. La simulación no detectó
+relaciones sin mapear; los recuentos PostgreSQL se verificaron después y
+coinciden con el origen. Se omitió 1 sesión para forzar un nuevo inicio de
+sesión; `rate_limits` tenía 0 filas y tampoco se importa. La copia se ejecuta
+dentro de una transacción y SQLite queda sin modificar.
 
 ### Migraciones formales de PostgreSQL
 
