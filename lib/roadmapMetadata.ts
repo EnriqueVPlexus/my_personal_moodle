@@ -1,3 +1,5 @@
+import type { DatabaseClient } from './database'
+
 export const MODULE_LEVELS = ['beginner', 'intermediate', 'advanced', 'capstone'] as const
 
 export type ModuleLevel = typeof MODULE_LEVELS[number]
@@ -66,7 +68,7 @@ export function normalizeTopics(value: unknown): string[] {
 }
 
 export async function saveRoadmapMetadata(
-  db: any,
+  db: DatabaseClient,
   roadmapId: number | string,
   categoryValue: unknown,
   topicsValue: unknown
@@ -95,6 +97,9 @@ export async function saveRoadmapMetadata(
       [topicKey, topicLabel]
     )
     const topic = await db.get('SELECT id FROM topics WHERE key = ?', [topicKey])
+    // SQLite-only shorthand; PostgresDb.exec()/query() already rewrites this to
+    // `ON CONFLICT DO NOTHING` for the Postgres backend (see lib/postgresDb.ts
+    // translateSql), so no explicit branching is required here.
     await db.run(
       'INSERT OR IGNORE INTO roadmap_topics (roadmap_id, topic_id) VALUES (?, ?)',
       [roadmapId, topic.id]
@@ -102,13 +107,16 @@ export async function saveRoadmapMetadata(
   }
 }
 
-export async function getRoadmapTopics(db: any, roadmapId: number | string) {
+export async function getRoadmapTopics(db: DatabaseClient, roadmapId: number | string) {
+  const orderBy = db.backend === 'postgres'
+    ? 'ORDER BY lower(topics.label), topics.key'
+    : 'ORDER BY topics.label COLLATE NOCASE, topics.key'
   return db.all(
     `SELECT topics.key, topics.label
      FROM topics
      INNER JOIN roadmap_topics ON roadmap_topics.topic_id = topics.id
      WHERE roadmap_topics.roadmap_id = ?
-     ORDER BY topics.label COLLATE NOCASE, topics.key`,
+     ${orderBy}`,
     [roadmapId]
   )
 }

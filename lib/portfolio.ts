@@ -1,3 +1,8 @@
+import type { DatabaseClient } from './database'
+import type { PostgresDb } from './postgresDb'
+import { getQueryDatabase } from './kyselyDatabase'
+import { listEvidences } from './evidenceRepository'
+
 export type PortfolioItem = {
   id: number
   module_id: number
@@ -29,26 +34,38 @@ export type UserPortfolio = {
   }>
 }
 
-export async function getUserPortfolio(db: any, userId: number): Promise<UserPortfolio | null> {
-  const userRow = await db.get(
-    'SELECT id, name, email FROM users WHERE id = ? AND is_active = 1',
-    [userId]
-  )
+type ActiveUserRow = { id: number; name: string | null; email: string }
+
+async function findActiveUserForPortfolio(db: DatabaseClient, userId: number): Promise<ActiveUserRow | null> {
+  if (db.backend !== 'postgres') {
+    const row = await db.get<ActiveUserRow>(
+      'SELECT id, name, email FROM users WHERE id = ? AND is_active = 1',
+      [userId]
+    )
+    return row || null
+  }
+
+  const row = await getQueryDatabase((db as PostgresDb).getPool())
+    .selectFrom('users')
+    .select(['id', 'name', 'email'])
+    .where('id', '=', userId)
+    .where('is_active', '=', 1)
+    .executeTakeFirst()
+
+  return row ? { id: row.id, name: row.name, email: row.email } : null
+}
+
+export async function getUserPortfolio(db: DatabaseClient, userId: number): Promise<UserPortfolio | null> {
+  const userRow = await findActiveUserForPortfolio(db, userId)
   if (!userRow) return null
 
-  const rows = await db.all(
-    `SELECT e.id, e.module_id, e.evidence_type, e.url, e.note,
-            COALESCE(e.review_status, 'pendiente') AS review_status,
-            e.admin_comment, e.reviewed_at, e.updated_at,
-            m.title AS module_title, m.position AS module_position,
-            r.id AS roadmap_id, r.title AS roadmap_title
-     FROM user_module_evidences e
-     INNER JOIN modules m ON m.id = e.module_id
-     INNER JOIN roadmaps r ON r.id = m.roadmap_id
-     WHERE e.user_id = ?
-     ORDER BY r.title, COALESCE(m.position, m.id), e.updated_at DESC`,
-    [userId]
-  )
+  const rows = (await listEvidences(db, { userId })).slice().sort((a, b) => {
+    if (a.roadmap_title !== b.roadmap_title) return a.roadmap_title < b.roadmap_title ? -1 : 1
+    const aPosition = a.module_position ?? a.module_id
+    const bPosition = b.module_position ?? b.module_id
+    if (aPosition !== bPosition) return aPosition - bPosition
+    return b.updated_at.localeCompare(a.updated_at)
+  })
 
   const roadmapMap = new Map<number, { id: number; title: string; items: PortfolioItem[] }>()
   let approvedCount = 0
@@ -66,13 +83,13 @@ export async function getUserPortfolio(db: any, userId: number): Promise<UserPor
       id: row.id,
       module_id: row.module_id,
       module_title: row.module_title,
-      module_position: row.module_position,
+      module_position: row.module_position ?? row.module_id,
       roadmap_id: row.roadmap_id,
       roadmap_title: row.roadmap_title,
-      evidence_type: row.evidence_type,
+      evidence_type: row.evidence_type as PortfolioItem['evidence_type'],
       url: row.url,
       note: row.note,
-      review_status: row.review_status,
+      review_status: row.review_status as PortfolioItem['review_status'],
       admin_comment: row.admin_comment,
       reviewed_at: row.reviewed_at,
       updated_at: row.updated_at

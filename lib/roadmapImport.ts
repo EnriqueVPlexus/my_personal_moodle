@@ -7,6 +7,7 @@ import {
   saveRoadmapMetadata
 } from './roadmapMetadata'
 import { normalizePublishedAt, normalizeRoadmapVersion } from './roadmapVersion'
+import type { DatabaseClient } from './database'
 
 export type RoadmapImportStrategy = 'create' | 'update'
 
@@ -306,10 +307,17 @@ export class RoadmapImportConflictError extends Error {
 }
 
 export async function persistRoadmapImport(
-  db: any,
+  db: DatabaseClient,
   roadmap: NormalizedRoadmapImport,
   strategy: RoadmapImportStrategy
 ) {
+  // Raw parameterized SQL (get/run/exec) is used deliberately for every
+  // statement in this transaction, on both backends, instead of the Kysely
+  // query builder used elsewhere: getQueryDatabase(pool) builds against the
+  // raw Postgres pool, not the PoolClient that PostgresDb.exec('BEGIN')
+  // checks out, so Kysely calls would not participate in this transaction.
+  // `BEGIN IMMEDIATE` is SQLite-specific syntax; PostgresDb.exec() already
+  // rewrites it to plain `BEGIN` before opening its dedicated PoolClient.
   await db.exec('BEGIN IMMEDIATE')
   try {
     const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [roadmap.title])
@@ -430,7 +438,7 @@ function parseJsonObject(value: unknown): Record<string, string> {
 }
 
 export async function exportRoadmapAsJson(
-  db: any,
+  db: DatabaseClient,
   roadmapId: number | string
 ): Promise<NormalizedRoadmapImport | null> {
   const roadmap = await db.get(
@@ -445,12 +453,15 @@ export async function exportRoadmapAsJson(
 
   if (!roadmap) return null
 
+  const topicsOrderBy = db.backend === 'postgres'
+    ? 'ORDER BY lower(topics.label), topics.key'
+    : 'ORDER BY topics.label COLLATE NOCASE, topics.key'
   const topicRows = await db.all(
     `SELECT topics.label
      FROM topics
      INNER JOIN roadmap_topics ON roadmap_topics.topic_id = topics.id
      WHERE roadmap_topics.roadmap_id = ?
-     ORDER BY topics.label COLLATE NOCASE, topics.key`,
+     ${topicsOrderBy}`,
     [roadmapId]
   )
   const topics = topicRows.map((t: any) => String(t.label))

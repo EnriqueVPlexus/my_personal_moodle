@@ -177,9 +177,27 @@ export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> 
   return Object.assign(db, { backend: 'sqlite' as const }) as unknown as DatabaseClient
 }
 
+// Cached by connection string, mirroring the sqlite3ModulePromise pattern
+// above: openDb() used to build a brand-new PostgresDb (and therefore a
+// brand-new pg Pool with its own `max` connections) on every single call,
+// which meant every per-request pages/api handler spun up its own pool
+// instead of sharing one process-wide pool. Keying by connection string
+// (rather than a single bare variable) is cheap insurance in case it ever
+// changed at runtime (e.g. across tests) - in practice there's only one
+// DATABASE_URL per process.
+const postgresDbInstances = new Map<string, PostgresDb>()
+function getPostgresDb(connectionString: string): PostgresDb {
+  let db = postgresDbInstances.get(connectionString)
+  if (!db) {
+    db = new PostgresDb(connectionString)
+    postgresDbInstances.set(connectionString, db)
+  }
+  return db
+}
+
 export async function openDb(): Promise<DatabaseClient> {
   if (process.env.DATABASE_URL) {
-    const db = new PostgresDb(process.env.DATABASE_URL)
+    const db = getPostgresDb(process.env.DATABASE_URL)
     if (!initialized) {
       await db.migrate()
       await seedRoadmaps(db)

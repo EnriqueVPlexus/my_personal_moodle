@@ -1,52 +1,21 @@
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { describe, expect, it, vi } from 'vitest'
 import { exportRoadmapAsJson, validateRoadmapImport } from '../lib/roadmapImport'
+import { openSqliteDb } from '../lib/db'
 import { createRequest, createResponse } from './helpers/api'
+import type { DatabaseClient } from '../lib/database'
 
-const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
+async function setupDb(): Promise<DatabaseClient> {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-export-'))
+  const db = await openSqliteDb(path.join(tmp, 'test.db'))
 
-async function setupDb() {
-  const db = await open({ filename: ':memory:', driver: sqlite3.Database })
   await db.exec(`
-    CREATE TABLE roadmaps (
-      id INTEGER PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      duration TEXT,
-      duration_weeks_min REAL,
-      duration_weeks_max REAL,
-      objectives TEXT,
-      methodology TEXT,
-      evaluation_weights TEXT,
-      category_id INTEGER
-    );
-    CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
-    CREATE TABLE topics (id INTEGER PRIMARY KEY, key TEXT, label TEXT);
-    CREATE TABLE roadmap_topics (roadmap_id INTEGER, topic_id INTEGER);
-    CREATE TABLE modules (
-      id INTEGER PRIMARY KEY,
-      roadmap_id INTEGER NOT NULL,
-      position INTEGER,
-      title TEXT NOT NULL,
-      level TEXT,
-      duration TEXT,
-      duration_weeks_min REAL,
-      duration_weeks_max REAL,
-      objective TEXT,
-      contents TEXT,
-      importance TEXT,
-      official_resources TEXT,
-      support_videos TEXT,
-      practical_activity TEXT,
-      deliverable_evidence TEXT,
-      evaluation TEXT
-    );
+    INSERT INTO roadmap_categories (id, key, label) VALUES (1, 'cloud-y-devops', 'Cloud y DevOps');
+    INSERT INTO topics (id, key, label) VALUES (1, 'aws', 'AWS'), (2, 'devops', 'DevOps');
 
-    INSERT INTO roadmap_categories VALUES (1, 'cloud-y-devops', 'Cloud y DevOps');
-    INSERT INTO topics VALUES (1, 'aws', 'AWS'), (2, 'devops', 'DevOps');
-
-    INSERT INTO roadmaps VALUES (
+    INSERT INTO roadmaps (id, title, description, duration, duration_weeks_min, duration_weeks_max, objectives, methodology, evaluation_weights, category_id, version, published_at) VALUES (
       7,
       'IA para DevOps',
       'Ruta aplicada',
@@ -55,12 +24,12 @@ async function setupDb() {
       '["Aprender IA", "Automatizar"]',
       '["Práctica guiada"]',
       '{"Quizzes": "30%", "Evidencias": "70%"}',
-      1
+      1, 'v1.0.0', '2026-01-01T00:00:00.000Z'
     );
 
-    INSERT INTO roadmap_topics VALUES (7, 1), (7, 2);
+    INSERT INTO roadmap_topics (roadmap_id, topic_id) VALUES (7, 1), (7, 2);
 
-    INSERT INTO modules VALUES (
+    INSERT INTO modules (id, roadmap_id, position, title, level, duration, duration_weeks_min, duration_weeks_max, objective, contents, importance, official_resources, support_videos, practical_activity, deliverable_evidence, evaluation) VALUES (
       15, 7, 1,
       'Observabilidad de agentes',
       'intermediate',
@@ -75,6 +44,7 @@ async function setupDb() {
       'Evaluación continua'
     );
   `)
+
   return db
 }
 

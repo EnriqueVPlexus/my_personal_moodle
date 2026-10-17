@@ -10,8 +10,6 @@ import {
 import {
   buildModuleQuiz,
   gradeModuleQuiz,
-  getModuleQuizSummary,
-  saveModuleQuizAttempt,
   toPublicModuleQuiz
 } from '../lib/quizzes'
 import {
@@ -122,47 +120,6 @@ describe('quiz helpers', () => {
       passed: true
     })
     expect(grade.feedback.every(item => item.is_correct)).toBe(true)
-  })
-
-  it('stores quiz attempts and builds quiz summaries', async () => {
-    const db = {
-      run: vi.fn(),
-      get: vi.fn()
-        .mockResolvedValueOnce({
-          attempts_count: 2,
-          average_score_percentage: 66.6,
-          best_score_percentage: 100
-        })
-        .mockResolvedValueOnce({
-          score: 2,
-          max_score: 3,
-          submitted_at: '2026-07-12T08:00:00.000Z'
-        })
-    }
-
-    const attempt = await saveModuleQuizAttempt(db as any, 2, moduleFixture, {
-      'module-content': 0
-    })
-    const summary = await getModuleQuizSummary(db as any, 2, 4)
-
-    expect(db.run).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_quiz_attempts'), expect.arrayContaining([
-      2,
-      7,
-      4,
-      'module',
-      attempt.score,
-      attempt.max_score
-    ]))
-    expect(summary).toMatchObject({
-      attempts_count: 2,
-      average_score_percentage: 67,
-      best_score_percentage: 100,
-      latest_attempt: {
-        score: 2,
-        max_score: 3,
-        percentage: 67
-      }
-    })
   })
 
   it('uses explicit options, supports enriched types and caps the bank at five questions', () => {

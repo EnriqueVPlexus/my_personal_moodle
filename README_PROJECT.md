@@ -32,9 +32,62 @@ Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
 Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
 el proyecto de Supabase configurado en `.env.local`.
 
-La capa SQL estructurada usa Kysely para las nuevas consultas tipadas. Las
-consultas existentes se migran gradualmente por repositorios, manteniendo
-SQLite local y PostgreSQL remoto durante la transición.
+La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
+**Todos los dominios ya están migrados** por repositorios tipados
+(`lib/*Repository.ts`), manteniendo SQLite local y PostgreSQL remoto:
+roadmaps, módulos, lecciones, auditoría, usuarios, progreso
+(`lib/progressRepository.ts`, incluyendo el CTE con función ventana de
+`listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
+roadmap/lección), quizzes (`lib/quizRepository.ts`, intentos y estadísticas
+por módulo), evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
+la revisión admin), el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
+de sus consultas agregadas traducidas a Postgres; el cálculo de días de
+inactividad ya está verificado contra una PostgreSQL real —
+`test/postgres-integration/inactivity-days.postgres-integration.test.ts` —,
+lo que además destapó y corrigió un `GROUP BY` incompleto en la CTE
+`learner_progress` que SQLite toleraba pero Postgres no),
+portfolio (`lib/portfolio.ts`, reutilizando `evidenceRepository.listEvidences`
+en vez de duplicar el join) e import/export de roadmaps
+(`lib/roadmapImport.ts`/`lib/roadmapMetadata.ts`, único dominio con
+transacción multi-tabla — usa SQL crudo parametrizado en ambos backends
+dentro de la transacción en vez de Kysely, ya que el query builder no
+participa del cliente de conexión que Postgres usa para `BEGIN`/`COMMIT`).
+Tests de integración contra PostgreSQL real: cubiertos auth, contenido
+(roadmaps/módulos/lecciones), progreso (incluyendo el CTE con función
+ventana), quizzes, importación (incluyendo un `ROLLBACK` real forzado a
+mitad de transacción) y el cálculo de `inactivity_days` del panel admin, en
+`test/postgres-integration/*.postgres-integration.test.ts` (se saltan salvo
+que exista `TEST_DATABASE_URL` o `DATABASE_URL`). Tienen su propia config,
+`vitest.integration.config.ts`, que los ejecuta fichero a fichero
+(`fileParallelism: false`, por conflictos de `migrate()` concurrente);
+`npm run test:unit` los excluye y además vacía `DATABASE_URL`, así que los
+tests unitarios siempre usan SQLite aunque `direnv` cargue la variable. Corren
+contra una base PostgreSQL local aislada vía Docker
+(`docker-compose.test.yml`, `postgres:16-alpine`, sin volumen persistente):
+
+```bash
+npm run test:db:up      # levanta el contenedor en localhost:55432 y aplica
+                         # las migraciones formales (scripts/migrate.ts up)
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/app_test \
+  npm run test:integration:run
+npm run test:db:down    # detiene el contenedor y descarta sus datos (-v)
+```
+
+o el atajo `npm run test:integration` (levanta, ejecuta y desmonta, y
+devuelve el código de salida de los tests). Configura `TEST_DATABASE_URL` igual
+que `DATABASE_URL` (vía `direnv`, ver `.envrc`) para no repetirlo en cada
+comando. Si `TEST_DATABASE_URL` no está definida, los tests caen a
+`DATABASE_URL` (la Supabase real compartida) — útil para quien aún no tiene
+Docker configurado, pero no aislado. Detalle completo en
+`test/postgres-integration/README.md` y en `backlog.md`.
+
+`openDb()` (`lib/db.ts`) cachea la instancia `PostgresDb`/`Pool` por
+proceso (antes creaba un pool nuevo en cada llamada); `PostgresDb` define
+timeouts de conexión/idle y un listener de error en el pool — ver
+`test/postgres-integration/connection-pool.postgres-integration.test.ts` y
+`backlog.md` ("Gestion de conexiones y transacciones") para el detalle y lo
+que queda pendiente (manejo de errores no uniforme en todas las rutas de
+`pages/api/**`).
 
 ## Dominio Funcional
 
@@ -151,6 +204,24 @@ npm run migrate:postgres -- --apply
 
 No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
 comparar antes los IDs y recuentos de ambas bases.
+
+### Migraciones formales de PostgreSQL
+
+Para levantar o actualizar el esquema de PostgreSQL de forma versionada
+(en vez del bootstrap ad-hoc de `PostgresDb.migrate()`, pensado solo para
+tests), usa el migrador basado en `Kysely` (`migrations/*.ts` +
+`scripts/migrate.ts`):
+
+```bash
+npm run migrate:status   # qué migraciones están ejecutadas / pendientes
+npm run migrate:up       # aplica las migraciones pendientes
+npm run migrate:down     # revierte exactamente la última migración
+```
+
+Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
+`migrate:status` antes de `migrate:up`. Detalle de diseño, el porqué de
+`.ifNotExists()` y la prueba de bootstrap desde cero en
+`backlog.md` ("Migraciones formales de PostgreSQL").
 
 `lib/db.ts` crea y migra estas tablas:
 

@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { writeAuditLog } from '../../../../lib/audit'
 import { requireAdmin } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
 import {
   EVIDENCE_REVIEW_STATUSES,
-  EvidenceReviewStatus,
-  reviewModuleEvidence
+  EvidenceReviewStatus
 } from '../../../../lib/evidences'
+import { getEvidenceById, reviewModuleEvidence } from '../../../../lib/evidenceRepository'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
@@ -33,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const previous = await getEvidenceById(db, evidenceId)
     const updated = await reviewModuleEvidence(db, evidenceId, admin.id, {
       reviewStatus: review_status as EvidenceReviewStatus,
       adminComment: admin_comment
@@ -41,6 +43,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!updated) {
       return res.status(404).json({ error: 'Evidencia no encontrada' })
     }
+
+    await writeAuditLog({
+      db,
+      req,
+      user: admin,
+      action: 'evidence.review',
+      entityType: 'evidence',
+      entityId: evidenceId,
+      details: {
+        user_id: updated.user_id,
+        module_id: updated.module_id,
+        previous_review_status: previous?.review_status ?? null,
+        review_status: updated.review_status,
+        admin_comment: updated.admin_comment ?? null
+      }
+    })
 
     return res.status(200).json(updated)
   } catch (error) {

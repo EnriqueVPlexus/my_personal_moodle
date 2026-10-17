@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireUser } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
-import { MAX_LESSON_TIME_INCREMENT_SECONDS, setLessonProgress } from '../../../../lib/progress'
+import { MAX_LESSON_TIME_INCREMENT_SECONDS, setLessonProgress } from '../../../../lib/progressRepository'
 
 function toBoolean(value: unknown) {
   if (typeof value === 'boolean') return value

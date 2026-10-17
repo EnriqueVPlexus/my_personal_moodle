@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
+import { listEvidences } from '../../../lib/evidenceRepository'
+import { EVIDENCE_REVIEW_STATUSES, EvidenceReviewStatus } from '../../../lib/evidences'
 
 function optionalPositiveId(value: string | string[] | undefined) {
   if (value === undefined) return null
@@ -25,45 +27,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'invalid filter id' })
   }
 
-  const statusFilter = typeof req.query.status === 'string' && ['pendiente', 'aprobado', 'requiere_cambios'].includes(req.query.status)
-    ? req.query.status
+  const statusFilter = typeof req.query.status === 'string' && EVIDENCE_REVIEW_STATUSES.includes(req.query.status as EvidenceReviewStatus)
+    ? (req.query.status as EvidenceReviewStatus)
     : null
 
-  const filters: string[] = []
-  const params: (number | string)[] = []
-  if (userId) {
-    filters.push('e.user_id = ?')
-    params.push(userId)
-  }
-  if (moduleId) {
-    filters.push('e.module_id = ?')
-    params.push(moduleId)
-  }
-  if (roadmapId) {
-    filters.push('m.roadmap_id = ?')
-    params.push(roadmapId)
-  }
-  if (statusFilter) {
-    filters.push("COALESCE(e.review_status, 'pendiente') = ?")
-    params.push(statusFilter)
-  }
-
-  const evidences = await db.all(
-    `SELECT e.id, e.user_id, e.module_id, e.evidence_type, e.url, e.note,
-            COALESCE(e.review_status, 'pendiente') AS review_status,
-            e.admin_comment, e.reviewed_at, e.reviewed_by_user_id,
-            e.created_at, e.updated_at,
-            u.email AS user_email, u.name AS user_name,
-            m.title AS module_title, m.position AS module_position,
-            r.id AS roadmap_id, r.title AS roadmap_title
-     FROM user_module_evidences e
-     INNER JOIN users u ON u.id = e.user_id
-     INNER JOIN modules m ON m.id = e.module_id
-     INNER JOIN roadmaps r ON r.id = m.roadmap_id
-     ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
-     ORDER BY e.updated_at DESC, e.id DESC`,
-    params
-  )
+  const evidences = await listEvidences(db, {
+    userId,
+    moduleId,
+    roadmapId,
+    status: statusFilter
+  })
 
   return res.status(200).json(evidences)
 }

@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getRoadmapReadScope, requireUser, scopeAllowsRoadmap } from '../../../../lib/auth'
 import { openDb } from '../../../../lib/db'
-import { getModuleEvidence, saveModuleEvidence, validateEvidenceInput } from '../../../../lib/evidences'
-import { touchRoadmapProgress } from '../../../../lib/progress'
+import { deleteModuleEvidence, getModuleEvidence, saveModuleEvidence } from '../../../../lib/evidenceRepository'
+import { validateEvidenceInput } from '../../../../lib/evidences'
+import { findModuleById } from '../../../../lib/moduleRepository'
+import { touchRoadmapProgress } from '../../../../lib/progressRepository'
 
 function getId(value: string | string[] | undefined) {
   const id = Number(Array.isArray(value) ? value[0] : value)
@@ -19,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!scope) return
     if (!scope.user) return res.status(401).json({ error: 'authentication required' })
 
-    const moduleRow = await db.get('SELECT id, roadmap_id FROM modules WHERE id = ?', [moduleId])
+    const moduleRow = await findModuleById(db, moduleId)
     if (!moduleRow || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) {
       return res.status(404).json({ error: 'not found' })
     }
@@ -33,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireUser(req, res, db)
     if (!user) return
 
-    const moduleRow = await db.get('SELECT id, roadmap_id FROM modules WHERE id = ?', [moduleId])
+    const moduleRow = await findModuleById(db, moduleId)
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
 
     const scope = await getRoadmapReadScope(req, res, db)
@@ -57,17 +59,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'DELETE') {
     const user = await requireUser(req, res, db)
     if (!user) return
-    const moduleRow = await db.get('SELECT id, roadmap_id FROM modules WHERE id = ?', [moduleId])
+    const moduleRow = await findModuleById(db, moduleId)
     if (!moduleRow) return res.status(404).json({ error: 'not found' })
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) {
       return res.status(404).json({ error: 'not found' })
     }
-    const result = await db.run(
-      'DELETE FROM user_module_evidences WHERE user_id = ? AND module_id = ?',
-      [user.id, moduleId]
-    )
-    if (!result.changes) return res.status(404).json({ error: 'not found' })
+    const changes = await deleteModuleEvidence(db, user.id, moduleId)
+    if (!changes) return res.status(404).json({ error: 'not found' })
     return res.status(204).end()
   }
 

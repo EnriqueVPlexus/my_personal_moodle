@@ -11,7 +11,14 @@
     "test": "bash ./test/lint.test.sh",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts"
+    "migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts",
+    "migrate:up": "tsx scripts/migrate.ts up",
+    "migrate:down": "tsx scripts/migrate.ts down",
+    "migrate:status": "tsx scripts/migrate.ts status",
+    "test:db:up": "docker compose -f docker-compose.test.yml up -d --wait && DATABASE_URL=${TEST_DATABASE_URL:-postgresql://postgres:postgres@localhost:55432/app_test} tsx scripts/migrate.ts up",
+    "test:db:down": "docker compose -f docker-compose.test.yml down -v",
+    "test:integration:run": "vitest run --config vitest.integration.config.ts",
+    "test:integration": "npm run test:db:up && TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgresql://postgres:postgres@localhost:55432/app_test} npm run test:integration:run; status=$?; npm run test:db:down; exit $status"
   },
   "dependencies": {
     "kysely": "^0.29.5",
