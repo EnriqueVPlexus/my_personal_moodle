@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { validateEvidenceInput } from '../lib/domains/progress/evidences'
-import { createRequest, createResponse } from './helpers/api'
+import { createRequest, withFakeTransaction, createResponse } from './helpers/api'
 
 const user = { id: 2, email: 'user@example.com', role: 'user' as const }
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
@@ -37,7 +37,7 @@ describe('evidence API handlers', () => {
   })
 
   async function mockModuleApi(db: any) {
-    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
     vi.doMock('../lib/http/auth', () => ({
       getRoadmapReadScope: vi.fn().mockResolvedValue({ user, allRoadmaps: true, roadmapIds: [] }),
       requireUser: vi.fn().mockResolvedValue(user),

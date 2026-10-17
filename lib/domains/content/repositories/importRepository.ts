@@ -8,115 +8,114 @@ import type { ModuleLevel } from '../metadata'
 import type { ImportRepository } from '../ports'
 import { saveRoadmapMetadata } from './metadataRepository'
 
-export async function persistRoadmapImport(
+/**
+ * Writes the whole import (roadmap, metadata, modules) in one transaction:
+ * either everything is persisted or nothing is. Statements are plain
+ * parameterized SQL on the `tx` client, which both backends translate.
+ */
+export function persistRoadmapImport(
   db: DatabaseClient,
   roadmap: NormalizedRoadmapImport,
   strategy: RoadmapImportStrategy
 ) {
-  // Raw parameterized SQL (get/run/exec) is used deliberately for every
-  // statement in this transaction, on both backends, instead of the Kysely
-  // query builder used elsewhere: getQueryDatabase(pool) builds against the
-  // raw Postgres pool, not the PoolClient that PostgresDb.exec('BEGIN')
-  // checks out, so Kysely calls would not participate in this transaction.
-  // `BEGIN IMMEDIATE` is SQLite-specific syntax; PostgresDb.exec() already
-  // rewrites it to plain `BEGIN` before opening its dedicated PoolClient.
-  await db.exec('BEGIN IMMEDIATE')
-  try {
-    const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [roadmap.title])
-    if (strategy === 'create' && existing) throw new RoadmapImportConflictError('already_exists')
-    if (strategy === 'update' && !existing) throw new RoadmapImportConflictError('not_found')
+  return db.transaction(tx => applyRoadmapImport(tx, roadmap, strategy))
+}
 
-    let roadmapId = existing?.id
-    const roadmapValues = [
-      roadmap.title,
-      roadmap.description,
-      roadmap.duration,
-      roadmap.duration_weeks_min,
-      roadmap.duration_weeks_max,
-      JSON.stringify(roadmap.objectives),
-      JSON.stringify(roadmap.methodology),
-      JSON.stringify(roadmap.evaluation_weights),
-      roadmap.version,
-      roadmap.published_at
-    ]
-    if (roadmapId) {
-      await db.run(
-        `UPDATE roadmaps SET title = ?, description = ?, duration = ?, duration_weeks_min = ?,
-         duration_weeks_max = ?, objectives = ?, methodology = ?, evaluation_weights = ?,
-         version = ?, published_at = ? WHERE id = ?`,
-        [...roadmapValues, roadmapId]
-      )
-    } else {
-      const result = await db.run(
-        `INSERT INTO roadmaps (
-           title, description, duration, duration_weeks_min, duration_weeks_max,
-           objectives, methodology, evaluation_weights, version, published_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        roadmapValues
-      )
-      roadmapId = result.lastID
-    }
+async function applyRoadmapImport(
+  db: DatabaseClient,
+  roadmap: NormalizedRoadmapImport,
+  strategy: RoadmapImportStrategy
+) {
+  const existing = await db.get('SELECT id FROM roadmaps WHERE title = ?', [roadmap.title])
+  if (strategy === 'create' && existing) throw new RoadmapImportConflictError('already_exists')
+  if (strategy === 'update' && !existing) throw new RoadmapImportConflictError('not_found')
 
-    await saveRoadmapMetadata(db, roadmapId, roadmap.category, roadmap.topics)
-    let createdModules = 0
-    let updatedModules = 0
-    for (const moduleItem of roadmap.modules) {
-      let moduleRow = await db.get(
-        'SELECT id FROM modules WHERE roadmap_id = ? AND position = ?',
-        [roadmapId, moduleItem.position]
-      )
-      if (!moduleRow) {
-        moduleRow = await db.get(
-          'SELECT id FROM modules WHERE roadmap_id = ? AND title = ?',
-          [roadmapId, moduleItem.title]
-        )
-      }
-      const values = [
-        roadmapId,
-        moduleItem.position,
-        moduleItem.title,
-        moduleItem.duration,
-        moduleItem.duration_weeks_min,
-        moduleItem.duration_weeks_max,
-        moduleItem.level,
-        moduleItem.objective,
-        JSON.stringify(moduleItem.contents),
-        moduleItem.importance,
-        JSON.stringify(moduleItem.official_resources),
-        JSON.stringify(moduleItem.support_videos),
-        JSON.stringify(moduleItem.practical_activity),
-        JSON.stringify(moduleItem.deliverable_evidence),
-        moduleItem.evaluation,
-        moduleItem.quiz.length ? JSON.stringify(moduleItem.quiz) : null
-      ]
-      if (moduleRow) {
-        await db.run(
-          `UPDATE modules SET roadmap_id = ?, position = ?, title = ?, duration = ?,
-           duration_weeks_min = ?, duration_weeks_max = ?, level = ?, objective = ?, contents = ?,
-           importance = ?, official_resources = ?, support_videos = ?, practical_activity = ?,
-           deliverable_evidence = ?, evaluation = ?, quiz_bank = ? WHERE id = ?`,
-          [...values, moduleRow.id]
-        )
-        updatedModules += 1
-      } else {
-        await db.run(
-          `INSERT INTO modules (
-             roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max,
-             level, objective, contents, importance, official_resources, support_videos,
-             practical_activity, deliverable_evidence, evaluation, quiz_bank
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          values
-        )
-        createdModules += 1
-      }
-    }
-
-    await db.exec('COMMIT')
-    return { roadmap_id: Number(roadmapId), created_modules: createdModules, updated_modules: updatedModules }
-  } catch (error) {
-    await db.exec('ROLLBACK')
-    throw error
+  let roadmapId = existing?.id
+  const roadmapValues = [
+    roadmap.title,
+    roadmap.description,
+    roadmap.duration,
+    roadmap.duration_weeks_min,
+    roadmap.duration_weeks_max,
+    JSON.stringify(roadmap.objectives),
+    JSON.stringify(roadmap.methodology),
+    JSON.stringify(roadmap.evaluation_weights),
+    roadmap.version,
+    roadmap.published_at
+  ]
+  if (roadmapId) {
+    await db.run(
+      `UPDATE roadmaps SET title = ?, description = ?, duration = ?, duration_weeks_min = ?,
+       duration_weeks_max = ?, objectives = ?, methodology = ?, evaluation_weights = ?,
+       version = ?, published_at = ? WHERE id = ?`,
+      [...roadmapValues, roadmapId]
+    )
+  } else {
+    const result = await db.run(
+      `INSERT INTO roadmaps (
+         title, description, duration, duration_weeks_min, duration_weeks_max,
+         objectives, methodology, evaluation_weights, version, published_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      roadmapValues
+    )
+    roadmapId = result.lastID
   }
+
+  await saveRoadmapMetadata(db, roadmapId, roadmap.category, roadmap.topics)
+  let createdModules = 0
+  let updatedModules = 0
+  for (const moduleItem of roadmap.modules) {
+    let moduleRow = await db.get(
+      'SELECT id FROM modules WHERE roadmap_id = ? AND position = ?',
+      [roadmapId, moduleItem.position]
+    )
+    if (!moduleRow) {
+      moduleRow = await db.get(
+        'SELECT id FROM modules WHERE roadmap_id = ? AND title = ?',
+        [roadmapId, moduleItem.title]
+      )
+    }
+    const values = [
+      roadmapId,
+      moduleItem.position,
+      moduleItem.title,
+      moduleItem.duration,
+      moduleItem.duration_weeks_min,
+      moduleItem.duration_weeks_max,
+      moduleItem.level,
+      moduleItem.objective,
+      JSON.stringify(moduleItem.contents),
+      moduleItem.importance,
+      JSON.stringify(moduleItem.official_resources),
+      JSON.stringify(moduleItem.support_videos),
+      JSON.stringify(moduleItem.practical_activity),
+      JSON.stringify(moduleItem.deliverable_evidence),
+      moduleItem.evaluation,
+      moduleItem.quiz.length ? JSON.stringify(moduleItem.quiz) : null
+    ]
+    if (moduleRow) {
+      await db.run(
+        `UPDATE modules SET roadmap_id = ?, position = ?, title = ?, duration = ?,
+         duration_weeks_min = ?, duration_weeks_max = ?, level = ?, objective = ?, contents = ?,
+         importance = ?, official_resources = ?, support_videos = ?, practical_activity = ?,
+         deliverable_evidence = ?, evaluation = ?, quiz_bank = ? WHERE id = ?`,
+        [...values, moduleRow.id]
+      )
+      updatedModules += 1
+    } else {
+      await db.run(
+        `INSERT INTO modules (
+           roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max,
+           level, objective, contents, importance, official_resources, support_videos,
+           practical_activity, deliverable_evidence, evaluation, quiz_bank
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        values
+      )
+      createdModules += 1
+    }
+  }
+
+  return { roadmap_id: Number(roadmapId), created_modules: createdModules, updated_modules: updatedModules }
 }
 
 function parseJsonArray(value: unknown): any[] {

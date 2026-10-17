@@ -328,8 +328,9 @@ Tareas:
 - [x] Servicios de dominio sin dependencia de `next` y tests por dominio con
   repositorios en memoria (`test/domains/`).
 - Seguimiento (fuera de alcance): adaptadores por dialecto (opcion B) detras de
-  los mismos puertos; unificar los mensajes 401/403/405/429; helper de
-  transacciones comun a SQLite y Postgres. Ver `ARCHITECTURE.md`.
+  los mismos puertos; unificar los mensajes 401/403/405/429. El helper de
+  transacciones comun se implemento despues (ver "Reapertura y correccion" en
+  "Gestion de conexiones y transacciones"). Ver `ARCHITECTURE.md`.
 
 Rama sugerida: `refactor/domain-separation`.
 
@@ -562,6 +563,10 @@ Tareas:
 - [x] Garantizar transacciones en importaciones y operaciones multi-tabla.
   Ya cubierto por trabajo previo: `roadmap-import.postgres-integration.test.ts`
   prueba un ROLLBACK real contra Postgres. No se repite aqui.
+  (Anotacion 2026-10-15: esta linea era enganosa. Solo cubria la importacion,
+  que usaba `BEGIN`/`COMMIT` a mano; no existia un helper reutilizable ni las
+  demas operaciones multi-tabla eran atomicas. Ver "Reapertura y correccion"
+  al final de este bloque.)
 - [x] Evitar conexiones persistentes innecesarias durante tests.
   - Los tests unitarios ya no abren conexiones a Postgres: `vitest.config.ts`
     vacia `DATABASE_URL`/`TEST_DATABASE_URL` y excluye la suite de
@@ -579,6 +584,36 @@ Tareas:
     (antes devolvia el de `test:db:down`, es decir 0 aunque fallasen).
 
 Rama sugerida: `chore/db-transactions`.
+
+Reapertura y correccion (2026-10-15):
+
+- Hueco detectado durante la refactorizacion de separacion de dominios: la
+  tarea "Garantizar transacciones en importaciones y operaciones multi-tabla"
+  se dio por cerrada, pero no habia un helper de transacciones reutilizable.
+  La importacion hacia `BEGIN`/`COMMIT`/`ROLLBACK` a mano sobre un
+  `transactionClient` guardado en la instancia `PostgresDb` (compartida por
+  proceso, asi que dos peticiones concurrentes podian mezclarse); los
+  repositorios con Kysely usan el pool, no ese cliente, y por tanto no
+  participaban en ninguna transaccion (un `BEGIN` en una conexion y consultas
+  en otras no da atomicidad); y el reemplazo de accesos de un usuario
+  (`PATCH /api/users/[id]`) eran tres escrituras seguidas sin transaccion.
+- Correccion: `DatabaseClient.transaction(work)` (Postgres: un `PoolClient`
+  para toda la transaccion con fachada de pool para Kysely, siempre liberado;
+  SQLite: `BEGIN IMMEDIATE` con mutex), puerto `UnitOfWork` en los dominios y
+  `lib/container.ts` como unico sitio que lo implementa. Atomicos ahora:
+  reemplazo de accesos, desactivar usuario y resetear contrasena (con
+  revocacion de sesiones), crear/actualizar roadmap con metadatos, importacion,
+  intento de quiz, evidencia y progreso de leccion. Anidar transacciones lanza
+  `NestedTransactionError`. Se elimino el manejo de `BEGIN`/`COMMIT` en
+  `PostgresDb.exec()`.
+- Verificacion: tests de servicio con `UnitOfWork` falso,
+  `test/transactions*.test.ts` (SQLite real con `TRIGGER ... RAISE(ABORT)`) y,
+  contra Postgres efimero, `transactions.postgres-integration.test.ts` y
+  `admin-access.postgres-integration.test.ts` (Kysely y SQL crudo en el mismo
+  rollback, cliente liberado, transacciones concurrentes). Ver
+  `ARCHITECTURE.md` ("Transacciones").
+- Sin cambio visible para el usuario: no hay estados, cuerpos ni mensajes HTTP
+  distintos, por lo que no hace falta documentacion de usuario.
 
 Hecho cuando:
 

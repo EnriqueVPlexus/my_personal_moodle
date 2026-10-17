@@ -1,4 +1,5 @@
 import { scopeAllowsRoadmap } from '../auth/policy'
+import type { UnitOfWork } from '../shared/unitOfWork'
 import { buildModuleQuiz, gradeModuleQuiz, toPublicModuleQuiz } from '../content/quizzes'
 import type { ContentReadScope } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType } from './evidences'
@@ -21,6 +22,12 @@ export type ProgressPorts = {
   evidences: EvidenceRepository
   portfolios: PortfolioRepository
   content: ContentReader
+  /** Atomic learner writes that touch several tables. */
+  unitOfWork: UnitOfWork<{
+    progress: ProgressRepository
+    quizAttempts: QuizAttemptRepository
+    evidences: EvidenceRepository
+  }>
 }
 
 /** Loads the caller's read scope on demand (it may be unavailable). */
@@ -43,7 +50,7 @@ export type QuizAttemptOutcome =
 export type ProgressService = ReturnType<typeof makeProgressService>
 
 export function makeProgressService(ports: ProgressPorts) {
-  const { progress, learnerViews, quizAttempts, evidences, portfolios, content } = ports
+  const { progress, learnerViews, quizAttempts, evidences, portfolios, content, unitOfWork } = ports
 
   return {
     // --- Learner progress -------------------------------------------------
@@ -54,7 +61,7 @@ export function makeProgressService(ports: ProgressPorts) {
 
     /** Returns null when the lesson does not exist. */
     setLessonProgress(input: { userId: number; lessonId: number; completed: boolean; timeSpentSeconds: number }) {
-      return progress.setLessonProgress(input)
+      return unitOfWork.run(({ progress: tx }) => tx.setLessonProgress(input))
     },
 
     /** Returns null when the roadmap is hidden from the scope or missing. */
@@ -153,11 +160,16 @@ export function makeProgressService(ports: ProgressPorts) {
       })
       if (hasInvalidAnswer) return { status: 'invalid_answers' }
 
-      const attempt = await quizAttempts.save(userId, moduleRow, normalizedAnswers, gradeModuleQuiz(moduleRow, normalizedAnswers))
-      await progress.touchRoadmapProgress({
-        userId,
-        roadmapId: moduleRow.roadmap_id,
-        moduleId: moduleRow.id
+      const grade = gradeModuleQuiz(moduleRow, normalizedAnswers)
+      // The attempt and the roadmap progress touch are saved together.
+      const attempt = await unitOfWork.run(async ({ quizAttempts: txAttempts, progress: txProgress }) => {
+        const saved = await txAttempts.save(userId, moduleRow, normalizedAnswers, grade)
+        await txProgress.touchRoadmapProgress({
+          userId,
+          roadmapId: moduleRow.roadmap_id,
+          moduleId: moduleRow.id
+        })
+        return saved
       })
       const summary = await quizAttempts.getSummary(userId, moduleId)
       const updatedEligibility = await quizAttempts.checkEligibility(userId, moduleRow)
@@ -190,11 +202,14 @@ export function makeProgressService(ports: ProgressPorts) {
       const scope = await loadScope()
       if (!scope || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return null
 
-      const evidence = await evidences.save(userId, moduleId, input)
-      await progress.touchRoadmapProgress({
-        userId,
-        roadmapId: moduleRow.roadmap_id,
-        moduleId
+      const evidence = await unitOfWork.run(async ({ evidences: txEvidences, progress: txProgress }) => {
+        const saved = await txEvidences.save(userId, moduleId, input)
+        await txProgress.touchRoadmapProgress({
+          userId,
+          roadmapId: moduleRow.roadmap_id,
+          moduleId
+        })
+        return saved
       })
 
       return { evidence }

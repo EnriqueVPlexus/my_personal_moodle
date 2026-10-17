@@ -1,5 +1,6 @@
 import { hashPassword } from '../auth/password'
 import { DuplicateEmailError } from './errors'
+import type { UnitOfWork } from '../shared/unitOfWork'
 import type { DashboardRepository, RoadmapExistenceReader, UserAdminRepository } from './ports'
 import type { AdminUserRecord } from './types'
 
@@ -7,6 +8,8 @@ export type AdminPorts = {
   users: UserAdminRepository
   dashboards: DashboardRepository
   roadmaps: RoadmapExistenceReader
+  /** Atomic multi-write operations on users (sessions, roadmap access). */
+  unitOfWork: UnitOfWork<{ users: UserAdminRepository }>
 }
 
 export type AdminActor = { id: number }
@@ -53,7 +56,7 @@ export function withRoadmapAccess(user: AdminUserRecord, roadmapAccessIds: numbe
 export type AdminService = ReturnType<typeof makeAdminService>
 
 export function makeAdminService(ports: AdminPorts, now: () => Date = () => new Date()) {
-  const { users, dashboards, roadmaps } = ports
+  const { users, dashboards, roadmaps, unitOfWork } = ports
 
   async function userWithRoadmapAccess(userId: number) {
     const user = await users.findById(userId)
@@ -122,10 +125,13 @@ export function makeAdminService(ports: AdminPorts, now: () => Date = () => new 
           if (otherActiveAdmins === 0) return { status: 'rejected', violation: 'last_active_admin' }
         }
 
-        const changes = await users.updateActive(userId, isActive, now().toISOString())
+        // Deactivating must also revoke sessions: all or nothing.
+        const changes = await unitOfWork.run(async ({ users: tx }) => {
+          const updated = await tx.updateActive(userId, isActive, now().toISOString())
+          if (updated && !isActive) await tx.deleteSessions(userId)
+          return updated
+        })
         if (!changes) return { status: 'not_found' }
-
-        if (!isActive) await users.deleteSessions(userId)
 
         return {
           status: 'ok',
@@ -135,10 +141,14 @@ export function makeAdminService(ports: AdminPorts, now: () => Date = () => new 
       }
 
       if (command.action === 'reset_password') {
-        const changes = await users.updatePassword(userId, await hashPassword(command.password), now().toISOString())
+        const passwordHash = await hashPassword(command.password)
+        // A new password must also revoke sessions: all or nothing.
+        const changes = await unitOfWork.run(async ({ users: tx }) => {
+          const updated = await tx.updatePassword(userId, passwordHash, now().toISOString())
+          if (updated) await tx.deleteSessions(userId)
+          return updated
+        })
         if (!changes) return { status: 'not_found' }
-
-        await users.deleteSessions(userId)
 
         return {
           status: 'ok',
@@ -159,9 +169,13 @@ export function makeAdminService(ports: AdminPorts, now: () => Date = () => new 
       }
 
       const timestamp = now().toISOString()
-      await users.updateRoadmapAccessFlag(userId, canViewAllRoadmaps, timestamp)
-      await users.deleteRoadmapAccess(userId)
-      await users.insertRoadmapAccessMany(userId, roadmapIds, timestamp)
+      // Replacing access is flag + delete + insert: a mid failure must not
+      // leave the user with partial access.
+      await unitOfWork.run(async ({ users: tx }) => {
+        await tx.updateRoadmapAccessFlag(userId, canViewAllRoadmaps, timestamp)
+        await tx.deleteRoadmapAccess(userId)
+        await tx.insertRoadmapAccessMany(userId, roadmapIds, timestamp)
+      })
 
       return {
         status: 'ok',

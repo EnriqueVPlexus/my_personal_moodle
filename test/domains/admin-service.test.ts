@@ -10,6 +10,10 @@ type State = {
   sessions: number[]
   roadmaps: number[]
   calls: string[]
+  /** Name of the repository method that must throw (failure injection). */
+  failOn: string | null
+  /** Number of units of work opened and how many were rolled back. */
+  transactions: { started: number; rolledBack: number }
 }
 
 function user(id: number, role: 'admin' | 'user', overrides: Partial<AdminUserRecord> = {}): AdminUserRecord {
@@ -20,7 +24,7 @@ function user(id: number, role: 'admin' | 'user', overrides: Partial<AdminUserRe
 }
 
 function setup(users: AdminUserRecord[], roadmaps: number[] = [1, 2, 3]) {
-  const state: State = { users, access: [], sessions: users.map(item => item.id), roadmaps, calls: [] }
+  const state: State = { users, access: [], sessions: users.map(item => item.id), roadmaps, calls: [], failOn: null, transactions: { started: 0, rolledBack: 0 } }
 
   const repository: UserAdminRepository = {
     async findAll() { return state.users },
@@ -58,12 +62,14 @@ function setup(users: AdminUserRecord[], roadmaps: number[] = [1, 2, 3]) {
     },
     async deleteSessions(userId) {
       state.calls.push('deleteSessions')
+      if (state.failOn === 'deleteSessions') throw new Error('deleteSessions failed')
       state.sessions = state.sessions.filter(id => id !== userId)
     },
     async deleteRoadmapAccess(userId) {
       state.access = state.access.filter(row => row.user_id !== userId)
     },
     async insertRoadmapAccessMany(userId, roadmapIds) {
+      if (state.failOn === 'insertRoadmapAccessMany') throw new Error('insertRoadmapAccessMany failed')
       roadmapIds.forEach(roadmapId => state.access.push({ user_id: userId, roadmap_id: roadmapId }))
     }
   }
@@ -75,7 +81,21 @@ function setup(users: AdminUserRecord[], roadmaps: number[] = [1, 2, 3]) {
   const service = makeAdminService({
     users: repository,
     dashboards,
-    roadmaps: { findExistingIds: async ids => ids.filter(id => state.roadmaps.includes(id)) }
+    roadmaps: { findExistingIds: async ids => ids.filter(id => state.roadmaps.includes(id)) },
+    // Fake unit of work with real rollback semantics over the in-memory state.
+    unitOfWork: {
+      async run(work) {
+        state.transactions.started += 1
+        const snapshot = structuredClone({ users: state.users, access: state.access, sessions: state.sessions })
+        try {
+          return await work({ users: repository })
+        } catch (error) {
+          Object.assign(state, snapshot)
+          state.transactions.rolledBack += 1
+          throw error
+        }
+      }
+    }
   }, () => new Date('2026-02-03T04:05:06.000Z'))
 
   return { state, service }
@@ -173,6 +193,44 @@ describe('admin rules: roadmap access', () => {
 })
 
 describe('admin use cases: users and passwords', () => {
+  it('replaces the access inside one unit of work and rolls it back when a write fails', async () => {
+    const { service, state } = setup([user(1, 'admin'), user(2, 'user', { can_view_all_roadmaps: 1 })])
+    state.access.push({ user_id: 2, roadmap_id: 3 })
+    state.failOn = 'insertRoadmapAccessMany'
+
+    await expect(service.updateUser({ id: 1 }, 2, { action: 'set_roadmap_access', can_view_all_roadmaps: false, roadmap_ids: [1] }))
+      .rejects.toThrow('insertRoadmapAccessMany failed')
+
+    expect(state.transactions).toEqual({ started: 1, rolledBack: 1 })
+    expect(state.access).toEqual([{ user_id: 2, roadmap_id: 3 }])
+    expect(state.users[1].can_view_all_roadmaps).toBe(1)
+  })
+
+  it('opens one unit of work per write use case and none for rejected commands', async () => {
+    const { service, state } = setup([user(1, 'admin'), user(2, 'user')])
+
+    await service.updateUser({ id: 1 }, 2, { action: 'set_roadmap_access', can_view_all_roadmaps: true })
+    await service.updateUser({ id: 1 }, 2, { action: 'set_active', is_active: false })
+    await service.updateUser({ id: 1 }, 2, { action: 'reset_password', password: 'another-valid-password' })
+    expect(state.transactions).toEqual({ started: 3, rolledBack: 0 })
+
+    await service.updateUser({ id: 1 }, 1, { action: 'set_active', is_active: false })
+    await service.updateUser({ id: 1 }, 99, { action: 'set_active', is_active: true })
+    expect(state.transactions.started).toBe(3)
+  })
+
+  it('rolls the deactivation back when revoking sessions fails, and propagates the error', async () => {
+    const { service, state } = setup([user(1, 'admin'), user(2, 'user')])
+    state.failOn = 'deleteSessions'
+
+    await expect(service.updateUser({ id: 1 }, 2, { action: 'set_active', is_active: false }))
+      .rejects.toThrow('deleteSessions failed')
+
+    expect(state.transactions.rolledBack).toBe(1)
+    expect(state.users[1].is_active).toBe(1)
+    expect(state.sessions).toEqual([1, 2])
+  })
+
   it('lists users with their roadmap access and effective visibility', async () => {
     const { service, state } = setup([user(1, 'admin', { can_view_all_roadmaps: 0 }), user(2, 'user', { can_view_all_roadmaps: 0 })])
     state.access.push({ user_id: 2, roadmap_id: 2 }, { user_id: 2, roadmap_id: 1 })

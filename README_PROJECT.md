@@ -52,9 +52,17 @@ lo que además destapó y corrigió un `GROUP BY` incompleto en la CTE
 portfolio (`lib/domains/progress/repositories/portfolioRepository.ts`, reutilizando `evidenceRepository.listEvidences`
 en vez de duplicar el join) e import/export de roadmaps
 (`lib/domains/content/repositories/importRepository.ts`/`metadataRepository.ts`, único dominio con
-transacción multi-tabla — usa SQL crudo parametrizado en ambos backends
-dentro de la transacción en vez de Kysely, ya que el query builder no
-participa del cliente de conexión que Postgres usa para `BEGIN`/`COMMIT`).
+transacción multi-tabla; hoy usa `db.transaction()`, ver el párrafo de
+transacciones más abajo).
+
+Transacciones: `DatabaseClient.transaction(work)` (`lib/persistence`) da a
+`work` un cliente `tx` ligado a una sola conexión (Postgres: un `PoolClient`;
+SQLite: `BEGIN IMMEDIATE`) y hace `COMMIT`/`ROLLBACK` por ti; los repositorios
+con Kysely participan sin cambios. Los servicios la usan a través del puerto
+`UnitOfWork` (`lib/domains/shared/unitOfWork.ts`) para reemplazar accesos a
+roadmaps, desactivar usuarios, guardar roadmaps con metadatos, importar y
+guardar progreso del alumno de forma atómica. No se admiten transacciones
+anidadas. Detalle y guía de uso en `ARCHITECTURE.md` ("Transacciones").
 Tests de integración contra PostgreSQL real: cubiertos auth, contenido
 (roadmaps/módulos/lecciones), progreso (incluyendo el CTE con función
 ventana), quizzes, importación (incluyendo un `ROLLBACK` real forzado a
