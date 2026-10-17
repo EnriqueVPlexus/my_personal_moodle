@@ -7,53 +7,18 @@ import ModuleLearningContent from '../../components/ModuleLearningContent'
 import ModuleForm from '../../components/ModuleForm'
 import { useAuth } from '../../components/AuthProvider'
 import { branding } from '../../lib/branding'
+import type { RoadmapDetailModule, RoadmapDetailProgress, RoadmapDetailResponse } from '../../lib/contracts'
 import {
   LearningModule,
   asEvaluationWeights,
   asTextList
-} from '../../lib/roadmapPresentation'
+} from '../../lib/domains/content/presentation'
 
-type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed'
-
-type ModuleProgress = {
-  total_lessons: number
-  completed_lessons_count: number
-  progress_percentage: number
-  status: ModuleProgressStatus
-  next_lesson_title?: string | null
-}
-
-type RoadmapProgress = {
-  completed_lessons_count: number
-  total_lessons: number
-  total_modules: number
-  time_spent_seconds: number
-  progress_percentage: number
-  status: 'started' | 'in_progress' | 'paused' | 'completed'
-  next_href: string
-  next_step_label: string
-}
-
-type RoadmapModule = LearningModule & {
-  progress?: ModuleProgress | null
-  has_evidence?: number | boolean
-}
-
-type RoadmapDetail = {
-  id: number
-  title: string
-  version?: string
-  published_at?: string
-  duration?: string
-  description?: string
-  objectives?: unknown
-  methodology?: unknown
-  evaluation_weights?: unknown
-  modules?: RoadmapModule[]
-  progress?: RoadmapProgress | null
-  category?: { key: string; label: string } | null
-  topics?: Array<{ key: string; label: string }>
-}
+type ModuleProgress = NonNullable<RoadmapDetailModule['progress']>
+type ModuleProgressStatus = ModuleProgress['status']
+type RoadmapProgress = RoadmapDetailProgress
+type RoadmapModule = LearningModule & Pick<RoadmapDetailModule, 'progress' | 'has_evidence'>
+type RoadmapDetail = Omit<RoadmapDetailResponse, 'modules'> & { modules?: RoadmapModule[] }
 
 function formatWeekCount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
@@ -224,16 +189,18 @@ export default function RoadmapDetailPage() {
                   <span className="text-emerald-900">duración</span>
                 </div>
               </div>
-              <a
-                href={`/api/roadmaps/${roadmap.id}/export`}
-                download
-                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-              >
-                <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Exportar JSON
-              </a>
+              {isAdmin && (
+                <a
+                  href={`/api/roadmaps/${roadmap.id}/export`}
+                  download
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                >
+                  <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Exportar JSON
+                </a>
+              )}
             </div>
           </div>
         </section>

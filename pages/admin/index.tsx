@@ -3,7 +3,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { useAuth } from '../../components/AuthProvider'
-import { AdminDashboardData } from '../../lib/adminDashboard'
+import type { DashboardResponse } from '../../lib/contracts'
 import { branding } from '../../lib/branding'
 
 function formatDate(value: string) {
@@ -15,7 +15,7 @@ function formatDate(value: string) {
 
 export default function AdminDashboardPage() {
   const { isAdmin, loading } = useAuth()
-  const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null)
+  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState('')
 

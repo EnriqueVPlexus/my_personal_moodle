@@ -2,8 +2,10 @@ import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { branding } from '../lib/branding'
+import { useAuth } from '../components/AuthProvider'
 
 export default function Home() {
+  const { user } = useAuth()
   const tracks = [
     { name: 'AWS', detail: 'Cloud foundations, servicios gestionados y buenas prácticas.' },
     { name: 'DevOps', detail: 'CI/CD, automatización, contenedores e infraestructura como código.' },
@@ -43,12 +45,14 @@ export default function Home() {
                 >
                   Explorar roadmaps
                 </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  Acceso privado
-                </Link>
+                {!user && (
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Acceso privado
+                  </Link>
+                )}
               </div>
             </div>
 

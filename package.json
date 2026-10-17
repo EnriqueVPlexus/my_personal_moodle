@@ -10,15 +10,27 @@
     "lint": "eslint --ext .js,.jsx,.ts,.tsx .",
     "test": "bash ./test/lint.test.sh",
     "test:unit": "vitest run",
+    "contracts:generate": "tsx scripts/generate-openapi.ts",
     "test:coverage": "vitest run --coverage",
-    "migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts"
+    "migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts",
+    "migrate:up": "tsx scripts/migrate.ts up",
+    "migrate:down": "tsx scripts/migrate.ts down",
+    "migrate:status": "tsx scripts/migrate.ts status",
+    "test:db:up": "docker compose -f docker-compose.test.yml up -d --wait && DATABASE_URL=${TEST_DATABASE_URL:-postgresql://postgres:postgres@localhost:55432/app_test} tsx scripts/migrate.ts up",
+    "test:db:down": "docker compose -f docker-compose.test.yml down -v",
+    "test:integration:run": "vitest run --config vitest.integration.config.ts",
+    "test:integration": "npm run test:db:up && TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgresql://postgres:postgres@localhost:55432/app_test} npm run test:integration:run; status=$?; npm run test:db:down; exit $status"
   },
   "dependencies": {
-    "next": "15.5.15",
+    "kysely": "^0.29.5",
+    "next": "15.5.25",
     "pg": "^8.23.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "sqlite": "5.1.1",
+    "zod": "^4.6.7"
+  },
+  "optionalDependencies": {
     "sqlite3": "^6.0.1"
   },
   "devDependencies": {
@@ -32,20 +44,20 @@
     "@typescript-eslint/eslint-plugin": "8.59.1",
     "@typescript-eslint/parser": "8.59.1",
     "@vitejs/plugin-react": "^6.0.1",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "10.4.21",
     "eslint": "8.57.1",
-    "eslint-config-next": "15.5.15",
+    "eslint-config-next": "15.5.25",
     "jsdom": "^29.1.1",
-    "postcss": "8.5.13",
+    "postcss": "8.5.23",
     "tailwindcss": "3.4.17",
     "tsx": "^4.20.5",
-    "typescript": "5.2.2",
-    "vitest": "^4.1.5"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "minimatch": "latest",
-    "postcss": "8.5.13",
+    "postcss": "8.5.23",
     "serialize-javascript": "latest",
     "devalue": "latest",
     "elliptic": "latest",

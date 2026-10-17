@@ -1,22 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireUser } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { getUserPortfolio } from '../../../lib/portfolio'
+import { withApiErrors } from '../../../lib/http/errors'
+import { createServices } from '../../../lib/container'
+import { requireUser } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET')
   }
 
   const db = await openDb()
   const user = await requireUser(req, res, db)
   if (!user) return
 
-  const portfolio = await getUserPortfolio(db, user.id)
+  const portfolio = await createServices(db).progress.getPortfolio(user.id)
   if (!portfolio) {
     return res.status(404).json({ error: 'Usuario no encontrado' })
   }
 
   return res.status(200).json(portfolio)
 }
+
+export default withApiErrors(handler)

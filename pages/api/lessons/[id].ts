@@ -1,35 +1,44 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { writeAuditLog } from '../../../lib/audit'
-import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
+import { withApiErrors } from '../../../lib/http/errors'
+import { createServices } from '../../../lib/container'
+import { writeAuditLog } from '../../../lib/http/audit'
+import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { lessonIdQuerySchema, updateLessonBodySchema } from '../../../lib/validation/lessons'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const { id } = req.query
+  const { content } = createServices(db)
+
+  if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
+    return methodNotAllowed(res, 'GET, PUT, DELETE')
+  }
+
+  const params = parseOrRespond(lessonIdQuerySchema, req.query, res)
+  if (!params) return
+  const { id } = params
 
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const lesson = await db.get(`
-      SELECT lessons.*, modules.roadmap_id
-      FROM lessons
-      INNER JOIN modules ON modules.id = lessons.module_id
-      WHERE lessons.id = ?
-    `, [id])
-    if (!lesson) return res.status(404).json({ error: 'not found' })
-    if (!scopeAllowsRoadmap(scope, lesson.roadmap_id)) return res.status(404).json({ error: 'not found' })
-    const { roadmap_id: _roadmapId, ...lessonBody } = lesson
-    return res.status(200).json(lessonBody)
+    const lesson = await content.getLesson(scope, id)
+    if (!lesson) return res.status(404).json({ error: 'No encontrado.' })
+    return res.status(200).json(lesson)
   }
 
   if (req.method === 'PUT') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, completed } = req.body
-    const result = await db.run('UPDATE lessons SET title = ?, completed = ? WHERE id = ?', [title, completed ? 1 : 0, id])
-    if (!result.changes) return res.status(404).json({ error: 'lesson not found' })
-    
-    const updated = await db.get('SELECT * FROM lessons WHERE id = ?', [id])
+    const body = parseOrRespond(updateLessonBodySchema, req.body, res)
+    if (!body) return
+    const { title } = body
+    const completed = body.completed ?? false
+
+    const updated = await content.updateLesson(id, { title, completed })
+    if (!updated) return res.status(404).json({ error: 'Lección no encontrada.' })
+
     await writeAuditLog({
       db,
       req,
@@ -37,18 +46,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'lesson.update',
       entityType: 'lesson',
       entityId: String(id),
-      details: { title, completed: Boolean(completed) }
+      details: { title, completed }
     })
-    return res.status(200).json(updated)
+    return res.status(200).json(updated.lesson)
   }
 
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const lesson = await db.get('SELECT title, module_id FROM lessons WHERE id = ?', [id])
-    if (!lesson) return res.status(404).json({ error: 'lesson not found' })
-    
-    await db.run('DELETE FROM lessons WHERE id = ?', [id])
+
+    const lesson = await content.deleteLesson(id)
+    if (!lesson) return res.status(404).json({ error: 'Lección no encontrada.' })
+
     await writeAuditLog({
       db,
       req,
@@ -60,7 +69,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
     return res.status(204).end()
   }
-
-  res.setHeader('Allow', 'GET, PUT, DELETE')
-  res.status(405).end('Method Not Allowed')
 }
+
+export default withApiErrors(handler)

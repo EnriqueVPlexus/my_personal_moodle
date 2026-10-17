@@ -28,7 +28,8 @@ roadmaps, 2.400 modulos y 900 relaciones de topics, comprueba el plan con
 
 Con este volumen SQLite FTS5 no aporta suficiente valor para asumir su coste de
 migracion y sincronizacion. La busqueda queda encapsulada en
-`lib/roadmapSearch.ts`, facilitando sustituirla por FTS o por el motor de la base
+`lib/domains/content/search.ts` (y la consulta SQL en
+`lib/domains/content/repositories/catalogRepository.ts`), facilitando sustituirla por FTS o por el motor de la base
 de datos elegida durante la preparacion para despliegue.
 
 ## Verificacion

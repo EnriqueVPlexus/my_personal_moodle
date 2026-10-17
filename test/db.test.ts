@@ -29,7 +29,7 @@ describe('SQLite database bootstrap', () => {
     await legacyDb.close()
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const db = await openDb()
     const roadmap = await db.get(
       'SELECT title, category_id, duration_weeks_min, duration_weeks_max, version, published_at FROM roadmaps WHERE id = 50'
@@ -60,7 +60,7 @@ describe('SQLite database bootstrap', () => {
     process.env.ADMIN_EMAIL = 'ADMIN@EXAMPLE.COM'
     process.env.ADMIN_PASSWORD = 'ValidAdminPass123!'
 
-    const { openDb } = await import('../lib/db')
+    const { openDb } = await import('../lib/persistence')
     const db = await openDb()
 
     const awsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS gratuito para cantera junior DevOps'])
@@ -176,14 +176,14 @@ describe('SQLite database bootstrap', () => {
     process.env.ADMIN_EMAIL = 'admin@example.com'
     process.env.ADMIN_PASSWORD = 'ValidAdminPass123!'
 
-    const firstImport = await import('../lib/db')
+    const firstImport = await import('../lib/persistence')
     const firstDb = await firstImport.openDb()
     await firstDb.close()
 
     vi.resetModules()
     process.env.ADMIN_PASSWORD = 'short'
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const secondImport = await import('../lib/db')
+    const secondImport = await import('../lib/persistence')
     const secondDb = await secondImport.openDb()
 
     const roadmapCount = await secondDb.get(
@@ -249,6 +249,32 @@ describe('SQLite database bootstrap', () => {
     expect(roadmapTopicCount.count).toBe(26)
     expect(duplicateTopics).toEqual([])
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))
+
+    await secondDb.close()
+  })
+
+  it('does not revert an admin edit to a seeded roadmap on the next process start', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-reseed-'))
+    process.chdir(tmp)
+
+    const firstImport = await import('../lib/persistence')
+    const firstDb = await firstImport.openDb()
+
+    const seeded = await firstDb.get(
+      'SELECT id, description FROM roadmaps WHERE title = ?',
+      ['Roadmap AWS gratuito para cantera junior DevOps']
+    )
+    const editedDescription = 'Descripción editada manualmente por un admin'
+    await firstDb.run('UPDATE roadmaps SET description = ? WHERE id = ?', [editedDescription, seeded.id])
+    await firstDb.close()
+
+    // Simulate a process restart (new cold start / new server instance)
+    vi.resetModules()
+    const secondImport = await import('../lib/persistence')
+    const secondDb = await secondImport.openDb()
+
+    const afterRestart = await secondDb.get('SELECT description FROM roadmaps WHERE id = ?', [seeded.id])
+    expect(afterRestart.description).toBe(editedDescription)
 
     await secondDb.close()
   })

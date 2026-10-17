@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createRequest, createResponse } from './helpers/api'
+import { createRequest, withFakeTransaction, createResponse } from './helpers/api'
 
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const normalUser = { id: 2, email: 'user@example.com', role: 'user' as const, is_active: 1 }
 
 function denyAdmin(res: any) {
-  res.status(403).json({ error: 'admin role required' })
+  res.status(403).json({ error: 'Necesitas permisos de administrador.' })
   return null
 }
 
@@ -14,16 +14,16 @@ async function mockContentApi(
   options: { admin?: typeof admin | null; read?: boolean; user?: typeof normalUser | null } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       const actor = options.admin === undefined ? admin : options.admin
       return actor || denyAdmin(res)
     }),
     requireReadAccess: vi.fn((_req: any, res: any) => {
       if (options.read === false) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return false
       }
       return true
@@ -31,7 +31,7 @@ async function mockContentApi(
     getUserFromRequest: vi.fn().mockResolvedValue(options.user === undefined ? null : options.user),
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.read === false) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return null
       }
       return {
@@ -44,7 +44,7 @@ async function mockContentApi(
     requireUser: vi.fn((_req: any, res: any) => {
       const actor = options.user === undefined ? null : options.user
       if (!actor) {
-        res.status(401).json({ error: 'authentication required' })
+        res.status(401).json({ error: 'Debes iniciar sesión.' })
         return null
       }
       return actor
@@ -57,16 +57,16 @@ async function mockUsersApi(
   options: { admin?: typeof admin | null; validatePassword?: (password: string) => string | null } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/auth', () => ({
     isValidRole: (role: unknown) => role === 'admin' || role === 'user',
     requireAdmin: vi.fn((_req: any, res: any) => {
       const actor = options.admin === undefined ? admin : options.admin
       return actor || denyAdmin(res)
     })
   }))
-  vi.doMock('../lib/password', () => ({
+  vi.doMock('../lib/domains/auth/password', () => ({
     normalizeEmail: (email: string) => email.trim().toLowerCase(),
     validatePassword: vi.fn(options.validatePassword || (() => null)),
     hashPassword: vi.fn().mockResolvedValue('hash')
@@ -84,22 +84,22 @@ async function mockAuthApi(
   } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(withFakeTransaction(db)) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/auth', () => ({
     createSession: vi.fn((_res: any) => _res.setHeader('Set-Cookie', 'moodle_session=token')),
     clearSession: vi.fn((_req: any, res: any) => res.setHeader('Set-Cookie', 'moodle_session=; Max-Age=0')),
     getUserFromRequest: vi.fn().mockResolvedValue(options.currentUser === undefined ? admin : options.currentUser),
     requireSameOrigin: vi.fn((_req: any, res: any) => {
       if (options.sameOrigin === false) {
-        res.status(403).json({ error: 'origin not allowed' })
+        res.status(403).json({ error: 'Origen de la petición no permitido.' })
         return false
       }
       return true
     }),
     validateSetupToken: vi.fn().mockReturnValue(options.setupToken !== false)
   }))
-  vi.doMock('../lib/password', () => ({
+  vi.doMock('../lib/domains/auth/password', () => ({
     normalizeEmail: (email: string) => email.trim().toLowerCase(),
     validatePassword: vi.fn().mockReturnValue(options.passwordError || null),
     hashPassword: vi.fn().mockResolvedValue('hash'),
@@ -191,7 +191,7 @@ describe('content API edge cases', () => {
     const longSearch = createResponse()
     await roadmaps(createRequest({ method: 'GET', query: { q: 'a'.repeat(101) } }), longSearch)
     expect(longSearch.statusCode).toBe(400)
-    expect(longSearch.body.error).toContain('100 characters or fewer')
+    expect(longSearch.body.error).toBe('La búsqueda no puede superar 100 caracteres.')
 
     const modulesWithoutRoadmap = createResponse()
     await modules(createRequest({ method: 'GET' }), modulesWithoutRoadmap)
@@ -385,7 +385,7 @@ describe('content API edge cases', () => {
       body: { answers: { 'module-content': 0 } }
     }), incompleteAnswers)
     expect(incompleteAnswers.statusCode).toBe(400)
-    expect(incompleteAnswers.body.error).toContain('answer every quiz question')
+    expect(incompleteAnswers.body.error).toContain('Responde a todas las preguntas del cuestionario')
 
     const nullableAnswer = createResponse()
     await moduleQuiz(createRequest({
@@ -435,6 +435,8 @@ describe('users API edge cases', () => {
     const missing = createResponse()
     await users(createRequest({ method: 'POST', body: {} }), missing)
     expect(missing.statusCode).toBe(400)
+    expect(missing.body.issues).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'email' })]))
+    expect(db.get).not.toHaveBeenCalled()
 
     const weak = createResponse()
     await users(createRequest({ method: 'POST', body: { email: 'user@example.com', password: 'weak-password' } }), weak)
@@ -450,11 +452,17 @@ describe('users API edge cases', () => {
     await users(createRequest({ method: 'POST', body: { email: 'user@example.com', password: 'valid-password-123' } }), duplicate)
     expect(duplicate.statusCode).toBe(409)
 
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     db.run.mockRejectedValueOnce(new Error('boom'))
-    await expect(users(createRequest({
+    const unexpected = createResponse()
+    await users(createRequest({
       method: 'POST',
       body: { email: 'user@example.com', password: 'valid-password-123' }
-    }), createResponse())).rejects.toThrow('boom')
+    }), unexpected)
+    expect(unexpected.statusCode).toBe(500)
+    expect(unexpected.body).toEqual({ error: 'Error interno del servidor.' })
+    expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
 
     db.run.mockResolvedValueOnce({ lastID: 3 })
     const created = createResponse()
@@ -480,15 +488,13 @@ describe('users API edge cases', () => {
   it('validates user admin actions and protects sensitive states', async () => {
     const db = {
       run: vi.fn().mockResolvedValue({ changes: 1 }), // Default return value for UPDATEs/DELETEs
+      all: vi.fn().mockResolvedValue([]), // roadmap access ids of the returned user
       get: vi.fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 1, email: 'admin@example.com', role: 'admin', is_active: 1 })
         .mockResolvedValueOnce({ id: 2, email: 'other-admin@example.com', role: 'admin', is_active: 1 })
         .mockResolvedValueOnce({ count: 1 })
         .mockResolvedValueOnce({ id: 2, email: 'other-admin@example.com', role: 'admin', is_active: 0 })
-        .mockResolvedValueOnce(normalUser)
-        .mockResolvedValueOnce(normalUser)
-        .mockResolvedValueOnce(normalUser)
         .mockResolvedValueOnce(normalUser)
         .mockResolvedValueOnce({ ...normalUser, is_active: 1 })
     }
@@ -506,7 +512,7 @@ describe('users API edge cases', () => {
     expect(invalidId.statusCode).toBe(400)
 
     const missing = createResponse()
-    await userDetail(createRequest({ method: 'PATCH', query: { id: '99' }, body: { action: 'set_active' } }), missing)
+    await userDetail(createRequest({ method: 'PATCH', query: { id: '99' }, body: { action: 'set_active', is_active: true } }), missing)
     expect(missing.statusCode).toBe(404)
 
     const selfDeactivate = createResponse()
@@ -610,12 +616,7 @@ describe('auth API edge cases', () => {
 
   it('validates setup flow preconditions and creation failures', async () => {
     const db = {
-      get: vi.fn()
-        .mockResolvedValueOnce({ count: 1 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 }),
+      get: vi.fn().mockResolvedValue({ count: 0 }),
       run: vi.fn().mockResolvedValue({ changes: 1, lastID: 1 })
     }
     await mockAuthApi(db, { passwordError: 'weak password' })
@@ -624,10 +625,6 @@ describe('auth API edge cases', () => {
     const method = createResponse()
     await setup(createRequest({ method: 'GET' }), method)
     expect(method.statusCode).toBe(405)
-
-    const completed = createResponse()
-    await setup(createRequest({ method: 'POST', body: {} }), completed)
-    expect(completed.statusCode).toBe(409)
 
     const missing = createResponse()
     await setup(createRequest({ method: 'POST', body: { setupToken: 123 } }), missing)
@@ -646,6 +643,20 @@ describe('auth API edge cases', () => {
       body: { email: 'ADMIN@EXAMPLE.COM', name: '   ', password: 'valid-password-123' }
     }), failed)
     expect(failed.statusCode).toBe(400)
+  })
+
+  it('reports an already completed setup for a valid payload', async () => {
+    const db = { get: vi.fn().mockResolvedValue({ count: 1 }), run: vi.fn() }
+    await mockAuthApi(db)
+    const setup = (await import('../pages/api/auth/setup')).default
+
+    const completed = createResponse()
+    await setup(createRequest({
+      method: 'POST',
+      body: { email: 'admin@example.com', password: 'valid-password-123' }
+    }), completed)
+    expect(completed.statusCode).toBe(409)
+    expect(completed.body).toEqual({ error: 'La configuración inicial ya se completó.' })
   })
 
   it('rejects setup when origin or setup token are invalid', async () => {

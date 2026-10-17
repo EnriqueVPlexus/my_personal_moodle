@@ -1,25 +1,27 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireUser } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { exportPortfolioAsMarkdown, getUserPortfolio } from '../../../lib/portfolio'
-import { normalizeMetadataKey } from '../../../lib/roadmapMetadata'
+import { withApiErrors } from '../../../lib/http/errors'
+import { createServices } from '../../../lib/container'
+import { requireUser } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { normalizeMetadataKey } from '../../../lib/domains/content/metadata'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET')
   }
 
   const db = await openDb()
   const user = await requireUser(req, res, db)
   if (!user) return
 
-  const portfolio = await getUserPortfolio(db, user.id)
+  const { progress } = createServices(db)
+  const portfolio = await progress.getPortfolio(user.id)
   if (!portfolio) {
     return res.status(404).json({ error: 'Usuario no encontrado' })
   }
 
-  const markdownContent = exportPortfolioAsMarkdown(portfolio)
+  const markdownContent = progress.exportPortfolioMarkdown(portfolio)
   const slug = normalizeMetadataKey(portfolio.user.name || portfolio.user.email) || `user-${portfolio.user.id}`
   const filename = `portfolio-${slug}.md`
 
@@ -27,3 +29,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   return res.status(200).end(markdownContent)
 }
+
+export default withApiErrors(handler)

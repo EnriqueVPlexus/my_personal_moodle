@@ -1,127 +1,45 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { writeAuditLog } from '../../../lib/audit'
-import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { touchRoadmapProgress } from '../../../lib/progress'
-import { buildModuleQuiz, getModuleQuizSummary, toPublicModuleQuiz } from '../../../lib/quizzes'
-import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
+import { withApiErrors } from '../../../lib/http/errors'
+import { createServices } from '../../../lib/container'
+import { writeAuditLog } from '../../../lib/http/audit'
+import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { moduleIdQuerySchema, updateModuleBodySchema } from '../../../lib/validation/modules'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
-function buildModuleProgress(lessons: any[], opened: boolean) {
-  const totalLessons = lessons.length
-  const completedLessonsCount = lessons.filter(lesson => Number(lesson.completed) === 1).length
-  const progressPercentage = totalLessons > 0
-    ? Math.min(100, Math.round((completedLessonsCount / totalLessons) * 100))
-    : 0
-  const nextLesson = lessons.find(lesson => Number(lesson.completed) !== 1)
-  const timeSpentSeconds = lessons.reduce((sum, lesson) => (
-    sum + Number(lesson.progress_time_spent_seconds || 0)
-  ), 0)
-  const status = totalLessons > 0 && completedLessonsCount >= totalLessons
-    ? 'completed'
-    : completedLessonsCount > 0 || opened
-      ? 'in_progress'
-      : 'not_started'
-
-  return {
-    total_lessons: totalLessons,
-    completed_lessons_count: completedLessonsCount,
-    progress_percentage: progressPercentage,
-    status,
-    next_lesson_id: nextLesson?.id ?? null,
-    next_lesson_title: nextLesson?.title ?? null,
-    time_spent_seconds: timeSpentSeconds
-  }
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const { id } = req.query
+  const { content, progress } = createServices(db)
+
+  if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
+    return methodNotAllowed(res, 'GET, PUT, DELETE')
+  }
+
+  const params = parseOrRespond(moduleIdQuerySchema, req.query, res)
+  if (!params) return
+  const { id } = params
 
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const moduleRow = await db.get('SELECT * FROM modules WHERE id = ?', [id])
-    if (!moduleRow) return res.status(404).json({ error: 'not found' })
-    if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(404).json({ error: 'not found' })
-    const user = scope.user
 
-    if (user) {
-      await touchRoadmapProgress(db, {
-        userId: user.id,
-        roadmapId: moduleRow.roadmap_id,
-        moduleId: moduleRow.id
-      })
-    }
+    const detail = await progress.getModuleDetail(scope, id)
+    if (!detail) return res.status(404).json({ error: 'No encontrado.' })
 
-    const lessons = user
-      ? await db.all(
-        `SELECT lessons.*,
-                CASE WHEN user_lesson_progress.completed_at IS NOT NULL THEN 1 ELSE 0 END AS completed,
-                user_lesson_progress.started_at AS progress_started_at,
-                user_lesson_progress.last_activity_at AS progress_last_activity_at,
-                user_lesson_progress.completed_at AS progress_completed_at,
-                COALESCE(user_lesson_progress.time_spent_seconds, 0) AS progress_time_spent_seconds
-         FROM lessons
-         LEFT JOIN user_lesson_progress
-           ON user_lesson_progress.lesson_id = lessons.id
-          AND user_lesson_progress.user_id = ?
-         WHERE lessons.module_id = ?
-         ORDER BY lessons.id`,
-        [user.id, id]
-      )
-      : await db.all('SELECT * FROM lessons WHERE module_id = ? ORDER BY id', [id])
-    const quiz = buildModuleQuiz(moduleRow)
-    const quizSummary = user ? await getModuleQuizSummary(db, user.id, moduleRow.id) : null
-
-    return res.status(200).json({
-      ...moduleRow,
-      lessons,
-      progress: user ? buildModuleProgress(lessons, true) : null,
-      quiz: toPublicModuleQuiz(quiz),
-      quiz_summary: quizSummary
-    })
+    return res.status(200).json(detail)
   }
 
   if (req.method === 'PUT') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, level, duration, duration_weeks_min, duration_weeks_max } = req.body
-    if (!title) return res.status(400).json({ error: 'title required' })
-    const hasLevel = Object.prototype.hasOwnProperty.call(req.body, 'level')
-    const hasDuration = Object.prototype.hasOwnProperty.call(req.body, 'duration')
-    const hasDurationRange = Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_min') ||
-      Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_max')
-    const normalizedLevel = normalizeModuleLevel(level)
-    if (level && !normalizedLevel) return res.status(400).json({ error: 'invalid module level' })
-    const durationRange = hasDurationRange
-      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
-      : hasDuration
-        ? parseDurationWeeks(duration)
-        : { min: null, max: null }
-    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
-    const result = await db.run(
-      `UPDATE modules SET title = ?,
-       level = CASE WHEN ? = 1 THEN ? ELSE level END,
-       duration = CASE WHEN ? = 1 THEN ? ELSE duration END,
-       duration_weeks_min = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_min END,
-       duration_weeks_max = CASE WHEN ? = 1 THEN ? ELSE duration_weeks_max END
-       WHERE id = ?`,
-      [
-        title,
-        hasLevel ? 1 : 0,
-        normalizedLevel,
-        hasDuration ? 1 : 0,
-        duration || null,
-        hasDuration || hasDurationRange ? 1 : 0,
-        durationRange.min,
-        hasDuration || hasDurationRange ? 1 : 0,
-        durationRange.max,
-        id
-      ]
-    )
-    if (!result.changes) return res.status(404).json({ error: 'module not found' })
-    
-    const updated = await db.get('SELECT * FROM modules WHERE id = ?', [id])
+    const body = parseOrRespond(updateModuleBodySchema, req.body, res)
+    if (!body) return
+    const { title, level } = body
+
+    const updated = await content.updateModule(id, body)
+    if (!updated) return res.status(404).json({ error: 'Módulo no encontrado.' })
+
     await writeAuditLog({
       db,
       req,
@@ -129,18 +47,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'module.update',
       entityType: 'module',
       entityId: String(id),
-      details: { title, level: normalizedLevel }
+      details: { title, level: level ?? null }
     })
-    return res.status(200).json(updated)
+    return res.status(200).json(updated.module)
   }
 
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const moduleRow = await db.get('SELECT title, roadmap_id FROM modules WHERE id = ?', [id])
-    if (!moduleRow) return res.status(404).json({ error: 'module not found' })
-    
-    await db.run('DELETE FROM modules WHERE id = ?', [id])
+
+    const moduleRow = await content.deleteModule(id)
+    if (!moduleRow) return res.status(404).json({ error: 'Módulo no encontrado.' })
+
     await writeAuditLog({
       db,
       req,
@@ -152,7 +70,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
     return res.status(204).end()
   }
-
-  res.setHeader('Allow', 'GET, PUT, DELETE')
-  res.status(405).end('Method Not Allowed')
 }
+
+export default withApiErrors(handler)

@@ -1,47 +1,42 @@
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
 import { describe, expect, it, vi } from 'vitest'
-import { exportPortfolioAsMarkdown, getUserPortfolio } from '../lib/portfolio'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+import { exportPortfolioAsMarkdown } from '../lib/domains/progress/portfolio'
+import { getUserPortfolio } from '../lib/domains/progress/repositories/portfolioRepository'
+import { openSqliteDb } from '../lib/persistence'
 import { createRequest, createResponse } from './helpers/api'
+import type { DatabaseClient } from '../lib/persistence/database'
 
-const user = { id: 2, email: 'student@example.com', role: 'user' as const }
+const user = { id: 970002, email: 'student@example.com', role: 'user' as const }
 
-async function setupDb() {
-  const db = await open({ filename: ':memory:', driver: sqlite3.Database })
+async function setupDb(): Promise<DatabaseClient> {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-portfolio-'))
+  const db = await openSqliteDb(path.join(tmp, 'test.db'))
+
   await db.exec(`
-    CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, name TEXT, is_active INTEGER DEFAULT 1);
-    CREATE TABLE roadmaps (id INTEGER PRIMARY KEY, title TEXT);
-    CREATE TABLE modules (id INTEGER PRIMARY KEY, roadmap_id INTEGER, position INTEGER, title TEXT);
-    CREATE TABLE user_module_evidences (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      module_id INTEGER NOT NULL,
-      evidence_type TEXT NOT NULL,
-      url TEXT,
-      note TEXT,
-      review_status TEXT DEFAULT 'pendiente',
-      admin_comment TEXT,
-      reviewed_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    INSERT INTO users VALUES (2, 'student@example.com', 'Estudiante Test', 1);
-    INSERT INTO roadmaps VALUES (10, 'DevOps Cantera');
-    INSERT INTO modules VALUES (21, 10, 1, 'Contenedores con Docker');
-    INSERT INTO user_module_evidences (id, user_id, module_id, evidence_type, url, note, review_status, admin_comment)
-    VALUES (1, 2, 21, 'github', 'https://github.com/test/docker-demo', 'Docker compose con Nginx', 'aprobado', 'Buen trabajo con los volúmenes');
+    INSERT INTO roadmaps (id, title) VALUES (970010, 'DevOps Cantera');
+    INSERT INTO modules (id, roadmap_id, position, title) VALUES (970021, 970010, 1, 'Contenedores con Docker');
   `)
+  await db.run(
+    `INSERT INTO users (id, email, name, role, password_hash, can_view_all_roadmaps, is_active, created_at, updated_at)
+     VALUES (970002, 'student@example.com', 'Estudiante Test', 'user', 'hash', 1, 1, datetime('now'), datetime('now'))`
+  )
+  await db.run(
+    `INSERT INTO user_module_evidences (user_id, module_id, evidence_type, url, note, review_status, admin_comment, created_at, updated_at)
+     VALUES (970002, 970021, 'github', 'https://github.com/test/docker-demo', 'Docker compose con Nginx', 'aprobado', 'Buen trabajo con los volúmenes', datetime('now'), datetime('now'))`
+  )
+
   return db
 }
 
 describe('portfolio helpers', () => {
   it('fetches user portfolio and generates valid Markdown export', async () => {
     const db = await setupDb()
-    const portfolio = await getUserPortfolio(db, 2)
+    const portfolio = await getUserPortfolio(db, 970002)
 
     expect(portfolio).toMatchObject({
-      user: { id: 2, email: 'student@example.com', name: 'Estudiante Test' },
+      user: { id: 970002, email: 'student@example.com', name: 'Estudiante Test' },
       total_evidences: 1,
       approved_evidences: 1
     })
@@ -68,7 +63,7 @@ describe('portfolio helpers', () => {
     const db = await setupDb()
     await db.run('DELETE FROM user_module_evidences')
 
-    const portfolio = await getUserPortfolio(db, 2)
+    const portfolio = await getUserPortfolio(db, 970002)
     expect(portfolio?.total_evidences).toBe(0)
     expect(portfolio?.roadmaps).toHaveLength(0)
 
@@ -83,8 +78,8 @@ describe('portfolio API handlers', () => {
   it('serves JSON portfolio via GET /api/portfolio', async () => {
     const db = await setupDb()
     vi.resetModules()
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
 
     const handler = (await import('../pages/api/portfolio/index')).default
     const res = createResponse()
@@ -100,8 +95,8 @@ describe('portfolio API handlers', () => {
   it('serves Markdown file export via GET /api/portfolio/export', async () => {
     const db = await setupDb()
     vi.resetModules()
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
 
     const handler = (await import('../pages/api/portfolio/export')).default
     const res = createResponse()

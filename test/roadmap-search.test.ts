@@ -4,13 +4,13 @@ import { describe, expect, it } from 'vitest'
 import {
   filterAndRankRoadmaps,
   normalizeSearchText,
-  parseRoadmapSearchQuery,
-  ROADMAP_CATALOG_SEARCH_SQL
-} from '../lib/roadmapSearch'
+  parseRoadmapSearchQuery
+} from '../lib/domains/content/search'
+import { ROADMAP_CATALOG_SEARCH_SQL } from '../lib/domains/content/repositories/catalogRepository'
 import {
   parseRoadmapCatalogFilters,
   roadmapDurationMatches
-} from '../lib/roadmapFilters'
+} from '../lib/domains/content/filters'
 
 const rows = [
   {

@@ -1,18 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireUser } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { listUserRoadmapProgress } from '../../../lib/progress'
+import { withApiErrors } from '../../../lib/http/errors'
+import { createServices } from '../../../lib/container'
+import { requireUser } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
-    return res.status(405).end('Method Not Allowed')
+    return methodNotAllowed(res, 'GET')
   }
 
   const db = await openDb()
   const user = await requireUser(req, res, db)
   if (!user) return
 
-  const progress = await listUserRoadmapProgress(db, user.id)
+  const progress = await createServices(db).progress.listRoadmapProgress(user.id)
   return res.status(200).json(progress)
 }
+
+export default withApiErrors(handler)

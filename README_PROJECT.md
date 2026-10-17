@@ -1,6 +1,6 @@
 # Documentación Técnica Del Proyecto
 
-Este repositorio contiene **CanteraHub**, una aplicación Next.js + TypeScript para gestionar roadmaps de aprendizaje, módulos, lecciones, usuarios, roles y auditoría.
+Este repositorio contiene **Plexus Academy**, una aplicación Next.js + TypeScript para gestionar roadmaps de aprendizaje, módulos, lecciones, usuarios, roles y auditoría.
 
 ## Estado Del Producto
 
@@ -32,6 +32,74 @@ Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
 Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
 el proyecto de Supabase configurado en `.env.local`.
 
+El código está organizado por dominios con servicios, puertos y repositorios;
+ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
+**Todos los dominios ya están migrados** por repositorios tipados
+(`lib/domains/<dominio>/repositories/`), manteniendo SQLite local y PostgreSQL remoto:
+roadmaps, módulos, lecciones, auditoría, usuarios, progreso
+(`lib/domains/progress/repositories/progressRepository.ts`, incluyendo el CTE con función ventana de
+`listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
+roadmap/lección), quizzes (`lib/domains/progress/repositories/quizRepository.ts`, intentos y estadísticas
+por módulo), evidencias (`lib/domains/progress/repositories/evidenceRepository.ts`, incluyendo auditoría de
+la revisión admin), el panel admin (`lib/domains/admin/repositories/dashboardRepository.ts`, con las 3 CTEs
+de sus consultas agregadas traducidas a Postgres; el cálculo de días de
+inactividad ya está verificado contra una PostgreSQL real —
+`test/postgres-integration/inactivity-days.postgres-integration.test.ts` —,
+lo que además destapó y corrigió un `GROUP BY` incompleto en la CTE
+`learner_progress` que SQLite toleraba pero Postgres no),
+portfolio (`lib/domains/progress/repositories/portfolioRepository.ts`, reutilizando `evidenceRepository.listEvidences`
+en vez de duplicar el join) e import/export de roadmaps
+(`lib/domains/content/repositories/importRepository.ts`/`metadataRepository.ts`, único dominio con
+transacción multi-tabla; hoy usa `db.transaction()`, ver el párrafo de
+transacciones más abajo).
+
+Transacciones: `DatabaseClient.transaction(work)` (`lib/persistence`) da a
+`work` un cliente `tx` ligado a una sola conexión (Postgres: un `PoolClient`;
+SQLite: `BEGIN IMMEDIATE`) y hace `COMMIT`/`ROLLBACK` por ti; los repositorios
+con Kysely participan sin cambios. Los servicios la usan a través del puerto
+`UnitOfWork` (`lib/domains/shared/unitOfWork.ts`) para reemplazar accesos a
+roadmaps, desactivar usuarios, guardar roadmaps con metadatos, importar y
+guardar progreso del alumno de forma atómica. No se admiten transacciones
+anidadas. Detalle y guía de uso en `ARCHITECTURE.md` ("Transacciones").
+Tests de integración contra PostgreSQL real: cubiertos auth, contenido
+(roadmaps/módulos/lecciones), progreso (incluyendo el CTE con función
+ventana), quizzes, importación (incluyendo un `ROLLBACK` real forzado a
+mitad de transacción) y el cálculo de `inactivity_days` del panel admin, en
+`test/postgres-integration/*.postgres-integration.test.ts` (se saltan salvo
+que exista `TEST_DATABASE_URL` o `DATABASE_URL`). Tienen su propia config,
+`vitest.integration.config.ts`, que los ejecuta fichero a fichero
+(`fileParallelism: false`, por conflictos de `migrate()` concurrente);
+`npm run test:unit` los excluye y además vacía `DATABASE_URL`, así que los
+tests unitarios siempre usan SQLite aunque `direnv` cargue la variable. Corren
+contra una base PostgreSQL local aislada vía Docker
+(`docker-compose.test.yml`, `postgres:16-alpine`, sin volumen persistente):
+
+```bash
+npm run test:db:up      # levanta el contenedor en localhost:55432 y aplica
+                         # las migraciones formales (scripts/migrate.ts up)
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/app_test \
+  npm run test:integration:run
+npm run test:db:down    # detiene el contenedor y descarta sus datos (-v)
+```
+
+o el atajo `npm run test:integration` (levanta, ejecuta y desmonta, y
+devuelve el código de salida de los tests). Configura `TEST_DATABASE_URL` igual
+que `DATABASE_URL` (vía `direnv`, ver `.envrc`) para no repetirlo en cada
+comando. Si `TEST_DATABASE_URL` no está definida, los tests caen a
+`DATABASE_URL` (la Supabase real compartida) — útil para quien aún no tiene
+Docker configurado, pero no aislado. Detalle completo en
+`test/postgres-integration/README.md` y en `backlog.md`.
+
+`openDb()` (`lib/persistence/openDb.ts`) cachea la instancia `PostgresDb`/`Pool` por
+proceso (antes creaba un pool nuevo en cada llamada); `PostgresDb` define
+timeouts de conexión/idle y un listener de error en el pool — ver
+`test/postgres-integration/connection-pool.postgres-integration.test.ts` y
+`backlog.md` ("Gestion de conexiones y transacciones") para el detalle y lo
+que queda pendiente (manejo de errores no uniforme en todas las rutas de
+`pages/api/**`).
+
 ## Dominio Funcional
 
 - **Roadmaps**: rutas formativas con descripción, objetivos, metodología y pesos de evaluación.
@@ -55,7 +123,28 @@ el proyecto de Supabase configurado en `.env.local`.
 - `/admin/users` gestiona usuarios y contraseñas.
 - `/admin/audit` muestra los últimos 200 eventos sensibles.
 
+### Resetear Contraseña De Admin
+
+Si pierdes acceso al usuario admin (ej. SQLite en desarrollo):
+
+1. **En SQLite local** (`data/dev.db`):
+   - Genera el hash con `npx tsx` y `hashPassword()` de `lib/domains/auth/password.ts`.
+   - Ejecuta SQL directamente:
+     ```bash
+     sqlite3 ./data/dev.db "UPDATE users SET password_hash = '<HASH>', updated_at = datetime('now') WHERE role = 'admin';"
+     ```
+
+2. **En PostgreSQL/Supabase**:
+   - Abre el SQL Editor de Supabase.
+   - Ejecuta el mismo UPDATE en la tabla `users`.
+   - Asegúrate de que `AUTH_PASSWORD_PEPPER` en `.env.local` sea el mismo que en producción.
+
+La contraseña debe tener al menos 12 caracteres; el validador en `lib/domains/auth/password.ts` lo comprueba.
+
 ## Estructura Principal
+
+Capas, reglas de dependencia, cómo añadir un caso de uso y estrategia de tests en
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ```text
 pages/
@@ -70,22 +159,38 @@ pages/
 
 components/                 Layout, cabecera, formularios, cards y contenido de módulos.
 lib/
-  db.ts                     Migraciones SQLite y seed AWS.
-  auth.ts                   Sesiones, roles y protección de origen.
-  password.ts               Hash y validación de contraseñas.
-  audit.ts                  Escritura de eventos.
-  roadmapPresentation.ts    Helpers de presentación para JSON/texto.
+  container.ts              Composición: createServices(db) conecta dominios y repositorios.
+  http/                     Adaptadores HTTP (cookies, origen, IP, 401/403/429, auditoría).
+  persistence/              DatabaseClient, openDb(), PostgresDb, esquema Kysely/SQLite y seed.
+  domains/
+    auth/                   Sesiones, login, setup, contraseñas, rate limit, alcance de lectura.
+    content/                Roadmaps, módulos, lecciones, catálogo y búsqueda, import/export, quizzes.
+    progress/               Progreso, intentos de quiz, evidencias, portfolio, vistas del alumno.
+    admin/                  Administración de usuarios y panel de control.
+    audit/                  Registro de auditoría.
+                            (cada dominio: service.ts, ports.ts, types.ts, repositories/, index.ts)
+  validation/               Esquemas Zod y contrato de error de la API (ver VALIDATION.md).
+  contracts/                Respuestas Zod, registro de rutas y generador OpenAPI (ver API_CONTRACTS.md).
   branding.ts               Branding configurable por entorno.
 
 test/                       Suite Vitest, helpers y guías curl.
 styles/                     Tailwind y estilos globales.
 public/brand/               Assets de marca por defecto.
-scripts/                    Utilidades de mantenimiento.
+scripts/                    Utilidades de mantenimiento (incluye generate-openapi.ts).
+openapi.json                Contrato OpenAPI 3.1 generado (npm run contracts:generate).
 ```
+
+## UI y Branding
+
+- Header compacto con logo 50px, sin padding vertical.
+- Nombres de la app: `NEXT_PUBLIC_PRODUCT_NAME` (ej. "Plexus Academy") y `NEXT_PUBLIC_COMPANY_NAME` (ej. "Plexus Tech") en `.env.local`.
+- Admin links agrupados en dropdown con componente `AdminDropdown` que cierra al hacer click fuera.
+- Usuario simplificado: muestra solo username (antes del @) con link "Log out".
+- Brand assets en `public/brand/`: logo PNG/SVG, favicon.
 
 ## Base De Datos
 
-`lib/db.ts` crea y migra estas tablas. El backend se selecciona así:
+`lib/persistence/` crea y migra estas tablas. El backend se selecciona así:
 
 - Desarrollo y tests: SQLite local cuando `DATABASE_URL` no existe.
 - Supabase/producción: PostgreSQL cuando `DATABASE_URL` existe.
@@ -122,7 +227,25 @@ npm run migrate:postgres -- --apply
 No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
 comparar antes los IDs y recuentos de ambas bases.
 
-`lib/db.ts` crea y migra estas tablas:
+### Migraciones formales de PostgreSQL
+
+Para levantar o actualizar el esquema de PostgreSQL de forma versionada
+(en vez del bootstrap ad-hoc de `PostgresDb.migrate()`, pensado solo para
+tests), usa el migrador basado en `Kysely` (`migrations/*.ts` +
+`scripts/migrate.ts`):
+
+```bash
+npm run migrate:status   # qué migraciones están ejecutadas / pendientes
+npm run migrate:up       # aplica las migraciones pendientes
+npm run migrate:down     # revierte exactamente la última migración
+```
+
+Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
+`migrate:status` antes de `migrate:up`. Detalle de diseño, el porqué de
+`.ifNotExists()` y la prueba de bootstrap desde cero en
+`backlog.md` ("Migraciones formales de PostgreSQL").
+
+`lib/persistence/sqliteSchema.ts` (SQLite) y `PostgresDb.migrate()`/`migrations/` (PostgreSQL) crean y migran estas tablas:
 
 - `roadmaps`
 - `modules`
@@ -137,7 +260,7 @@ comparar antes los IDs y recuentos de ambas bases.
 - `topics`
 - `roadmap_topics`
 
-También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
+También inserta o actualiza los roadmaps iniciales desde `lib/persistence/bootstrap/seeds/` (lógica en `lib/persistence/bootstrap/`).
 
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
@@ -166,47 +289,57 @@ Comandos útiles:
 ```bash
 npm run test:unit
 npm run test:coverage
+npm run contracts:generate   # regenera openapi.json
 npm run build
 ```
 
+## Validación De Entradas
+
+Las API Routes validan cuerpo, query y parámetros `[id]` con `zod` antes de
+ejecutar las consultas de negocio. Los esquemas viven en `lib/validation/` (uno por
+dominio) y los errores siguen un contrato único: `400` con
+`{ error: string, issues?: Array<{ path, message }> }`, con mensajes en español.
+`error` es el mensaje del primer problema, porque la interfaz lo muestra tal cual.
+
+Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
+`VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.3.0).
+
+Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
+`DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
+devuelve siempre la misma forma de usuario. La 3.1.0 documenta el documento completo
+de la importación de roadmaps en OpenAPI: el importador valida ahora el JSON con un
+esquema Zod (`lib/domains/content/importSchema.ts`) y mantiene los mismos errores por
+campo que ve el administrador. La 3.2.0 hace que `POST /api/users` devuelva también
+`roadmap_access_ids`, corrige el doble `401`+`404` de `PUT`/`DELETE`
+`/api/evidences/modules/{id}` y comparte el formato de `version` y `published_at` entre
+el importador, los roadmaps y el seed. La 3.3.0 envuelve todos los handlers de
+`pages/api` con `withApiErrors` (`lib/http/errors.ts`): un fallo inesperado responde
+el `500` JSON `{ error: 'Error interno del servidor.' }` en lugar del `500` no JSON de
+Next, y el detalle solo se registra en el servidor.
+
+Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
+ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para
+administradores y los contadores/`has_evidence` llegan normalizados (números y
+booleano) con SQLite y PostgreSQL.
+
 ## Endpoints Relevantes
 
-Consulta y contenido:
+La lista de endpoints ya no se mantiene a mano: el contrato de la API se genera
+desde `lib/contracts` y cubre todas las rutas de `pages/api`.
 
-- `GET /api/roadmaps`
-- `GET /api/roadmaps?q=&category=&topic=&level=&duration=&sort=`
-- `GET /api/roadmaps/:id`
-- `GET /api/roadmaps/metadata`
-- `POST /api/roadmaps`
-- `PUT /api/roadmaps/:id`
-- `DELETE /api/roadmaps/:id`
-- `GET /api/modules`
-- `GET /api/modules?roadmap_id=1`
-- `GET /api/modules/:id`
-- `POST /api/modules`
-- `PUT /api/modules/:id`
-- `DELETE /api/modules/:id`
-- `GET /api/lessons?module_id=1`
-- `GET /api/lessons/:id`
-- `POST /api/lessons`
-- `PUT /api/lessons/:id`
-- `DELETE /api/lessons/:id`
-- `PUT /api/progress/lessons/:id`
-- `GET /api/progress/roadmaps`
+- `openapi.json` (raíz del repositorio): documento OpenAPI 3.1 con parámetros,
+  cuerpos, respuestas y errores de cada ruta. `npm run contracts:generate` lo
+  regenera y un test falla si está desactualizado.
+- `GET /api/openapi.json`: el mismo documento, público y de solo lectura.
+- `API_CONTRACTS.md`: cómo se define el contrato, cómo añadir un endpoint, reglas
+  de versionado y deprecación, e incoherencias conocidas.
+- Tabla de endpoints por dominio y guía para consumidores: sección `API` de
+  `README.md`.
 
-Auth, usuarios y auditoría:
-
-- `GET /api/auth/setup-status`
-- `POST /api/auth/setup`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `GET /api/users`
-- `POST /api/users`
-- `PATCH /api/users/:id`
-- `GET /api/audit-logs`
-
-Las escrituras requieren sesión admin y pasan por comprobación de origen.
+Las escrituras pasan por comprobación de origen, los identificadores de ruta
+(`:id`) deben ser enteros positivos y cualquier entrada inválida devuelve `400`
+(ver `Validación De Entradas`).
 
 ## Seguridad Operativa
 

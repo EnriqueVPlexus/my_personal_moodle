@@ -1,76 +1,64 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getRoadmapReadScope, requireUser, scopeAllowsRoadmap } from '../../../../lib/auth'
-import { openDb } from '../../../../lib/db'
-import { getModuleEvidence, saveModuleEvidence, validateEvidenceInput } from '../../../../lib/evidences'
-import { touchRoadmapProgress } from '../../../../lib/progress'
+import { withApiErrors } from '../../../../lib/http/errors'
+import { createServices } from '../../../../lib/container'
+import { getRoadmapReadScope, requireUser } from '../../../../lib/http/auth'
+import { openDb } from '../../../../lib/persistence'
+import { evidenceModuleQuerySchema, saveEvidenceBodySchema } from '../../../../lib/validation/evidences'
+import { parseOrRespond } from '../../../../lib/validation/http'
+import { methodNotAllowed } from '../../../../lib/http/methods'
 
-function getId(value: string | string[] | undefined) {
-  const id = Number(Array.isArray(value) ? value[0] : value)
-  return Number.isInteger(id) && id > 0 ? id : null
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const moduleId = getId(req.query.id)
-  if (!moduleId) return res.status(400).json({ error: 'invalid module id' })
+  const params = parseOrRespond(evidenceModuleQuerySchema, req.query, res)
+  if (!params) return
+  const moduleId = params.id
+  const { progress } = createServices(db)
+
+  // The scope loader writes its own 401 when the scope cannot be resolved; remember
+  // it so the handler does not add a second (404) response on top of it.
+  let scopeRejected = false
+  const loadScope = async () => {
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) scopeRejected = true
+    return scope
+  }
 
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    if (!scope.user) return res.status(401).json({ error: 'authentication required' })
+    if (!scope.user) return res.status(401).json({ error: 'Debes iniciar sesión.' })
 
-    const moduleRow = await db.get('SELECT id, roadmap_id FROM modules WHERE id = ?', [moduleId])
-    if (!moduleRow || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) {
-      return res.status(404).json({ error: 'not found' })
-    }
+    const result = await progress.getModuleEvidence(scope, scope.user.id, moduleId)
+    if (!result) return res.status(404).json({ error: 'No encontrado.' })
 
-    return res.status(200).json({
-      evidence: await getModuleEvidence(db, scope.user.id, moduleId)
-    })
+    return res.status(200).json(result)
   }
 
   if (req.method === 'PUT') {
     const user = await requireUser(req, res, db)
     if (!user) return
 
-    const moduleRow = await db.get('SELECT id, roadmap_id FROM modules WHERE id = ?', [moduleId])
-    if (!moduleRow) return res.status(404).json({ error: 'not found' })
+    const body = parseOrRespond(saveEvidenceBodySchema, req.body, res)
+    if (!body) return
 
-    const scope = await getRoadmapReadScope(req, res, db)
-    if (!scope || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) {
-      return res.status(404).json({ error: 'not found' })
-    }
+    const result = await progress.saveModuleEvidence(user.id, moduleId, body, loadScope)
+    if (scopeRejected) return
+    if (!result) return res.status(404).json({ error: 'No encontrado.' })
 
-    const validation = validateEvidenceInput(req.body || {})
-    if ('error' in validation) return res.status(400).json({ error: validation.error })
-
-    const evidence = await saveModuleEvidence(db, user.id, moduleId, validation.value)
-    await touchRoadmapProgress(db, {
-      userId: user.id,
-      roadmapId: moduleRow.roadmap_id,
-      moduleId
-    })
-
-    return res.status(200).json({ evidence })
+    return res.status(200).json(result)
   }
 
   if (req.method === 'DELETE') {
     const user = await requireUser(req, res, db)
     if (!user) return
-    const moduleRow = await db.get('SELECT id, roadmap_id FROM modules WHERE id = ?', [moduleId])
-    if (!moduleRow) return res.status(404).json({ error: 'not found' })
-    const scope = await getRoadmapReadScope(req, res, db)
-    if (!scope || !scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) {
-      return res.status(404).json({ error: 'not found' })
-    }
-    const result = await db.run(
-      'DELETE FROM user_module_evidences WHERE user_id = ? AND module_id = ?',
-      [user.id, moduleId]
-    )
-    if (!result.changes) return res.status(404).json({ error: 'not found' })
+
+    const deleted = await progress.deleteModuleEvidence(user.id, moduleId, loadScope)
+    if (scopeRejected) return
+    if (!deleted) return res.status(404).json({ error: 'No encontrado.' })
     return res.status(204).end()
   }
 
-  res.setHeader('Allow', 'GET, PUT, DELETE')
-  return res.status(405).end('Method Not Allowed')
+  return methodNotAllowed(res, 'GET, PUT, DELETE')
 }
+
+export default withApiErrors(handler)

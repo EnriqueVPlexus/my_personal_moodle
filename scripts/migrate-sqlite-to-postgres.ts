@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { loadEnvConfig } from '@next/env'
-import { openSqliteDb } from '../lib/db'
-import { PostgresDb } from '../lib/postgresDb'
+import { openSqliteDb } from '../lib/persistence'
+import { PostgresDb } from '../lib/persistence/postgresDb'
 
 type Row = Record<string, any>
 type MigrationOptions = { apply: boolean; source: string; databaseUrl: string }

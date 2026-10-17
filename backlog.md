@@ -1,4 +1,4 @@
-# Backlog de CanteraHub
+# Backlog de Plexus Academy
 
 Documento vivo para planificar, implementar y revisar la evolucion
 del producto poco a poco.
@@ -29,7 +29,16 @@ del producto poco a poco.
 - [x] Estados de progreso `iniciado`, `en curso`, `pausado` y `completado`.
 - [x] Auditoria de robustez del progreso: calculos derivados, reanudacion,
   concurrencia, validacion y recuperacion ante errores de red.
-- [x] Favicon propio de CanteraHub para la pestana del navegador.
+- [x] Favicon propio de Plexus Academy para la pestana del navegador.
+- [x] UI Redesign: header compacto, admin dropdown, branding actualizado.
+- [x] Reset de contraseña admin en SQLite local.
+- [x] Validacion de entradas y contratos de error con `zod` (`VALIDATION.md`).
+- [x] Separacion de dominios y persistencia: servicios, puertos y repositorios por
+  dominio (`ARCHITECTURE.md`).
+- [x] Contratos API estables: esquemas de respuesta, OpenAPI 3.1 generado
+  (`openapi.json`), tipos compartidos y tests de contrato (`API_CONTRACTS.md`).
+- [x] Fuga de respuestas de quizzes y conteos en PostgreSQL (contrato 2.0.0).
+- [x] Importador de roadmaps validado con Zod y documentado en OpenAPI (contrato 3.1.0).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -71,38 +80,229 @@ mantienen en los bloques tecnicos de abajo.
 
 ## Prioridad alta
 
-### [ ] Capa de acceso SQL estructurada
+### [x] Capa de acceso SQL estructurada
 
-Estado: pendiente.
+Estado: hecho. Se establecio el patron de repositorio tipado con `Kysely`
+(elegido sobre `Drizzle` por conservar el control del SQL existente y ofrecer
+tipado, soporte PostgreSQL/SQLite y migraciones) y se aplico a cuatro dominios
+como base reutilizable para el resto. La migracion del resto de dominios queda
+como tarea aparte de menor prioridad (ver `Migrar dominios restantes a la capa
+SQL estructurada`), sin bloquear el resto de la hoja de ruta.
 
 Objetivo: sustituir gradualmente el acceso SQL disperso por una capa tipada
 que mantenga SQLite local y PostgreSQL remoto sin duplicar la logica de negocio.
 
+Patron establecido (usar como referencia para nuevos dominios):
+
+- Esquema Kysely compartido en `lib/kyselyDatabase.ts`: una interfaz de tabla
+  por tabla, una interfaz `Database` que las agrupa, y `getQueryDatabase(pool)`
+  que cachea una instancia `Kysely` por `Pool` de PostgreSQL (`WeakMap`).
+  Columnas nullable sin valor en el insert original usan el helper
+  `OptionalOnInsert` (`ColumnType`) para que `Insertable<...>` no las exija.
+- Un repositorio por dominio (`lib/roadmapRepository.ts`, `lib/auditRepository.ts`,
+  `lib/moduleRepository.ts`, `lib/lessonRepository.ts`): cada funcion recibe el
+  `DatabaseClient` generico y decide backend con `db.backend !== 'postgres'`;
+  la rama SQLite usa el SQL parametrizado ya existente (sin reescribirlo) y la
+  rama PostgreSQL usa `getQueryDatabase((db as PostgresDb).getPool())`, de modo
+  que se reutiliza el pool de conexiones en vez de crear uno nuevo por dominio.
+- Los handlers de `pages/api` importan el repositorio y dejan de construir SQL
+  o decidir el backend con `if (db.backend === 'postgres')`.
+- Tests de regresion por repositorio en `test/*Repository.test.ts` cubren la
+  ruta SQLite (lectura, escritura parcial, entidad inexistente). La ruta
+  PostgreSQL no tiene tests propios todavia porque no existe infraestructura
+  de base de test aislada (tarea aparte `test/postgres-integration`).
+
+Hecho cuando (para el alcance migrado):
+
+- Las consultas de los dominios migrados pasan por la capa estructurada.
+- SQLite y PostgreSQL producen el mismo contrato observable.
+- Existen tests de regresion para la ruta SQLite de cada repositorio.
+
+Avance actual:
+
+- `roadmapRepository`: lectura (`findRoadmapById`) y escritura representativa
+  (`updateRoadmapCore`) del detalle de roadmap.
+- `auditRepository`: `insertAuditLog` (usado por `writeAuditLog`) y
+  `listAuditLogs`.
+- `moduleRepository`: listados por roadmap/roadmaps/todos, lectura por id,
+  alta, actualizacion parcial y baja.
+- `lessonRepository`: listado por modulo, lectura por id (con y sin join a
+  `roadmap_id`), alta, actualizacion y baja.
+- `userRepository`: listado, lectura por id, alta (con deteccion de email
+  duplicado), activar/desactivar, resetear contrasena, marcar acceso a todos
+  los roadmaps, contar admins activos, gestion de `user_roadmap_access` y
+  borrado de sesiones por usuario.
+- Pendiente (movido a tarea aparte): progreso, quizzes, evidencias, admin,
+  portfolio, import/export de roadmaps y tests de integracion contra
+  PostgreSQL real.
+
+### [x] Migrar dominios restantes a la capa SQL estructurada
+
+Estado: hecho. Los diez dominios pendientes (usuarios, progreso, quizzes,
+evidencias, admin dashboard, portfolio e import/export de roadmaps) estan
+migrados a `DatabaseClient`/Kysely, cada uno en su propia rama apilada
+(`feature/progress-repository-postgres` → `.../quizzes-...` →
+`.../evidences-...` → `.../admin-dashboard-...` → `.../portfolio-...` →
+`.../roadmap-import-export-...`), con tests SQLite reales + pool `pg`
+simulado para cada uno. Queda como tarea aparte, ya listada mas abajo,
+anadir tests de integracion contra PostgreSQL real (hoy ninguna rama Postgres
+se ha probado contra una base real, solo con pools simulados).
+
+Valor: completa la sustitucion gradual del acceso SQL disperso iniciada en
+`Capa de acceso SQL estructurada`, siguiendo el patron ya validado en
+`lib/kyselyDatabase.ts` y los repositorios de roadmaps, auditoria, modulos y
+lecciones.
+
 Tareas:
 
-- Evaluar `Drizzle` y `Kysely` sobre el codigo actual.
-- Definir repositorios o consultas agrupadas por dominio.
-- Mantener una ruta de compatibilidad para los tests SQLite existentes.
-- Migrar primero una lectura y una escritura representativas.
-
-Rama sugerida: `feature/sql-access-layer`.
+- [x] Migrar usuarios (`pages/api/users/*`): dominio mas escrito-intensivo
+  (hash de contrasenas, invalidacion de sesiones, comprobaciones de carrera
+  sobre el numero de admins); requiere especial cuidado para no bloquear
+  cuentas. Se creo `lib/userRepository.ts` siguiendo el patron establecido
+  (rama SQLite con SQL parametrizado existente, rama Postgres con Kysely),
+  anadiendo `UsersTable`, `SessionsTable` y `UserRoadmapAccessTable` a
+  `lib/kyselyDatabase.ts`. Tambien se anadio `findExistingRoadmapIds` a
+  `roadmapRepository.ts` (validacion de ids usada por `set_roadmap_access`).
+  `pages/api/users/index.ts` y `pages/api/users/[id].ts` ya no construyen SQL
+  ni deciden el backend directamente. Se preservo el comportamiento exacto
+  (incluida la doble comprobacion redundante de admins activos al desactivar,
+  y el error `DuplicateEmailError` para violaciones de unicidad de email en
+  ambos backends: `SQLITE_CONSTRAINT` y `23505` de Postgres). Sesiones/login
+  (`lib/auth.ts`) quedan fuera de alcance: pertenecen a la migracion de
+  autenticacion, no a este dominio de gestion de usuarios. Tests nuevos:
+  `test/userRepository.test.ts` (SQLite real) y
+  `test/userRepository.postgres.test.ts` (pool `pg` simulado), mas cobertura
+  de `findExistingRoadmapIds` en los tests existentes de `roadmapRepository`.
+- [x] Migrar progreso (`pages/api/progress/*`, `lib/progress.ts`): consultas mas
+  complejas (CTEs, funciones ventana, upserts `ON CONFLICT ... excluded`
+  especificos de SQLite); es el dominio de mayor riesgo de traduccion a
+  PostgreSQL. Se creo `lib/progressRepository.ts` (reemplaza `lib/progress.ts`)
+  siguiendo el patron establecido, con `UserLessonProgressTable`,
+  `UserRoadmapProgressTable` y `UserQuizAttemptsTable` anadidas a
+  `lib/kyselyDatabase.ts`. El CTE con `ROW_NUMBER() OVER (PARTITION BY ...)` de
+  `listUserRoadmapProgress` y los dos upserts `ON CONFLICT ... excluded`
+  (`touchRoadmapProgress`, `setLessonProgress`) se tradujeron a mano para
+  Postgres via el template `sql` de Kysely en lugar del query builder, dado que
+  el acumulador y el `CASE` autorreferencial de `setLessonProgress` no se
+  pueden expresar limpiamente con `.onConflict().doUpdateSet()`. Se elimino el
+  wrapper `datetime()` en la rama Postgres porque esos timestamps son
+  `TIMESTAMPTZ` nativos alli (en SQLite se guardan como TEXT ISO). Tests
+  nuevos: `test/progressRepository.test.ts` (SQLite real) y
+  `test/progressRepository.postgres.test.ts` (pool `pg` simulado).
+  `getRoadmapProgressSnapshot` y `getLessonContext` quedaron como SQL crudo via
+  `sql` tag (no builder) por presupuesto de esfuerzo; pendiente de
+  homogeneizar si se quiere consistencia total con el query builder.
+- [x] Migrar quizzes (intentos): se creo `lib/quizRepository.ts` con
+  `saveModuleQuizAttempt`, `getModuleQuizSummary` y `checkAttemptEligibility`
+  sobre `DatabaseClient` (antes usaban un `DbHandle` a mano); `lib/quizzes.ts`
+  queda solo con las funciones puras de construccion/calificacion de quizzes.
+  El `ORDER BY datetime(submitted_at)` se resolvio igual que en progreso: rama
+  SQLite conserva `datetime()`, rama Postgres ordena por el timestamptz
+  nativo. De paso, `pages/api/quizzes/modules/[id].ts` dejo de hacer
+  `SELECT * FROM modules WHERE id = ?` a mano y usa `findModuleById` de
+  `moduleRepository`. Se verifico (sin reescribirlas) que las subconsultas de
+  estadisticas de quiz ya embebidas en `listUserRoadmapProgress` (progreso)
+  ya tenian bien resuelto el mismo problema de `datetime()`; quedan sin
+  consolidar con `quizRepository` a proposito por tener granularidad distinta
+  (por roadmap vs. por modulo). Tests nuevos: `test/quizRepository.test.ts` y
+  `test/quizRepository.postgres.test.ts`.
+- [x] Migrar evidencias: se creo `lib/evidenceRepository.ts` con
+  `getModuleEvidence`, `saveModuleEvidence` (upsert), `reviewModuleEvidence`,
+  `getEvidenceById`, `deleteModuleEvidence` y `listEvidences` (el listado admin
+  con filtros dinamicos, antes SQL inline en el handler) sobre
+  `DatabaseClient`; `lib/evidences.ts` queda solo con constantes/tipos y
+  `validateEvidenceInput`. El upsert `ON CONFLICT(user_id, module_id)` se
+  tradujo con el query builder de Kysely (`.onConflict().doUpdateSet()`), sin
+  necesidad de SQL crudo porque no hay acumulador autorreferencial como en
+  quizzes/progreso. De paso, `pages/api/evidences/modules/[id].ts` sustituyo
+  el `SELECT id, roadmap_id FROM modules` a mano por `findModuleById` de
+  `moduleRepository`. Se anadio auditoria a la revision admin de evidencias
+  (`pages/api/evidences/[id]/review.ts`), accion `evidence.review`, con estado
+  anterior y posterior en el detalle — gap detectado durante la migracion,
+  cerrado a peticion expresa. Tests nuevos: `test/evidenceRepository.test.ts`
+  y `test/evidenceRepository.postgres.test.ts`. Portfolio y admin dashboard
+  quedan fuera de alcance (leen `user_module_evidences` pero son tareas
+  aparte).
+- [x] Migrar admin dashboard: `lib/adminDashboard.ts` paso de un `DbHandle` a
+  mano a `DatabaseClient`, separando `getAdminDashboardRowsSqlite` (SQL
+  original sin cambios) de `getAdminDashboardRowsPostgres` (las 4 consultas
+  agregadas, incluidas las 3 CTEs, traducidas a mano via el template `sql` de
+  Kysely, no el query builder, por el mismo motivo que en progreso/quizzes).
+  `is_active = 1` se mantuvo igual en ambos backends (la columna es
+  `INTEGER`, no booleana, en los dos esquemas — verificado contra el uso ya
+  existente en `userRepository.ts`/`auth.ts`, no era un problema real pese a
+  la sospecha inicial). `julianday(a) - julianday(b)` se tradujo a
+  `FLOOR(EXTRACT(EPOCH FROM (a::timestamptz - b)) / 86400)::INTEGER`, validado
+  contra la fixture existente (33 dias) pero **sin verificar en Postgres
+  real** casos de borde con fracciones de dia cerca de un limite — pendiente
+  de contrastar cuando se aborde el punto de tests de integracion contra
+  PostgreSQL real (mas abajo). Tests nuevos:
+  `test/admin-dashboard.postgres.test.ts`.
+- [x] Migrar portfolio: `getUserPortfolio` paso a `DatabaseClient`. En vez de
+  triplicar el join evidencia+modulo+roadmap, se reutilizo
+  `listEvidences(db, { userId })` de `evidenceRepository.ts` (sin modificarlo)
+  y se reconstruyo en JS el orden original (`roadmap_title`,
+  `module_position` o `module_id`, `updated_at` desc), ya que `listEvidences`
+  ordena distinto para su propio caso de uso (listado admin). La comprobacion
+  de usuario activo (`is_active = 1`, columna `INTEGER` en ambos esquemas, no
+  booleana) quedo en un helper privado dentro de `lib/portfolio.ts`, ya que
+  `findUserById` de `userRepository` no filtra por `is_active` y no se quiso
+  anadir ese comportamiento a un repositorio ya cerrado. Tests nuevos:
+  `test/portfolio.postgres.test.ts`; `test/portfolio.test.ts` adaptado a
+  `DatabaseClient` real via `openSqliteDb`. Nota de fragilidad detectada (no
+  bloqueante): combinar `openDb()` + `chdir` + `vi.doMock` en cierto orden de
+  ejecucion de tests provoca `SQLITE_MISUSE: Database is closed` por
+  contaminacion entre tests; se evito usando `openSqliteDb()` con ruta
+  explicita, pero la causa raiz no se diagnostico — revisar si otros
+  dominios migrados comparten el mismo patron fragil.
+- [x] Migrar import/export de roadmaps (ultimo dominio de esta tarea):
+  `lib/roadmapImport.ts` y `lib/roadmapMetadata.ts` pasaron a `DatabaseClient`.
+  Es el unico dominio con transaccion multi-tabla (`BEGIN IMMEDIATE` sobre
+  `roadmaps` + `modules` + `roadmap_categories`/`topics`/`roadmap_topics`);
+  por decision expresa se uso SQL crudo parametrizado en ambos backends
+  dentro de la transaccion en vez de Kysely, porque el query builder no
+  participa del `transactionClient` que `PostgresDb` usa internamente para
+  `BEGIN`/`COMMIT`/`ROLLBACK` — excepcion deliberada y acotada solo a este
+  bloque transaccional, el resto de dominios sigue usando Kysely para
+  Postgres. Se descubrio que `PostgresDb.translateSql()` ya traduce solo
+  placeholders `?`→`$n`, `BEGIN IMMEDIATE`→`BEGIN` e incluso
+  `INSERT OR IGNORE`→`ON CONFLICT DO NOTHING`, asi que casi ningun SQL
+  necesito duplicarse. Excepcion: `ORDER BY ... COLLATE NOCASE` se rama
+  explicitamente a `lower(...)` para Postgres, porque el stripping generico
+  de `translateSql` simplemente borra `COLLATE NOCASE` sin preservar el
+  orden case-insensitive. Tests nuevos:
+  `test/roadmap-import.postgres.test.ts` (incluye un caso real de rollback a
+  mitad de transaccion) y `test/roadmap-export.postgres.test.ts`.
+- Anadir tests de integracion contra PostgreSQL real para los dominios ya
+  migrados (roadmaps, auditoria, modulos, lecciones) y para los nuevos,
+  reutilizando la base de test aislada de `test/postgres-integration`.
 
 Hecho cuando:
 
-- Las consultas nuevas pasan por la capa estructurada.
-- SQLite y PostgreSQL producen el mismo contrato observable.
-- Existen tests de regresion para ambos backends.
+- Todos los dominios de `pages/api` acceden a la base de datos a traves de un
+  repositorio tipado, sin SQL disperso en los handlers.
+- Existen tests de regresion para SQLite y PostgreSQL en cada dominio migrado.
 
-### [ ] Validacion de entradas y contratos con Zod
+### [x] Validacion de entradas y contratos con Zod
 
-Estado: pendiente.
+Estado: hecho (2026-10-15). `zod` v4 es dependencia de runtime y las APIs que
+leen entrada (cuerpo, query y `[id]`) la validan con esquemas de `lib/validation/`
+antes de las consultas de negocio. Los errores usan un contrato unico
+`{ error, issues? }` con mensajes en espanol, sin trazas ni detalles internos.
+Arquitectura, contrato, orden de validacion, decisiones y seguimiento en
+[`VALIDATION.md`](VALIDATION.md).
 
 Tareas:
 
-- Anadir `zod` como dependencia de runtime.
-- Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
-  progreso, quizzes e importaciones.
-- Devolver errores de validacion consistentes sin filtrar detalles internos.
+- [x] Anadir `zod` como dependencia de runtime.
+- [x] Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
+  lecciones, progreso, quizzes, evidencias, catalogo e importaciones.
+- [x] Devolver errores de validacion consistentes sin filtrar detalles internos.
+- Seguimiento (fuera de alcance): mensajes 401/403/405/429 de `lib/http/auth.ts`
+  y `lib/http/rateLimit.ts` siguen en ingles (resuelto en la 3.0.0, ver
+  "Coherencia de la API"); `validateRoadmapImport` sigue sin
+  migrar a Zod (resuelto, ver "Migrar a Zod la validacion del importador de
+  roadmaps"). Ver `VALIDATION.md`.
 
 Rama sugerida: `feature/input-validation-zod`.
 
@@ -111,15 +311,64 @@ Hecho cuando:
 - Las entradas de las APIs principales se validan antes de tocar la base de datos.
 - Los tests cubren payloads validos, invalidos y limites.
 
-### [ ] Separacion de dominios y persistencia
+### [x] Migrar a Zod la validacion del importador de roadmaps
 
-Estado: pendiente.
+Estado: hecho (2026-10-16). `validateRoadmapImport` dejo de ser codigo manual:
+el documento se valida con `roadmapImportSchema`
+(`lib/domains/content/importSchema.ts`: textos y listas con limites, enlaces,
+`level`, preguntas de quiz como union discriminada por `type`, reglas entre campos
+en `superRefine` y `.transform` hacia `NormalizedRoadmapImport`) y la funcion es
+un envoltorio fino con la misma firma. El administrador ve los mismos `path` y
+`message` (`modules[0].quiz[1].answer`), fijados por un test de caracterizacion
+de 238 entradas grabado con el validador anterior. El contrato OpenAPI pasa a la
+3.1.0 (MINOR, aditivo) y describe `roadmap` por completo (`RoadmapImportDocument`).
+Detalle, decisiones y diferencias conocidas en [`VALIDATION.md`](VALIDATION.md)
+(seccion Importacion) y [`API_CONTRACTS.md`](API_CONTRACTS.md) (3.1.0).
 
 Tareas:
 
-- Separar autenticacion, contenido, progreso, administracion y persistencia.
-- Mover reglas de negocio fuera de los handlers HTTP.
-- Definir interfaces para que las APIs no dependan directamente del driver.
+- [x] Test de caracterizacion del validador anterior antes de migrar.
+- [x] Esquema Zod del roadmap, de los modulos y de las preguntas de quiz.
+- [x] Reglas entre campos y normalizacion con `.transform`.
+- [x] Documento completo en el sobre del contrato; `openapi.json` regenerado (3.1.0).
+- [x] Documentacion tecnica (`VALIDATION.md`, `API_CONTRACTS.md`).
+- Sin documentacion de usuario: no hay cambios visibles en la pantalla de importacion.
+- Seguimiento: ninguno propio; las dos diferencias menores (orden de las `issues`
+  y `type` de pregunta no permitido) estan documentadas en `VALIDATION.md`.
+
+Hecho cuando:
+
+- [x] Los mensajes y rutas de `issues` coinciden con los del validador anterior.
+- [x] Los tests de `413` (mas de 1 MB) y `409` (conflicto) siguen en verde.
+- [x] El contrato OpenAPI describe el documento completo.
+
+### [x] Separacion de dominios y persistencia
+
+Estado: hecho (2026-10-15). El codigo de `lib/` se organiza por dominios
+(`auth`, `content`, `progress`, `admin`, `audit`) con `service.ts` (casos de uso
+y reglas), `ports.ts` (interfaces), `types.ts` y `repositories/` (unica
+implementacion de cada puerto, con sus ramas SQLite/Postgres). El driver, el
+esquema y el seed viven en `lib/persistence/`; los adaptadores de Next
+(cookies, origen, IP, 401/403/429) en `lib/http/`; y `lib/container.ts` conecta
+todo. Refactorizacion pura: no cambia ningun estado, cuerpo ni mensaje de la
+API. Capas, regla de dependencia, como anadir un caso de uso, estrategia de
+tests y trabajo futuro en [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+Tareas:
+
+- [x] Separar autenticacion, contenido, progreso, administracion y auditoria en
+  `lib/domains/*`, y la persistencia en `lib/persistence/`.
+- [x] Mover reglas de negocio fuera de los handlers HTTP (progreso de modulo,
+  flujo de intentos de quiz, reglas de usuarios, agregacion de metadatos).
+- [x] Definir interfaces (puertos) para que las APIs no dependan del driver:
+  ningun handler usa `db.*`, `DATABASE_URL` ni `PostgresDb`.
+- [x] Servicios de dominio sin dependencia de `next` y tests por dominio con
+  repositorios en memoria (`test/domains/`).
+- Seguimiento (fuera de alcance): adaptadores por dialecto (opcion B) detras de
+  los mismos puertos; unificar los mensajes 401/403/405/429 (resuelto en la
+  3.0.0). El helper de
+  transacciones comun se implemento despues (ver "Reapertura y correccion" en
+  "Gestion de conexiones y transacciones"). Ver `ARCHITECTURE.md`.
 
 Rama sugerida: `refactor/domain-separation`.
 
@@ -129,35 +378,187 @@ Hecho cuando:
 - Los handlers se limitan a autenticar, validar, invocar y responder.
 - Los tests de dominio no necesitan levantar Next.js.
 
-### [ ] Migraciones formales de PostgreSQL
+### [x] Migraciones formales de PostgreSQL
 
-Estado: pendiente. La creacion inicial del esquema y el migrador SQLite ya
-existen, pero falta una historia formal de migraciones versionadas.
+Estado: hecho. Se eligio el sistema de migraciones propio de `Kysely`
+(`Migrator` + `FileMigrationProvider`, importados desde el subpath
+`kysely/migration`) en vez de anadir una herramienta nueva: `kysely` ya es
+dependencia del proyecto, ya se usa en `lib/adminDashboard.ts` y
+`lib/kyselyDatabase.ts`, y su schema builder da migraciones tipadas y
+revisables (no SQL crudo).
+
+Se crearon dos piezas:
+
+- `migrations/0001_initial_schema.ts`: traduccion 1:1 (tabla por tabla,
+  columna por columna, indices y constraints incluidos) de la constante
+  `POSTGRES_SCHEMA` de `lib/postgresDb.ts`, escrita con el schema builder de
+  Kysely. Expone `up()`/`down()`; `down()` elimina todo en orden inverso
+  seguro para FKs.
+- `scripts/migrate.ts`: CLI (`up`/`down`/`status`) que conecta a
+  `DATABASE_URL` con la misma configuracion SSL que `PostgresDb` y corre el
+  `Migrator` de Kysely. Se niega a ejecutar si `DATABASE_URL` no esta
+  definida (nunca cae a SQLite). Expuesto como `npm run migrate:up`,
+  `npm run migrate:down`, `npm run migrate:status`.
+
+Dos caminos deliberadamente distintos, no duplicacion accidental:
+
+- `scripts/migrate.ts` (formal, versionado): el camino para despliegues
+  reales contra Supabase. Registra cada migracion ejecutada en
+  `kysely_migration`/`kysely_migration_lock` y permite rollback controlado.
+- `PostgresDb.migrate()` (bootstrap rapido, sin cambios): sigue siendo el
+  `CREATE TABLE IF NOT EXISTS` idempotente del que dependen los tests de
+  integracion contra Postgres para levantar un esquema efimero rapido. No se
+  toco su comportamiento ni se le hizo llamar al nuevo migrador.
+
+Decision de diseno clave: todo `createTable`/`createIndex` de
+`0001_initial_schema.ts` usa `.ifNotExists()`. Esto es lo que permite
+ejecutar `migrate:up` de forma segura contra el `public` de Supabase, que ya
+tiene estas tablas creadas ad-hoc por `PostgresDb.migrate()` — sin esto,
+Kysely genera `CREATE TABLE` sin `IF NOT EXISTS` por defecto y la migracion
+fallaria contra el esquema compartido. Verificado en vivo: `migrate:status`
+(pendiente) -> `migrate:up` (exito, sin duplicar nada) -> `migrate:status`
+(ejecutada).
+
+Rollback: `npm run migrate:down` revierte exactamente una migracion (usa
+`migrateDown()`, el nombre real de la API de Kysely). Ejecucion segura en
+Supabase: correr siempre `npm run migrate:status` antes de `migrate:up` en
+produccion; `DATABASE_URL` debe apuntar a la cadena de conexion de Supabase
+con SSL (mismo `ssl: { rejectUnauthorized: false }` que usa `PostgresDb`).
+
+Prueba de bootstrap desde cero:
+`test/postgres-integration/migrations-bootstrap.postgres-integration.test.ts`
+crea un schema Postgres desechable (`CREATE SCHEMA IF NOT EXISTS
+migration_bootstrap_test_<marcador>`) contra la misma Supabase compartida,
+sin tocar `public`, apunta una conexion dedicada a ese schema (via
+`search_path`, fijado por conexion fisica porque el `options` de arranque de
+`pg` no es fiable) y corre `migrateToLatest()` dos veces: la primera crea
+las 15 tablas esperadas desde una base vacia, la segunda no tiene nada
+pendiente (prueba de idempotencia). El schema se elimina siempre en
+`afterAll` (`DROP SCHEMA ... CASCADE`). Nota tecnica: el introspector de
+Postgres de Kysely no filtra por schema al buscar sus tablas internas
+(`kysely_migration*`), asi que el test pasa `migrationTableSchema` al
+`Migrator` para evitar que confunda esas tablas con las que ya existen en
+`public` de una ejecucion anterior de `migrate:up`.
 
 Tareas:
 
-- Elegir herramienta compatible con la capa SQL seleccionada.
-- Crear migracion inicial reproducible para el esquema actual.
-- Separar migraciones de datos, seeds y cambios de estructura.
-- Documentar rollback y ejecucion segura en Supabase.
+- [x] Elegir herramienta compatible con la capa SQL seleccionada (Kysely
+  `Migrator`).
+- [x] Crear migracion inicial reproducible para el esquema actual
+  (`migrations/0001_initial_schema.ts`).
+- [x] Separar migraciones de datos, seeds y cambios de estructura: no hay
+  seeds ni migraciones de datos todavia, solo la migracion estructural
+  inicial; el patron (una migracion por archivo, numerada) deja el espacio
+  listo para separarlas cuando existan.
+- [x] Documentar rollback y ejecucion segura en Supabase (ver arriba).
 
 Rama sugerida: `feature/postgres-migrations`.
 
 Hecho cuando:
 
-- Una base PostgreSQL vacia puede levantarse solo con las migraciones.
-- Las migraciones son idempotentes o tienen control de version.
-- Existe una prueba de bootstrap desde cero.
+- [x] Una base PostgreSQL vacia puede levantarse solo con las migraciones
+  (probado con el schema desechable, no solo contra `public`).
+- [x] Las migraciones son idempotentes (`.ifNotExists()`) y tienen control
+  de version (tabla `kysely_migration` que registra que se ejecuto y
+  cuando).
+- [x] Existe una prueba de bootstrap desde cero
+  (`migrations-bootstrap.postgres-integration.test.ts`).
 
-### [ ] Tests de integracion contra PostgreSQL real
+### [x] Tests de integracion contra PostgreSQL real
 
-Estado: pendiente.
+Estado: hecho. Cobertura funcional completa (auth, contenido, progreso,
+quizzes, importacion, admin dashboard) verificada contra Postgres real, y
+ahora tambien contra una instancia de test aislada (ver tarea de aislamiento
+mas abajo) — el criterio de "Hecho cuando" que faltaba ya se cumple.
+Accesible localmente via `direnv` (`.envrc` carga `DATABASE_URL` desde
+`.env.local`); ejecutar con `direnv exec . npm run test:integration:run`
+(config dedicada `vitest.integration.config.ts`, ver nota de deadlock mas
+abajo). Preferible, sin embargo, usar la base aislada (ver abajo).
 
 Tareas:
 
-- Preparar una base PostgreSQL de test aislada.
-- Ejecutar auth, contenido, progreso, quizzes e importacion contra PostgreSQL.
-- Mantener tests unitarios rapidos sobre SQLite cuando sea suficiente.
+- [x] Preparar una base PostgreSQL de test aislada. Se anadio
+  `docker-compose.test.yml` (`postgres:16-alpine`, puerto `55432` para no
+  chocar con un Postgres local por defecto, usuario/clave/BD de un solo uso
+  `postgres`/`postgres`/`app_test`, sin volumen persistente — usa `tmpfs`,
+  asi que siempre arranca vacia). Scripts nuevos: `npm run test:db:up`
+  (levanta el contenedor y aplica las migraciones formales de
+  `scripts/migrate.ts up` contra el, reutilizando el mismo esquema fuente de
+  verdad, sin duplicarlo) y `npm run test:db:down` (`down -v`, nunca trata
+  esta base como duradera), mas el atajo `npm run test:integration`. Se
+  introdujo `TEST_DATABASE_URL` como variable preferente en los 8 ficheros
+  `test/postgres-integration/*.postgres-integration.test.ts`
+  (`process.env.TEST_DATABASE_URL || process.env.DATABASE_URL`), sin romper
+  el fallback existente a `DATABASE_URL`/Supabase real para quien no tenga
+  Docker configurado. `scripts/migrate.ts` y `PostgresDb` (`lib/postgresDb.ts`)
+  forzaban SSL incondicionalmente (`ssl: { rejectUnauthorized: false }`),
+  algo que Supabase requiere pero que el Postgres local de Docker no soporta
+  en absoluto — se corrigio detectando `localhost`/`127.0.0.1` en la cadena
+  de conexion y desactivando SSL solo en ese caso (mismo fix replicado en los
+  dos pools directos de `migrations-bootstrap.postgres-integration.test.ts`).
+  Documentado en `test/postgres-integration/README.md` y en
+  `README_PROJECT.md`. No se creo `.env.test.example`: los permisos del
+  entorno de agente bloquean escribir cualquier fichero `.env*` en la raiz
+  del repo; la configuracion (`TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/app_test`)
+  quedo documentada en el README en su lugar. Verificado end-to-end: 32/32
+  tests pasan contra el contenedor local (mismo recuento que la baseline
+  contra Supabase), y 32/32 siguen pasando contra la Supabase real sin
+  `TEST_DATABASE_URL` (fallback intacto); `npm run test:db:down` deja el
+  contenedor, la red y cualquier volumen completamente eliminados.
+- [x] Ejecutar auth, contenido, progreso, quizzes e importacion contra
+  PostgreSQL:
+  - `test/postgres-integration/auth.postgres-integration.test.ts` — ciclo de
+    vida de sesiones (creacion, expiracion, limpieza de sesiones caducadas).
+  - `test/postgres-integration/content-repositories.postgres-integration.test.ts`
+    — roadmapRepository, moduleRepository, lessonRepository.
+  - `test/postgres-integration/progress-repository.postgres-integration.test.ts`
+    — upserts `ON CONFLICT` y el CTE con `ROW_NUMBER() OVER (PARTITION BY...)`
+    de `listUserRoadmapProgress`, probado con datos reales de 2 roadmaps.
+  - `test/postgres-integration/quiz-repository.postgres-integration.test.ts`
+    — intentos de quiz, resumen por modulo, elegibilidad (limite intentos,
+    cooldown).
+  - `test/postgres-integration/roadmap-import.postgres-integration.test.ts`
+    — incluye un caso de `ROLLBACK` real a mitad de transaccion forzando una
+    violacion de constraint (`modules.title NOT NULL`), confirmando que la
+    fila de roadmap ya insertada no sobrevive; el test mockeado anterior solo
+    podia probar que se llamaba a `ROLLBACK`, no que limpiaba de verdad.
+  - Mas `inactivity_days` en admin dashboard (ver mas abajo).
+  27/27 tests pasan contra Postgres real. No aparecieron mas bugs de
+  aplicacion en esta tanda (a diferencia del `GROUP BY` de admin dashboard).
+- [x] Mantener tests unitarios rapidos sobre SQLite (sin tocar, siguen en
+  `test/*.test.ts` con pool `pg` simulado para la forma del SQL).
+- [x] Verificar el calculo de `inactivity_days` en admin dashboard
+  (`FLOOR(EXTRACT(EPOCH FROM (a::timestamptz - b)) / 86400)::INTEGER`, que
+  reemplaza a `julianday()` de SQLite) contra casos de borde con fracciones
+  de dia cerca de un limite. Verificado contra Postgres real (Supabase) en
+  `test/postgres-integration/inactivity-days.postgres-integration.test.ts`;
+  los 7 casos de borde pasan. Esta verificacion destapo un bug real ajeno al
+  calculo de dias: la CTE `learner_progress` de
+  `getAdminDashboardRowsPostgres` (`lib/adminDashboard.ts`) seleccionaba
+  `urp.current_module_id` sin incluirlo en el `GROUP BY`, algo que SQLite
+  tolera pero Postgres rechaza (`column "urp.current_module_id" must appear
+  in the GROUP BY clause`). Nunca se detecto antes porque los tests previos
+  usaban un pool `pg` simulado. Corregido anadiendo
+  `urp.current_module_id, urp.last_activity_at` al `GROUP BY` de esa rama (la
+  rama SQLite no se toco, no falla ahi).
+
+Notas operativas descubiertas al escribir estos tests:
+
+- Los ficheros bajo `test/postgres-integration/` no pueden correr en
+  paralelo: cada fichero llama a `PostgresDb.migrate()`
+  (`CREATE TABLE IF NOT EXISTS ...`) contra la misma base, y en paralelo
+  produce `error: deadlock detected`. Resuelto con una config dedicada,
+  `vitest.integration.config.ts` (`fileParallelism: false`), expuesta como
+  `npm run test:integration:run`; ya no hace falta el flag
+  `--no-file-parallelism` en la linea de comandos.
+- `openDb()` (`lib/db.ts`) cambia de backend globalmente segun exista
+  `DATABASE_URL` en el entorno. Con la variable puesta, los tests etiquetados
+  "(SQLite backend)" apuntaban tambien a la Postgres real y chocaban entre si
+  en paralelo (violaciones de clave duplicada). Resuelto: `vitest.config.ts`
+  excluye `test/postgres-integration/**` y fija `DATABASE_URL` y
+  `TEST_DATABASE_URL` a cadena vacia en `test.env`, asi que
+  `npm run test:unit` siempre usa SQLite aunque `direnv` exporte la variable
+  (verificado con una `DATABASE_URL` inalcanzable: 343/343 pasan).
 
 Rama sugerida: `test/postgres-integration`.
 
@@ -166,46 +567,211 @@ Hecho cuando:
 - El flujo critico pasa contra PostgreSQL sin depender de la base de produccion.
 - Las pruebas limpian sus datos y pueden repetirse localmente o en CI.
 
-### [ ] Gestion de conexiones y transacciones
+### [x] Gestion de conexiones y transacciones
 
-Estado: pendiente.
+Estado: hecho. Los tres criterios de "Hecho cuando" se cumplen (ver
+correccion mas abajo sobre errores controlados) y todas las sub-tareas estan
+cerradas.
 
 Tareas:
 
-- Revisar ciclo de vida del pool PostgreSQL en desarrollo, tests y serverless.
-- Definir limites, timeouts y comportamiento ante desconexion.
-- Garantizar transacciones en importaciones y operaciones multi-tabla.
-- Evitar conexiones persistentes innecesarias durante tests.
+- [x] Revisar ciclo de vida del pool PostgreSQL en desarrollo, tests y
+  serverless. Bug real confirmado y corregido: `openDb()` (`lib/db.ts`)
+  creaba una instancia `new PostgresDb(...)` (y por tanto un `pg.Pool`
+  nuevo, `max: 5`) en CADA llamada, sin ningun cacheo. Como los 26 handlers
+  de `pages/api/**` llaman a `openDb()` por request, cada peticion HTTP
+  levantaba su propio pool nuevo y nada en el codigo de la app (solo en
+  tests) llamaba nunca a `.close()`. Corregido cacheando la instancia en un
+  `Map<string, PostgresDb>` module-level indexado por `DATABASE_URL` (mismo
+  patron que el `sqlite3ModulePromise` ya existente unas lineas arriba),
+  de forma que el pool se reutiliza durante todo el proceso. Ver
+  `test/postgres-integration/connection-pool.postgres-integration.test.ts`,
+  que llama a `openDb()` 20+ veces (secuencial y concurrente) y comprueba
+  por identidad (`getPool()`) que siempre devuelve el mismo `Pool`, y que
+  `totalCount` no crece sin limite.
+- [x] Definir limites, timeouts y comportamiento ante desconexion.
+  `lib/postgresDb.ts`: se anadieron `idleTimeoutMillis: 30000` y
+  `connectionTimeoutMillis: 5000` al `Pool` (antes no habia timeout de
+  conexion, es decir con el pool saturado una request podia colgarse
+  indefinidamente en vez de fallar rapido), y un listener
+  `this.pool.on('error', ...)` que loguea en vez de dejar que un error de
+  un cliente idle (ej. Supabase cerrando la conexion) tumbe el proceso
+  Node entero — comportamiento que la propia documentacion de
+  `node-postgres` marca como obligatorio.
+- [x] Garantizar transacciones en importaciones y operaciones multi-tabla.
+  Ya cubierto por trabajo previo: `roadmap-import.postgres-integration.test.ts`
+  prueba un ROLLBACK real contra Postgres. No se repite aqui.
+  (Anotacion 2026-10-15: esta linea era enganosa. Solo cubria la importacion,
+  que usaba `BEGIN`/`COMMIT` a mano; no existia un helper reutilizable ni las
+  demas operaciones multi-tabla eran atomicas. Ver "Reapertura y correccion"
+  al final de este bloque.)
+- [x] Evitar conexiones persistentes innecesarias durante tests.
+  - Los tests unitarios ya no abren conexiones a Postgres: `vitest.config.ts`
+    vacia `DATABASE_URL`/`TEST_DATABASE_URL` y excluye la suite de
+    integracion (ver notas operativas de la seccion anterior).
+  - La suite de integracion corre fichero a fichero con su propia config
+    (`vitest.integration.config.ts`), y cada fichero cierra en `afterAll` los
+    pools que abre. El unico que no lo hacia era
+    `connection-pool.postgres-integration.test.ts`, que dejaba abierto el
+    pool singleton de `openDb()` asumiendo que se compartia con otros
+    ficheros; no es asi, porque Vitest aisla los modulos por fichero
+    (`isolate: true` por defecto), asi que ese pool solo vivia en ese
+    fichero y mantenia conexiones idle hasta que el worker terminaba. Ahora
+    lo cierra en `afterAll`.
+  - `npm run test:integration` propaga el codigo de salida de los tests
+    (antes devolvia el de `test:db:down`, es decir 0 aunque fallasen).
 
 Rama sugerida: `chore/db-transactions`.
 
+Reapertura y correccion (2026-10-15):
+
+- Hueco detectado durante la refactorizacion de separacion de dominios: la
+  tarea "Garantizar transacciones en importaciones y operaciones multi-tabla"
+  se dio por cerrada, pero no habia un helper de transacciones reutilizable.
+  La importacion hacia `BEGIN`/`COMMIT`/`ROLLBACK` a mano sobre un
+  `transactionClient` guardado en la instancia `PostgresDb` (compartida por
+  proceso, asi que dos peticiones concurrentes podian mezclarse); los
+  repositorios con Kysely usan el pool, no ese cliente, y por tanto no
+  participaban en ninguna transaccion (un `BEGIN` en una conexion y consultas
+  en otras no da atomicidad); y el reemplazo de accesos de un usuario
+  (`PATCH /api/users/[id]`) eran tres escrituras seguidas sin transaccion.
+- Correccion: `DatabaseClient.transaction(work)` (Postgres: un `PoolClient`
+  para toda la transaccion con fachada de pool para Kysely, siempre liberado;
+  SQLite: `BEGIN IMMEDIATE` con mutex), puerto `UnitOfWork` en los dominios y
+  `lib/container.ts` como unico sitio que lo implementa. Atomicos ahora:
+  reemplazo de accesos, desactivar usuario y resetear contrasena (con
+  revocacion de sesiones), crear/actualizar roadmap con metadatos, importacion,
+  intento de quiz, evidencia y progreso de leccion. Anidar transacciones lanza
+  `NestedTransactionError`. Se elimino el manejo de `BEGIN`/`COMMIT` en
+  `PostgresDb.exec()`.
+- Verificacion: tests de servicio con `UnitOfWork` falso,
+  `test/transactions*.test.ts` (SQLite real con `TRIGGER ... RAISE(ABORT)`) y,
+  contra Postgres efimero, `transactions.postgres-integration.test.ts` y
+  `admin-access.postgres-integration.test.ts` (Kysely y SQL crudo en el mismo
+  rollback, cliente liberado, transacciones concurrentes). Ver
+  `ARCHITECTURE.md` ("Transacciones").
+- Sin cambio visible para el usuario: no hay estados, cuerpos ni mensajes HTTP
+  distintos, por lo que no hace falta documentacion de usuario.
+
 Hecho cuando:
 
-- No hay fugas de conexiones bajo carga de tests.
-- Las operaciones parciales hacen rollback comprobable.
-- Los errores de base de datos llegan como respuestas controladas.
+- [x] No hay fugas de conexiones bajo carga de tests. Demostrado por el test
+  de identidad de pool arriba: 20 llamadas concurrentes a `openDb()`
+  reutilizan el mismo `Pool` (`max: 5`), no crean uno nuevo por llamada.
+- [x] Las operaciones parciales hacen rollback comprobable
+  (`roadmap-import.postgres-integration.test.ts`, no tocado en este cambio).
+- [x] Los errores de base de datos llegan como respuestas controladas.
+  Correccion sobre la nota anterior (dejada aqui para que quede el rastro):
+  se penso que los ~22 handlers de `pages/api/**` sin try/catch propio (p.ej.
+  `pages/api/admin/dashboard.ts`, `pages/api/roadmaps/index.ts`) filtraban
+  errores de Postgres sin control. Verificado directamente en el codigo
+  fuente de Next.js instalado
+  (`node_modules/next/dist/server/api-utils/node/api-resolver.js:358-382`):
+  en produccion (`dev === false`) CUALQUIER excepcion no capturada en un
+  handler de `pages/api` la intercepta el propio framework, hace
+  `console.error` en servidor y responde `500 Internal Server Error`
+  generico SIN filtrar mensaje ni stack al cliente; el `throw` solo se
+  propaga en modo `dev` (comportamiento esperado, es el overlay de
+  desarrollo). Esta app no usa Edge runtime en ninguna ruta ni configura
+  `propagateError`, asi que no hay excepcion a esto. El criterio SI se
+  cumple hoy, sin cambios necesarios; no era un hueco de seguridad.
+  Lo que si sigue pendiente, pero como mejora de calidad y no de seguridad:
+  la mayoria de rutas devuelven 500 generico para casos de error de dominio
+  conocidos (p.ej. clave duplicada) en vez de mapearlos a un codigo mas
+  preciso, como ya hace `pages/api/roadmaps/import.ts`
+  (`RoadmapImportConflictError` → 409). Se decidio explicitamente no
+  abordarlo ahora (ver backlog mas abajo, prioridad baja).
 
-### [ ] Contratos API estables
+Con la correccion anterior, los tres criterios de "Hecho cuando" se
+cumplen.
 
-Estado: pendiente.
+### [x] Contratos API estables
+
+Estado: hecho (2026-10-15). Las 26 rutas de `pages/api` (mas
+`GET /api/openapi.json`) tienen contrato documentado: los esquemas de respuesta
+viven en `lib/contracts/` junto a los de entrada de `lib/validation/`, un registro
+de rutas (metodo, ruta, acceso, solicitud y respuestas por estado) genera el
+documento OpenAPI 3.1 `openapi.json` con `z.toJSONSchema` de Zod (sin dependencias
+nuevas) y los tipos de las respuestas se comparten con la UI. Describe la API tal
+y como funciona hoy: no cambia ningun estado, cuerpo ni mensaje. Definicion,
+generacion, como anadir un endpoint, politica de versionado y deprecacion e
+incoherencias conocidas en [`API_CONTRACTS.md`](API_CONTRACTS.md); guia para
+consumidores y tabla de endpoints en la seccion `API` de `README.md`.
 
 Tareas:
 
-- Documentar request, response y errores de cada API publica.
-- Definir versionado de API si un cambio rompe clientes.
-- Generar tipos compartidos para frontend y backend.
-- Mantener compatibilidad durante la migracion SQLite/PostgreSQL.
+- [x] Documentar request, response y errores de cada API publica
+  (`openapi.json`, `GET /api/openapi.json`; publico porque solo describe rutas).
+- [x] Definir versionado de API si un cambio rompe clientes: semver en
+  `info.version`, que es incompatible o aditivo, cuando introducir `/api/v2` y
+  procedimiento de deprecacion (`API_CONTRACTS.md`). No se movio ninguna ruta.
+- [x] Generar tipos compartidos para frontend y backend (`z.infer` desde
+  `lib/contracts`, adoptados en catalogo, detalle de roadmap y modulo, progreso,
+  quizzes, evidencias, portfolio, usuarios admin, dashboard, auditoria e
+  importacion).
+- [x] Mantener compatibilidad durante la migracion SQLite/PostgreSQL: el
+  contrato reflejo primero las diferencias reales (contadores como texto y
+  `has_evidence` booleano en PostgreSQL); la 2.0.0 las elimino normalizando en los
+  repositorios (ver el item siguiente).
+- Seguimiento (fuera de alcance, ver `API_CONTRACTS.md`): mensajes 401/403/405/429 en ingles y `405` en texto plano;
+  `DELETE /api/roadmaps/:id` da `204` aunque no exista; forma distinta de la
+  respuesta de `PATCH /api/users/:id` segun la accion (resueltos en la 3.0.0);
+  `validateRoadmapImport` migrado a Zod en la 3.1.0; doble `401`+`404` en
+  `PUT/DELETE /api/evidences/modules/:id` y `roadmap_access_ids` ausente en
+  `POST /api/users` (resueltos en la 3.2.0).
 
 Rama sugerida: `feature/api-contracts`.
 
 Hecho cuando:
 
-- Las APIs criticas tienen contrato documentado y tests de respuesta.
-- Los cambios incompatibles requieren una decision explicita.
+- [x] Las APIs criticas tienen contrato documentado y tests de respuesta
+  (`test/api-contracts.test.ts` comprueba cada estado de cada handler contra el
+  registro; `test/contracts-openapi.test.ts` exige un registro completo y
+  `openapi.json` al dia).
+- [x] Los cambios incompatibles requieren una decision explicita (`/api/v2`,
+  `MAJOR` de `info.version` y deprecacion minima de 90 dias).
+
+### [x] Fuga de respuestas de quizzes y conteos en PostgreSQL
+
+Estado: hecho (2026-10-15). Dos defectos detectados al documentar el contrato:
+
+- **Seguridad**: los repositorios de modulos usaban `SELECT *`, asi que
+  `quiz_bank` (con la respuesta correcta de cada pregunta) llegaba a cualquier
+  lector por `GET /api/modules`, `GET /api/modules/:id`, `GET /api/roadmaps/:id`
+  y las respuestas de `POST`/`PUT` de modulos. Ahora los repositorios devuelven una
+  proyeccion publica de columnas explicitas y solo `findQuizSourceById` lee el
+  banco, para construir y corregir quizzes. Ademas
+  `GET /api/roadmaps/:id/export`, que incluye los quizzes con su respuesta, era
+  legible por cualquier lector: ahora es solo para admin (es una copia de seguridad
+  que se reimporta).
+- **PostgreSQL**: `pg` devuelve `COUNT`/`SUM` como texto, por lo que `module_count`
+  no se mostraba en `RoadmapCard` en produccion. Los repositorios normalizan
+  contadores a numero y `has_evidence` a booleano en ambos motores
+  (`lib/persistence/normalize.ts`); se revirtieron los parches de la UI.
+
+El contrato sube a `2.0.0` (MAJOR) con una clausula nueva de "Correcciones de
+seguridad" en la politica de versionado. Detalle y changelog en
+[`API_CONTRACTS.md`](API_CONTRACTS.md#200-2026-10-15).
+
+Hecho cuando:
+
+- [x] Ninguna respuesta de la API contiene `quiz_bank` ni `correct_option_index`
+  (tests de regresion para anonimo, alumno y admin, en SQLite y contra PostgreSQL
+  real).
+- [x] El export de roadmaps es solo admin y sigue incluyendo los quizzes.
+- [x] Contadores y `has_evidence` tienen un solo tipo en SQLite y PostgreSQL
+  (tests unitarios del normalizador y de integracion con PostgreSQL efimero).
+- [x] `openapi.json` regenerado y changelog 2.0.0 en `API_CONTRACTS.md`.
 
 ### [ ] Observabilidad, backups y recuperacion
 
-Estado: pendiente.
+Estado: pendiente, pausado deliberadamente (2026-09-28). Hoy en Supabase
+plan Free (sin backups automaticos ni PITR incluidos por la plataforma).
+Decision del usuario: no construir aqui un script de backup propio para
+Supabase Free porque el proyecto se alojara en el futuro en infraestructura
+propia (AWS o Azure), y el enfoque de backups/restauracion sera distinto
+alli. Retomar este punto cuando se decida esa migracion de hosting, no
+antes.
 
 Tareas:
 
@@ -707,6 +1273,71 @@ Tareas:
 - Vista o exportacion de "Mi Portfolio de Evidencias".
 - Generacion de resumen con links a GitHub, demos y notas de modulos superados.
 
+### [x] Coherencia de la API: errores en español, DELETE idempotente y forma única de usuario
+
+Estado: hecho (2026-10-16)
+
+- Los errores `401`/`403`/`405`/`429`, origen, `login` y `setup` están en español
+  de España; el `405` es JSON `{ error }` con `Allow` (`lib/http/methods.ts`).
+- `DELETE /api/roadmaps/{id}`: `204` si borra, `200` con `{ message }` si no
+  existía (solo se audita cuando se borra).
+- `PATCH /api/users/{id}` devuelve siempre el mismo usuario con sus accesos.
+- Contrato 3.0.0 (cambio incompatible por el `405`, el `DELETE` y el `PATCH`).
+  Detalle en [API_CONTRACTS.md](API_CONTRACTS.md#300-2026-10-16).
+
+### [x] Pendientes de coherencia de la API (evidencias, alta de usuarios y version)
+
+Estado: hecho (2026-10-16)
+
+- `PUT`/`DELETE /api/evidences/modules/{id}` escriben una sola respuesta (`401`) cuando
+  no se puede resolver el alcance de lectura, en vez de `401` y luego `404`.
+- `POST /api/users` devuelve el mismo usuario que el listado y `PATCH`
+  (con `roadmap_access_ids`, sin secretos).
+- El formato de `version` y `published_at` tiene una sola fuente
+  (`lib/domains/content/version.ts` y `roadmapFields.ts`) compartida por el importador,
+  la validación de roadmaps y el seed.
+- Contrato 3.2.0 (MINOR). Detalle en [API_CONTRACTS.md](API_CONTRACTS.md#320-2026-10-16).
+
+### [x] Errores 500 en JSON para toda la API
+
+Estado: hecho (2026-10-17)
+
+- Nuevo envoltorio `withApiErrors` (`lib/http/errors.ts`) aplicado a las 27 rutas de
+  `pages/api`: una excepción o promesa rechazada responde `500` con
+  `{ "error": "Error interno del servidor." }`, registra el error real en servidor
+  (método y ruta) y no escribe nada si las cabeceras ya se enviaron.
+- `test/api-routes-wrapped.test.ts` falla si una ruta nueva no está envuelta.
+- `PUT /api/evidences/{id}/review` usa el mensaje unificado; `POST /api/roadmaps`,
+  `POST /api/users` y `POST /api/auth/setup` conservan su `500` de dominio
+  (`No se pudo crear ...`).
+- Contrato 3.3.0 (MINOR): el `500` se documenta en todas las operaciones. Detalle en
+  [API_CONTRACTS.md](API_CONTRACTS.md#330-2026-10-17).
+
+## UI y Branding
+
+### [x] UI Redesign: Header compacto y admin dropdown
+
+Estado: completado.
+
+Valor: mejora la experiencia visual y la densidad de información sin sacrificar usabilidad.
+
+Cambios implementados:
+
+- Header compactado: reducir altura con `py-0` y gap mínimo.
+- Logo redimensionado de 40px a 50px manteniendo proporción.
+- Admin links agrupados en dropdown (`Admin ▼`) para ahorrar espacio horizontal.
+- Usuario simplificado: mostrar solo username (parte antes del @) con link "Log out" en lugar de botón.
+- Eliminar subtítulo "Plexus Tech" para mantener limpieza visual.
+- Branding actualizado: `CanteraHub` → `Plexus Academy`, `Tu empresa` → `Plexus Tech` (en `.env.local`).
+
+Hecho cuando:
+
+- Header cabe en una sola línea en viewport estándar (>= 768px).
+- Admin dropdown funciona con click-outside detection.
+- Logo y textos mantienen legibilidad.
+
+Rama: `feature/ui-redesign` (mergeada a `chore/audit-fix-force`).
+
 ## Prioridad media
 
 ### [x] Quizzes reales por modulo
@@ -876,13 +1507,53 @@ Valor: cachear contenidos y lecciones mediante un Service Worker para poder cons
 
 Estado: en curso. La aplicacion ya puede usar PostgreSQL de Supabase y mantiene
 SQLite para desarrollo; faltan despliegue reproducible, secretos, backups y
-pruebas de recuperacion.
+pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
+alojamiento interno de la empresa o uno externo gratuito/bajo coste).
 
 Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
 
-Alcance inicial:
+Auditoria de deployment-readiness (completada): se reviso el codigo para
+detectar bloqueantes de publicar en un hosting real. Resultado y arreglos:
 
-- Usar PostgreSQL de Supabase como fuente central y SQLite solo en local/tests.
+- [x] Rate limiting en memoria (bloqueante): `lib/rateLimit.ts` guardaba los
+  intentos en un objeto en memoria del proceso, lo que no funciona con multiples
+  instancias/funciones serverless (cada una con su propio contador). Ahora usa
+  una tabla `rate_limits` en la base de datos compartida (SQLite o Postgres),
+  con buckets independientes por `scope` (`login`, `setup`).
+- [x] Seeds sobrescribian ediciones de admin en cada arranque (riesgo alto):
+  `seedRoadmaps` en `lib/db.ts` se ejecutaba en cada arranque de proceso y
+  sobrescribia `description`, `objectives`, etc. de los roadmaps semilla por
+  titulo, revirtiendo cualquier edicion manual de un admin. Ahora solo siembra
+  cuando la tabla `roadmaps` esta completamente vacia (bootstrap unico).
+- [x] `requireSameOrigin` confiaba solo en `x-forwarded-host`/`Host` sin lista
+  blanca: se anadio `ALLOWED_ORIGIN` (opcional, coma-separado) para validar el
+  origen contra una lista explicita cuando la app esta detras de un proxy/CDN.
+- [x] `sqlite3` (binding nativo) se instalaba siempre aunque en produccion con
+  `DATABASE_URL` nunca se usa: se movio a `optionalDependencies` y el import se
+  hizo perezoso (dentro de `openSqliteDb`) para que un fallo de compilacion o
+  una instalacion sin dependencias opcionales no rompa el arranque en Postgres.
+- [x] Documentacion de variables de entorno de produccion: `.env.example` y
+  `README_PROJECT.md` aclaran que `AUTH_SETUP_TOKEN` es obligatorio en
+  produccion para poder crear el primer admin, y documentan `ALLOWED_ORIGIN`.
+- [x] Cobertura de tests: el gate de 80% en branches llevaba tiempo roto
+  (73%, oculto por un test desactualizado tras el rediseno del header, que ya
+  se corrigio). Se anadieron tests para los huecos mas relevantes: rama
+  Postgres de `roadmapRepository`, `moduleRepository`, `lessonRepository` y
+  `auditRepository` (antes sin ningun test, usando un pool `pg` simulado),
+  rutas API sin cobertura (`evidences`, `portfolio`, `audit-logs`,
+  `roadmaps/[id]/export`, `roadmaps/metadata`) y paginas admin sin tests
+  (`portfolio.tsx`, `admin/evidences.tsx`, `admin/users.tsx`,
+  `admin/import-roadmap.tsx`). Cobertura de branches final: 81.96%.
+- [x] Al mover `sqlite3` a import perezoso se detecto una condicion de carrera
+  intermitente bajo el pool de workers de Vitest (llamadas concurrentes a
+  `import('sqlite3')` sin cachear). Se corrigio cacheando la promesa de import
+  en una unica variable de modulo; verificado estable en 5 ejecuciones
+  repetidas del escenario que fallaba y 3 ejecuciones completas de la suite.
+
+Alcance restante:
+
+- Decidir hosting definitivo y adaptar esta lista a sus particularidades
+  (variables de entorno, procesos persistentes vs serverless, etc.).
 - Endurecer credenciales y configuracion de produccion.
 - Documentar deploy automatizado con GitHub.
 - Configurar health checks, backups y recuperacion.

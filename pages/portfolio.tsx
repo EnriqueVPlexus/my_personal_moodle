@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 import Layout from '../components/Layout'
 import { useAuth } from '../components/AuthProvider'
 import { branding } from '../lib/branding'
-import { UserPortfolio } from '../lib/portfolio'
+import type { PortfolioResponse } from '../lib/contracts'
 
 const typeLabels: Record<string, string> = {
   github: 'GitHub',
@@ -30,7 +30,7 @@ function reviewBadge(status: string) {
 export default function PortfolioPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const [portfolio, setPortfolio] = useState<UserPortfolio | null>(null)
+  const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 

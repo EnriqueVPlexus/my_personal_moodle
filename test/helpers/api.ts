@@ -36,3 +36,11 @@ export function createResponse() {
 
   return res
 }
+
+/**
+ * Hand-written fake databases only mock get/all/run. `transaction` just runs
+ * the work against the same fake so handler tests keep asserting call order.
+ */
+export function withFakeTransaction<T extends object>(db: T): T {
+  return Object.assign(db, { transaction: (work: (tx: T) => Promise<unknown>) => work(db) })
+}

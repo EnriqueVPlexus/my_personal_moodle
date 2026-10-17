@@ -1,37 +1,24 @@
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { openSqliteDb } from '../lib/persistence'
 import { createRequest, createResponse } from './helpers/api'
+import type { DatabaseClient } from '../lib/persistence/database'
 
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const roadmap = { title: 'Ruta importada', category: 'Cloud', topics: ['AWS'], modules: [{ title: 'Inicio' }] }
 
-async function apiDb() {
-  const db = await open({ filename: ':memory:', driver: sqlite3.Database })
-  await db.exec(`
-    CREATE TABLE roadmaps (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT UNIQUE NOT NULL, description TEXT,
-      duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, objectives TEXT,
-      methodology TEXT, evaluation_weights TEXT, category_id INTEGER, version TEXT, published_at TEXT
-    );
-    CREATE TABLE modules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, roadmap_id INTEGER, position INTEGER, title TEXT,
-      duration TEXT, duration_weeks_min REAL, duration_weeks_max REAL, level TEXT, objective TEXT,
-      contents TEXT, importance TEXT, official_resources TEXT, support_videos TEXT,
-      practical_activity TEXT, deliverable_evidence TEXT, evaluation TEXT, quiz_bank TEXT
-    );
-    CREATE TABLE roadmap_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
-    CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, label TEXT);
-    CREATE TABLE roadmap_topics (roadmap_id INTEGER, topic_id INTEGER, PRIMARY KEY (roadmap_id, topic_id));
-  `)
-  return db
+async function apiDb(): Promise<DatabaseClient> {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-import-api-'))
+  return openSqliteDb(path.join(tmp, 'test.db'))
 }
 
 async function loadHandler(db: any, allowed: any = admin) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(allowed) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(allowed) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   return (await import('../pages/api/roadmaps/import')).default
 }
 
@@ -102,7 +89,7 @@ describe('roadmap import API', () => {
     expect(conflictRes.body.code).toBe('not_found')
 
     const tooLargeRes = createResponse()
-    await handler(createRequest({ method: 'POST', body: { roadmap: { title: 'x'.repeat(1024 * 1024 + 1) } } }), tooLargeRes)
+    await handler(createRequest({ method: 'POST', body: { action: 'preview', roadmap: { title: 'x'.repeat(1024 * 1024 + 1) } } }), tooLargeRes)
     expect(tooLargeRes.statusCode).toBe(413)
     await db.close()
   })

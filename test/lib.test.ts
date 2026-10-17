@@ -1,33 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRequest, createResponse } from './helpers/api'
-import { writeAuditLog } from '../lib/audit'
+import { writeAuditLog } from '../lib/http/audit'
 import {
   asEvaluationWeights,
   asLearningLinks,
   asTextList,
   parseJsonValue
-} from '../lib/roadmapPresentation'
+} from '../lib/domains/content/presentation'
 import {
   buildModuleQuiz,
   gradeModuleQuiz,
-  getModuleQuizSummary,
-  saveModuleQuizAttempt,
   toPublicModuleQuiz
-} from '../lib/quizzes'
+} from '../lib/domains/content/quizzes'
 import {
   hashPassword,
   normalizeEmail,
   validatePassword,
   verifyPassword
-} from '../lib/password'
+} from '../lib/domains/auth/password'
 import {
   normalizeDurationRange,
   normalizeMetadataKey,
   normalizeModuleLevel,
   normalizeTopics,
   parseDurationWeeks
-} from '../lib/roadmapMetadata'
-import { getSeedQuizForModule } from '../lib/roadmapQuizBanks'
+} from '../lib/domains/content/metadata'
+import { getSeedQuizForModule } from '../lib/persistence/bootstrap/seeds/quizBanks'
 
 describe('roadmap metadata helpers', () => {
   it('normalizes categories, topics and stable module levels', () => {
@@ -122,47 +120,6 @@ describe('quiz helpers', () => {
       passed: true
     })
     expect(grade.feedback.every(item => item.is_correct)).toBe(true)
-  })
-
-  it('stores quiz attempts and builds quiz summaries', async () => {
-    const db = {
-      run: vi.fn(),
-      get: vi.fn()
-        .mockResolvedValueOnce({
-          attempts_count: 2,
-          average_score_percentage: 66.6,
-          best_score_percentage: 100
-        })
-        .mockResolvedValueOnce({
-          score: 2,
-          max_score: 3,
-          submitted_at: '2026-07-12T08:00:00.000Z'
-        })
-    }
-
-    const attempt = await saveModuleQuizAttempt(db as any, 2, moduleFixture, {
-      'module-content': 0
-    })
-    const summary = await getModuleQuizSummary(db as any, 2, 4)
-
-    expect(db.run).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_quiz_attempts'), expect.arrayContaining([
-      2,
-      7,
-      4,
-      'module',
-      attempt.score,
-      attempt.max_score
-    ]))
-    expect(summary).toMatchObject({
-      attempts_count: 2,
-      average_score_percentage: 67,
-      best_score_percentage: 100,
-      latest_attempt: {
-        score: 2,
-        max_score: 3,
-        percentage: 67
-      }
-    })
   })
 
   it('uses explicit options, supports enriched types and caps the bank at five questions', () => {
@@ -284,7 +241,7 @@ describe('auth helper', () => {
       run: vi.fn(),
       get: vi.fn().mockResolvedValue({ id: 1, email: 'admin@example.com', role: 'admin' })
     }
-    const { createSession, clearSession, getUserFromRequest } = await import('../lib/auth')
+    const { createSession, clearSession, getUserFromRequest } = await import('../lib/http/auth')
     const res = createResponse()
 
     await createSession(res, 1, db)
@@ -306,7 +263,7 @@ describe('auth helper', () => {
       run: vi.fn(),
       get: vi.fn()
     }
-    const { createSession, clearSession, getUserFromRequest } = await import('../lib/auth')
+    const { createSession, clearSession, getUserFromRequest } = await import('../lib/http/auth')
     const res = createResponse()
 
     await createSession(res, 1, db)
@@ -321,7 +278,7 @@ describe('auth helper', () => {
   })
 
   it('rejects unknown session users and non-admin roles', async () => {
-    const { getUserFromRequest, requireAdmin } = await import('../lib/auth')
+    const { getUserFromRequest, requireAdmin } = await import('../lib/http/auth')
     const inactiveDb = {
       get: vi.fn().mockResolvedValueOnce(null),
       run: vi.fn()
@@ -350,7 +307,7 @@ describe('auth helper', () => {
   })
 
   it('enforces admin and same-origin rules', async () => {
-    const { requireAdmin, requireSameOrigin } = await import('../lib/auth')
+    const { requireAdmin, requireSameOrigin } = await import('../lib/http/auth')
     const forbidden = createResponse()
 
     expect(requireSameOrigin(createRequest({
@@ -381,7 +338,7 @@ describe('auth helper', () => {
   })
 
   it('accepts safe origin variants and rejects malformed origin headers', async () => {
-    const { requireSameOrigin } = await import('../lib/auth')
+    const { requireSameOrigin } = await import('../lib/http/auth')
 
     expect(requireSameOrigin(createRequest({ method: 'GET' }), createResponse())).toBe(true)
     expect(requireSameOrigin(createRequest({ method: 'POST' }), createResponse())).toBe(true)
@@ -391,14 +348,14 @@ describe('auth helper', () => {
       method: 'POST',
       headers: { origin: 'http://localhost:3000' }
     }), missingHost)).toBe(false)
-    expect(missingHost.body.error).toBe('origin check failed')
+    expect(missingHost.body.error).toBe('No se pudo comprobar el origen de la petición.')
 
     const invalidOrigin = createResponse()
     expect(requireSameOrigin(createRequest({
       method: 'POST',
       headers: { origin: 'not a url', host: 'localhost:3000' }
     }), invalidOrigin)).toBe(false)
-    expect(invalidOrigin.body.error).toBe('invalid origin')
+    expect(invalidOrigin.body.error).toBe('El origen de la petición no es válido.')
 
     const forwardedHost = createResponse()
     expect(requireSameOrigin(createRequest({
@@ -411,10 +368,37 @@ describe('auth helper', () => {
     }), forwardedHost)).toBe(true)
   })
 
+  it('honors an explicit ALLOWED_ORIGIN allowlist over request headers', async () => {
+    process.env.ALLOWED_ORIGIN = 'app.example.com, other.example.com'
+    const { requireSameOrigin } = await import('../lib/http/auth')
+
+    const allowed = createResponse()
+    expect(requireSameOrigin(createRequest({
+      method: 'POST',
+      // host header disagrees with origin, but origin is in the allowlist
+      headers: { origin: 'https://app.example.com', host: 'internal:3000' }
+    }), allowed)).toBe(true)
+
+    const spoofed = createResponse()
+    expect(requireSameOrigin(createRequest({
+      method: 'POST',
+      // an attacker-controlled x-forwarded-host would have passed the
+      // legacy header-only check; the allowlist rejects it
+      headers: {
+        origin: 'https://evil.example',
+        host: 'internal:3000',
+        'x-forwarded-host': 'evil.example'
+      }
+    }), spoofed)).toBe(false)
+    expect(spoofed.body.error).toBe('Origen de la petición no permitido.')
+
+    delete process.env.ALLOWED_ORIGIN
+  })
+
   it('supports setup token and private-read mode', async () => {
     process.env.AUTH_SETUP_TOKEN = 'secret-token'
     process.env.REQUIRE_AUTH_FOR_READS = 'true'
-    const { requireReadAccess, validateSetupToken } = await import('../lib/auth')
+    const { requireReadAccess, validateSetupToken } = await import('../lib/http/auth')
 
     expect(validateSetupToken('secret-token')).toBe(true)
     expect(validateSetupToken('bad-token')).toBe(false)
@@ -428,7 +412,7 @@ describe('auth helper', () => {
 
   it('allows public reads by default and validates setup mode defaults', async () => {
     const previousNodeEnv = process.env.NODE_ENV
-    const { requireReadAccess, validateSetupToken } = await import('../lib/auth')
+    const { requireReadAccess, validateSetupToken } = await import('../lib/http/auth')
 
     await expect(requireReadAccess(createRequest(), createResponse())).resolves.toBe(true)
     expect(validateSetupToken(undefined)).toBe(true)
@@ -440,7 +424,7 @@ describe('auth helper', () => {
   })
 
   it('builds public, admin and unrestricted user roadmap scopes', async () => {
-    const { getRoadmapReadScope } = await import('../lib/auth')
+    const { getRoadmapReadScope } = await import('../lib/http/auth')
 
     await expect(getRoadmapReadScope(createRequest(), createResponse(), {
       get: vi.fn(),
@@ -466,7 +450,7 @@ describe('auth helper', () => {
   })
 
   it('enforces restricted roadmap scopes and rejects missing user settings', async () => {
-    const { getRoadmapReadScope, scopeAllowsRoadmap } = await import('../lib/auth')
+    const { getRoadmapReadScope, scopeAllowsRoadmap } = await import('../lib/http/auth')
     const user = { id: 2, email: 'user@example.com', role: 'user' }
     const restricted = await getRoadmapReadScope(
       createRequest({ headers: { cookie: 'moodle_session=user' } }),
