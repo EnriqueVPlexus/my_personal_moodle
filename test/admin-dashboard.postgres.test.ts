@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { PostgresDb } from '../lib/postgresDb'
-import { getAdminDashboard } from '../lib/adminDashboard'
+import type { PostgresDb } from '../lib/persistence/postgresDb'
+import { getAdminDashboard } from '../lib/domains/admin/repositories/dashboardRepository'
 
 type QueryHandler = (sql: string, params: unknown[]) => Promise<{ command?: string; rows: unknown[]; rowCount?: number }>
 
@@ -108,9 +108,9 @@ describe('getAdminDashboard (postgres backend)', () => {
     // `julianday(...)` is the only SQLite-only construct these queries use;
     // `is_active = 1` is intentionally NOT rewritten to `= true`, because
     // `is_active` is an INTEGER column (not boolean) in both the SQLite and
-    // Postgres schemas (see lib/postgresDb.ts) and `is_active = 1` is the
+    // Postgres schemas (see lib/persistence/postgresDb.ts) and `is_active = 1` is the
     // established idiom already used verbatim against Postgres elsewhere
-    // (lib/userRepository.ts, lib/auth.ts).
+    // (lib/domains/admin/repositories/userRepository.ts, lib/domains/auth/repositories/sessionRepository.ts).
     expect(seenSql).toHaveLength(4)
     for (const sql of seenSql) {
       expect(sql).not.toContain('julianday(')

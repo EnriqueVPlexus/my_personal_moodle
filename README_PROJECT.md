@@ -32,23 +32,26 @@ Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
 Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
 el proyecto de Supabase configurado en `.env.local`.
 
+El código está organizado por dominios con servicios, puertos y repositorios;
+ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
 **Todos los dominios ya están migrados** por repositorios tipados
-(`lib/*Repository.ts`), manteniendo SQLite local y PostgreSQL remoto:
+(`lib/domains/<dominio>/repositories/`), manteniendo SQLite local y PostgreSQL remoto:
 roadmaps, módulos, lecciones, auditoría, usuarios, progreso
-(`lib/progressRepository.ts`, incluyendo el CTE con función ventana de
+(`lib/domains/progress/repositories/progressRepository.ts`, incluyendo el CTE con función ventana de
 `listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
-roadmap/lección), quizzes (`lib/quizRepository.ts`, intentos y estadísticas
-por módulo), evidencias (`lib/evidenceRepository.ts`, incluyendo auditoría de
-la revisión admin), el panel admin (`lib/adminDashboard.ts`, con las 3 CTEs
+roadmap/lección), quizzes (`lib/domains/progress/repositories/quizRepository.ts`, intentos y estadísticas
+por módulo), evidencias (`lib/domains/progress/repositories/evidenceRepository.ts`, incluyendo auditoría de
+la revisión admin), el panel admin (`lib/domains/admin/repositories/dashboardRepository.ts`, con las 3 CTEs
 de sus consultas agregadas traducidas a Postgres; el cálculo de días de
 inactividad ya está verificado contra una PostgreSQL real —
 `test/postgres-integration/inactivity-days.postgres-integration.test.ts` —,
 lo que además destapó y corrigió un `GROUP BY` incompleto en la CTE
 `learner_progress` que SQLite toleraba pero Postgres no),
-portfolio (`lib/portfolio.ts`, reutilizando `evidenceRepository.listEvidences`
+portfolio (`lib/domains/progress/repositories/portfolioRepository.ts`, reutilizando `evidenceRepository.listEvidences`
 en vez de duplicar el join) e import/export de roadmaps
-(`lib/roadmapImport.ts`/`lib/roadmapMetadata.ts`, único dominio con
+(`lib/domains/content/repositories/importRepository.ts`/`metadataRepository.ts`, único dominio con
 transacción multi-tabla — usa SQL crudo parametrizado en ambos backends
 dentro de la transacción en vez de Kysely, ya que el query builder no
 participa del cliente de conexión que Postgres usa para `BEGIN`/`COMMIT`).
@@ -81,7 +84,7 @@ comando. Si `TEST_DATABASE_URL` no está definida, los tests caen a
 Docker configurado, pero no aislado. Detalle completo en
 `test/postgres-integration/README.md` y en `backlog.md`.
 
-`openDb()` (`lib/db.ts`) cachea la instancia `PostgresDb`/`Pool` por
+`openDb()` (`lib/persistence/openDb.ts`) cachea la instancia `PostgresDb`/`Pool` por
 proceso (antes creaba un pool nuevo en cada llamada); `PostgresDb` define
 timeouts de conexión/idle y un listener de error en el pool — ver
 `test/postgres-integration/connection-pool.postgres-integration.test.ts` y
@@ -117,7 +120,7 @@ que queda pendiente (manejo de errores no uniforme en todas las rutas de
 Si pierdes acceso al usuario admin (ej. SQLite en desarrollo):
 
 1. **En SQLite local** (`data/dev.db`):
-   - Genera el hash con `npx tsx` y `hashPassword()` de `lib/password.ts`.
+   - Genera el hash con `npx tsx` y `hashPassword()` de `lib/domains/auth/password.ts`.
    - Ejecuta SQL directamente:
      ```bash
      sqlite3 ./data/dev.db "UPDATE users SET password_hash = '<HASH>', updated_at = datetime('now') WHERE role = 'admin';"
@@ -128,9 +131,12 @@ Si pierdes acceso al usuario admin (ej. SQLite en desarrollo):
    - Ejecuta el mismo UPDATE en la tabla `users`.
    - Asegúrate de que `AUTH_PASSWORD_PEPPER` en `.env.local` sea el mismo que en producción.
 
-La contraseña debe tener al menos 12 caracteres; el validador en `lib/password.ts` lo comprueba.
+La contraseña debe tener al menos 12 caracteres; el validador en `lib/domains/auth/password.ts` lo comprueba.
 
 ## Estructura Principal
+
+Capas, reglas de dependencia, cómo añadir un caso de uso y estrategia de tests en
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ```text
 pages/
@@ -145,12 +151,17 @@ pages/
 
 components/                 Layout, cabecera, formularios, cards y contenido de módulos.
 lib/
-  db.ts                     Migraciones SQLite y seed AWS.
-  auth.ts                   Sesiones, roles y protección de origen.
-  password.ts               Hash y validación de contraseñas.
+  container.ts              Composición: createServices(db) conecta dominios y repositorios.
+  http/                     Adaptadores HTTP (cookies, origen, IP, 401/403/429, auditoría).
+  persistence/              DatabaseClient, openDb(), PostgresDb, esquema Kysely/SQLite y seed.
+  domains/
+    auth/                   Sesiones, login, setup, contraseñas, rate limit, alcance de lectura.
+    content/                Roadmaps, módulos, lecciones, catálogo y búsqueda, import/export, quizzes.
+    progress/               Progreso, intentos de quiz, evidencias, portfolio, vistas del alumno.
+    admin/                  Administración de usuarios y panel de control.
+    audit/                  Registro de auditoría.
+                            (cada dominio: service.ts, ports.ts, types.ts, repositories/, index.ts)
   validation/               Esquemas Zod y contrato de error de la API (ver VALIDATION.md).
-  audit.ts                  Escritura de eventos.
-  roadmapPresentation.ts    Helpers de presentación para JSON/texto.
   branding.ts               Branding configurable por entorno.
 
 test/                       Suite Vitest, helpers y guías curl.
@@ -169,7 +180,7 @@ scripts/                    Utilidades de mantenimiento.
 
 ## Base De Datos
 
-`lib/db.ts` crea y migra estas tablas. El backend se selecciona así:
+`lib/persistence/` crea y migra estas tablas. El backend se selecciona así:
 
 - Desarrollo y tests: SQLite local cuando `DATABASE_URL` no existe.
 - Supabase/producción: PostgreSQL cuando `DATABASE_URL` existe.
@@ -224,7 +235,7 @@ Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
 `.ifNotExists()` y la prueba de bootstrap desde cero en
 `backlog.md` ("Migraciones formales de PostgreSQL").
 
-`lib/db.ts` crea y migra estas tablas:
+`lib/persistence/sqliteSchema.ts` (SQLite) y `PostgresDb.migrate()`/`migrations/` (PostgreSQL) crean y migran estas tablas:
 
 - `roadmaps`
 - `modules`
@@ -239,7 +250,7 @@ Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
 - `topics`
 - `roadmap_topics`
 
-También inserta o actualiza los roadmaps iniciales desde `lib/roadmapSeeds/`.
+También inserta o actualiza los roadmaps iniciales desde `lib/persistence/bootstrap/seeds/` (lógica en `lib/persistence/bootstrap/`).
 
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.

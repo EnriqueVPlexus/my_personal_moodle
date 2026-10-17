@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { exportPortfolioAsMarkdown, getUserPortfolio } from '../lib/portfolio'
-import { openSqliteDb } from '../lib/db'
+import { exportPortfolioAsMarkdown } from '../lib/domains/progress/portfolio'
+import { getUserPortfolio } from '../lib/domains/progress/repositories/portfolioRepository'
+import { openSqliteDb } from '../lib/persistence'
 import { createRequest, createResponse } from './helpers/api'
-import type { DatabaseClient } from '../lib/database'
+import type { DatabaseClient } from '../lib/persistence/database'
 
 const user = { id: 970002, email: 'student@example.com', role: 'user' as const }
 
@@ -77,8 +78,8 @@ describe('portfolio API handlers', () => {
   it('serves JSON portfolio via GET /api/portfolio', async () => {
     const db = await setupDb()
     vi.resetModules()
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
 
     const handler = (await import('../pages/api/portfolio/index')).default
     const res = createResponse()
@@ -94,8 +95,8 @@ describe('portfolio API handlers', () => {
   it('serves Markdown file export via GET /api/portfolio/export', async () => {
     const db = await setupDb()
     vi.resetModules()
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({ requireUser: vi.fn().mockResolvedValue(user) }))
 
     const handler = (await import('../pages/api/portfolio/export')).default
     const res = createResponse()

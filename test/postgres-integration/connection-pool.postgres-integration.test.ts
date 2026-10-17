@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import type { PostgresDb } from '../../lib/postgresDb'
+import type { PostgresDb } from '../../lib/persistence/postgresDb'
 
 /**
  * Proves backlog.md's "Gestion de conexiones y transacciones" fix:
@@ -26,7 +26,7 @@ import type { PostgresDb } from '../../lib/postgresDb'
 const DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL
 const describeIfPostgres = DATABASE_URL ? describe : describe.skip
 
-// openDb() (lib/db.ts) reads process.env.DATABASE_URL directly, not
+// openDb() (lib/persistence/openDb.ts) reads process.env.DATABASE_URL directly, not
 // TEST_DATABASE_URL. Force it to the resolved value so this test exercises
 // the isolated local Postgres when TEST_DATABASE_URL is set, instead of
 // silently falling through to SQLite.
@@ -36,12 +36,12 @@ if (DATABASE_URL) {
 
 describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () => {
   afterAll(async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
     await ((await openDb()) as unknown as PostgresDb).close()
   })
 
   it('returns the same underlying Pool across many sequential calls', async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
 
     const first = (await openDb()) as unknown as PostgresDb
     const firstPool = first.getPool()
@@ -53,7 +53,7 @@ describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () =>
   })
 
   it('returns the same underlying Pool across many concurrent calls', async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
 
     const results = await Promise.all(
       Array.from({ length: 20 }, () => openDb())
@@ -67,7 +67,7 @@ describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () =>
   })
 
   it('does not grow the pool client count unboundedly across repeated calls', async () => {
-    const { openDb } = await import('../../lib/db')
+    const { openDb } = await import('../../lib/persistence')
 
     const before = ((await openDb()) as unknown as PostgresDb).getPool()
     const beforeTotal = before.totalCount
@@ -77,7 +77,7 @@ describeIfPostgres('openDb() caches a single PostgresDb/Pool per process', () =>
     const after = ((await openDb()) as unknown as PostgresDb).getPool()
 
     expect(after).toBe(before)
-    // The pool is capped at `max: 5` (see lib/postgresDb.ts); repeated
+    // The pool is capped at `max: 5` (see lib/persistence/postgresDb.ts); repeated
     // openDb() calls must reuse existing clients, never create new pools,
     // so totalCount must stay within the pool's own configured max and must
     // not have grown per openDb() call (20 calls, cap is 5).

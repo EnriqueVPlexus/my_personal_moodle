@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PostgresDb } from '../lib/postgresDb'
+import type { PostgresDb } from '../lib/persistence/postgresDb'
 
 type QueryHandler = (sql: string, params: unknown[]) => Promise<{ command?: string; rows: unknown[]; rowCount?: number }>
 
@@ -27,7 +27,7 @@ describe('progressRepository (postgres backend)', () => {
 
   describe('listUserRoadmapProgress', () => {
     it('runs the CTE + window function query through Kysely and maps rows', async () => {
-      const { listUserRoadmapProgress } = await import('../lib/progressRepository')
+      const { listUserRoadmapProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       const recentActivity = new Date().toISOString()
       const { pool, client } = createFakePool(async (sql, params) => {
@@ -91,7 +91,7 @@ describe('progressRepository (postgres backend)', () => {
     })
 
     it('returns an empty array when the user has no roadmap progress', async () => {
-      const { listUserRoadmapProgress } = await import('../lib/progressRepository')
+      const { listUserRoadmapProgress } = await import('../lib/domains/progress/repositories/progressRepository')
       const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
       const result = await listUserRoadmapProgress(fakeDb(pool), 1)
@@ -102,7 +102,7 @@ describe('progressRepository (postgres backend)', () => {
 
   describe('touchRoadmapProgress', () => {
     it('upserts via ON CONFLICT ... DO UPDATE SET with EXCLUDED references', async () => {
-      const { touchRoadmapProgress } = await import('../lib/progressRepository')
+      const { touchRoadmapProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       const calls: string[] = []
       const { pool, client } = createFakePool(async sql => {
@@ -125,7 +125,7 @@ describe('progressRepository (postgres backend)', () => {
 
   describe('setLessonProgress', () => {
     it('upserts the lesson row with the time_spent_seconds accumulator and refreshes roadmap progress', async () => {
-      const { setLessonProgress } = await import('../lib/progressRepository')
+      const { setLessonProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       const rows: Record<string, any> = {
         lesson_id: 100,
@@ -181,7 +181,7 @@ describe('progressRepository (postgres backend)', () => {
     })
 
     it('returns null when the lesson does not exist', async () => {
-      const { setLessonProgress } = await import('../lib/progressRepository')
+      const { setLessonProgress } = await import('../lib/domains/progress/repositories/progressRepository')
       const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
       const result = await setLessonProgress(fakeDb(pool), { userId: 1, lessonId: 999, completed: true })
@@ -192,7 +192,7 @@ describe('progressRepository (postgres backend)', () => {
 
   describe('getRoadmapDetailProgress', () => {
     it('builds module/lesson breakdown via the Kysely query builder', async () => {
-      const { getRoadmapDetailProgress } = await import('../lib/progressRepository')
+      const { getRoadmapDetailProgress } = await import('../lib/domains/progress/repositories/progressRepository')
       const recentActivity = new Date().toISOString()
 
       const { pool, client } = createFakePool(async sql => {

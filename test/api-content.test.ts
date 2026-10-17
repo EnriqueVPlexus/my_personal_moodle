@@ -6,8 +6,8 @@ const user = { id: 2, email: 'user@example.com', role: 'user' as const }
 
 async function mockApi(db: any, options: { admin?: any; read?: boolean; user?: any; scope?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn().mockResolvedValue(options.admin === undefined ? admin : options.admin),
     requireReadAccess: vi.fn().mockResolvedValue(options.read !== false),
     getUserFromRequest: vi.fn().mockResolvedValue(options.user ?? null),
@@ -19,7 +19,7 @@ async function mockApi(db: any, options: { admin?: any; read?: boolean; user?: a
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
   }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 
 describe('content API handlers', () => {

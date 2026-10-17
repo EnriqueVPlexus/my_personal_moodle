@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { validateEvidenceInput } from '../lib/evidences'
+import { validateEvidenceInput } from '../lib/domains/progress/evidences'
 import { createRequest, createResponse } from './helpers/api'
 
 const user = { id: 2, email: 'user@example.com', role: 'user' as const }
@@ -37,15 +37,17 @@ describe('evidence API handlers', () => {
   })
 
   async function mockModuleApi(db: any) {
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({
       getRoadmapReadScope: vi.fn().mockResolvedValue({ user, allRoadmaps: true, roadmapIds: [] }),
       requireUser: vi.fn().mockResolvedValue(user),
       requireAdmin: vi.fn().mockResolvedValue(admin),
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))
-    vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
-    vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+    vi.doMock('../lib/domains/progress/repositories/progressRepository', () => ({
+    createProgressRepository: () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) })
+  }))
+    vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   }
 
   it('returns and upserts the signed-in user evidence', async () => {

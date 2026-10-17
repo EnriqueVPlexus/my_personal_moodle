@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const awsSeed = JSON.parse(fs.readFileSync(new URL('../lib/roadmapSeeds/awsRoadmapSeed.json', import.meta.url), 'utf8'))
-const devopsSeed = JSON.parse(fs.readFileSync(new URL('../lib/devopsRoadmapSeed.json', import.meta.url), 'utf8'))
+const awsSeed = JSON.parse(fs.readFileSync(new URL('../lib/persistence/bootstrap/seeds/awsRoadmapSeed.json', import.meta.url), 'utf8'))
+const devopsSeed = JSON.parse(fs.readFileSync(new URL('../lib/persistence/bootstrap/seeds/devopsRoadmapSeed.json', import.meta.url), 'utf8'))
 const requiredFields = [
   'title',
   'duration',

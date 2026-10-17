@@ -12,7 +12,7 @@ import {
   ROADMAP_DURATION_FILTERS,
   ROADMAP_PROGRESS_STATUS_FILTERS,
   RoadmapCatalogFilters
-} from '../../lib/roadmapFilters'
+} from '../../lib/domains/content/filters'
 
 type Roadmap = {
   id: number

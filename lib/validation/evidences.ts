@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { EVIDENCE_REVIEW_STATUSES, validateEvidenceInput } from '../evidences'
-import type { EvidenceReviewStatus } from '../evidences'
+import { EVIDENCE_REVIEW_STATUSES, validateEvidenceInput } from '../domains/progress/evidences'
+import type { EvidenceReviewStatus } from '../domains/progress/evidences'
 import { bodyObject, optionalPositiveInt, optionalText, positiveInt, queryObject } from './primitives'
 
 export const evidenceModuleQuerySchema = queryObject({ id: positiveInt('id') })

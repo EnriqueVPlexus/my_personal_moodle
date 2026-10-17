@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireAdmin } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { listAuditLogs } from '../../../lib/auditRepository'
+import { requireAdmin } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { createAuditService } from '../../../lib/domains/audit'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!(await requireAdmin(req, res, db))) return
 
-  const rows = await listAuditLogs(db, 200)
+  const rows = await createAuditService(db).list(200)
 
   return res.status(200).json(rows)
 }

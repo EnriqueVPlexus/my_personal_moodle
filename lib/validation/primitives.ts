@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { normalizeEmail, validatePassword } from '../password'
+import { normalizeEmail, validatePassword } from '../domains/auth/password'
 
 const MAX_SAFE_ID = Number.MAX_SAFE_INTEGER
 
@@ -80,7 +80,7 @@ export const emailField = z
   .pipe(z.email('El correo electrónico no es válido.'))
   .transform(value => normalizeEmail(value))
 
-/** Password rules live in lib/password.ts (validatePassword); this only adapts them. */
+/** Password rules live in lib/domains/auth/password.ts (validatePassword); this only adapts them. */
 export const newPasswordField = z
   .string({ error: issue => (describeType(issue.input) ? 'Falta el campo «contraseña».' : 'El campo «contraseña» debe ser un texto.') })
   .superRefine((value, ctx) => {

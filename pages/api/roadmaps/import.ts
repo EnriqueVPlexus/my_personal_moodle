@@ -1,12 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { writeAuditLog } from '../../../lib/audit'
-import { requireAdmin } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import {
-  persistRoadmapImport,
-  RoadmapImportConflictError,
-  validateRoadmapImport
-} from '../../../lib/roadmapImport'
+import { createServices } from '../../../lib/container'
+import { writeAuditLog } from '../../../lib/http/audit'
+import { requireAdmin } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
+import { validateRoadmapImport } from '../../../lib/domains/content/import'
 import { parseOrRespond, sendValidationIssues } from '../../../lib/validation/http'
 import { MAX_IMPORT_BYTES, roadmapImportBodySchema } from '../../../lib/validation/import'
 
@@ -32,36 +29,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return sendValidationIssues(res, validation.issues, 'El roadmap contiene errores.')
   }
 
-  const existing = await db.get('SELECT id, title FROM roadmaps WHERE title = ?', [validation.roadmap.title])
+  const { content } = createServices(db)
   if (body.action === 'preview') {
-    return res.status(200).json({ roadmap: validation.roadmap, existing: existing ?? null })
+    const existing = await content.findImportTarget(validation.roadmap.title)
+    return res.status(200).json({ roadmap: validation.roadmap, existing })
   }
   const strategy = body.strategy!
 
-  try {
-    const result = await persistRoadmapImport(db, validation.roadmap, strategy)
-    await writeAuditLog({
-      db,
-      req,
-      user: admin,
-      action: strategy === 'create' ? 'roadmap.import_create' : 'roadmap.import_update',
-      entityType: 'roadmap',
-      entityId: result.roadmap_id,
-      details: {
-        title: validation.roadmap.title,
-        modules: validation.roadmap.modules.length,
-        created_modules: result.created_modules,
-        updated_modules: result.updated_modules
-      }
-    })
-    return res.status(strategy === 'create' ? 201 : 200).json(result)
-  } catch (error) {
-    if (error instanceof RoadmapImportConflictError) {
-      const message = error.code === 'already_exists'
-        ? 'Ya existe un roadmap con ese título. Usa la opción de actualizar.'
-        : 'No existe un roadmap con ese título para actualizar.'
-      return res.status(409).json({ error: message, code: error.code })
-    }
-    throw error
+  const outcome = await content.importRoadmap(validation.roadmap, strategy)
+  if (outcome.status === 'conflict') {
+    const message = outcome.code === 'already_exists'
+      ? 'Ya existe un roadmap con ese título. Usa la opción de actualizar.'
+      : 'No existe un roadmap con ese título para actualizar.'
+    return res.status(409).json({ error: message, code: outcome.code })
   }
+
+  const { result } = outcome
+  await writeAuditLog({
+    db,
+    req,
+    user: admin,
+    action: strategy === 'create' ? 'roadmap.import_create' : 'roadmap.import_update',
+    entityType: 'roadmap',
+    entityId: result.roadmap_id,
+    details: {
+      title: validation.roadmap.title,
+      modules: validation.roadmap.modules.length,
+      created_modules: result.created_modules,
+      updated_modules: result.updated_modules
+    }
+  })
+  return res.status(strategy === 'create' ? 201 : 200).json(result)
 }

@@ -33,6 +33,8 @@ del producto poco a poco.
 - [x] UI Redesign: header compacto, admin dropdown, branding actualizado.
 - [x] Reset de contraseña admin en SQLite local.
 - [x] Validacion de entradas y contratos de error con `zod` (`VALIDATION.md`).
+- [x] Separacion de dominios y persistencia: servicios, puertos y repositorios por
+  dominio (`ARCHITECTURE.md`).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -292,8 +294,8 @@ Tareas:
 - [x] Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
   lecciones, progreso, quizzes, evidencias, catalogo e importaciones.
 - [x] Devolver errores de validacion consistentes sin filtrar detalles internos.
-- Seguimiento (fuera de alcance): mensajes 401/403/405/429 de `lib/auth.ts`
-  y `lib/rateLimit.ts` siguen en ingles; `validateRoadmapImport` sigue sin
+- Seguimiento (fuera de alcance): mensajes 401/403/405/429 de `lib/http/auth.ts`
+  y `lib/http/rateLimit.ts` siguen en ingles; `validateRoadmapImport` sigue sin
   migrar a Zod. Ver `VALIDATION.md`.
 
 Rama sugerida: `feature/input-validation-zod`.
@@ -303,15 +305,31 @@ Hecho cuando:
 - Las entradas de las APIs principales se validan antes de tocar la base de datos.
 - Los tests cubren payloads validos, invalidos y limites.
 
-### [ ] Separacion de dominios y persistencia
+### [x] Separacion de dominios y persistencia
 
-Estado: pendiente.
+Estado: hecho (2026-10-15). El codigo de `lib/` se organiza por dominios
+(`auth`, `content`, `progress`, `admin`, `audit`) con `service.ts` (casos de uso
+y reglas), `ports.ts` (interfaces), `types.ts` y `repositories/` (unica
+implementacion de cada puerto, con sus ramas SQLite/Postgres). El driver, el
+esquema y el seed viven en `lib/persistence/`; los adaptadores de Next
+(cookies, origen, IP, 401/403/429) en `lib/http/`; y `lib/container.ts` conecta
+todo. Refactorizacion pura: no cambia ningun estado, cuerpo ni mensaje de la
+API. Capas, regla de dependencia, como anadir un caso de uso, estrategia de
+tests y trabajo futuro en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 Tareas:
 
-- Separar autenticacion, contenido, progreso, administracion y persistencia.
-- Mover reglas de negocio fuera de los handlers HTTP.
-- Definir interfaces para que las APIs no dependan directamente del driver.
+- [x] Separar autenticacion, contenido, progreso, administracion y auditoria en
+  `lib/domains/*`, y la persistencia en `lib/persistence/`.
+- [x] Mover reglas de negocio fuera de los handlers HTTP (progreso de modulo,
+  flujo de intentos de quiz, reglas de usuarios, agregacion de metadatos).
+- [x] Definir interfaces (puertos) para que las APIs no dependan del driver:
+  ningun handler usa `db.*`, `DATABASE_URL` ni `PostgresDb`.
+- [x] Servicios de dominio sin dependencia de `next` y tests por dominio con
+  repositorios en memoria (`test/domains/`).
+- Seguimiento (fuera de alcance): adaptadores por dialecto (opcion B) detras de
+  los mismos puertos; unificar los mensajes 401/403/405/429; helper de
+  transacciones comun a SQLite y Postgres. Ver `ARCHITECTURE.md`.
 
 Rama sugerida: `refactor/domain-separation`.
 

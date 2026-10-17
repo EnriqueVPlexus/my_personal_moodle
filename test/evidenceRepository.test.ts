@@ -8,7 +8,7 @@ const originalCwd = process.cwd()
 async function withTempDb<T>(prefix: string, run: (db: any) => Promise<T>): Promise<T> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   const db = await openDb()
   try {
     return await run(db)
@@ -45,7 +45,7 @@ async function seedRoadmapAndUser(db: any, userId: number) {
 describe('evidenceRepository (sqlite backend)', () => {
   it('creates, updates and reviews evidence with status reset on resubmission', async () => {
     await withTempDb('moodle-evidence-', async db => {
-      const { getModuleEvidence, saveModuleEvidence, reviewModuleEvidence } = await import('../lib/evidenceRepository')
+      const { getModuleEvidence, saveModuleEvidence, reviewModuleEvidence } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const userId = 800001
       const adminId = 800099
       await seedRoadmapAndUser(db, userId)
@@ -88,7 +88,7 @@ describe('evidenceRepository (sqlite backend)', () => {
 
   it('deletes evidence and returns the number of removed rows', async () => {
     await withTempDb('moodle-evidence-delete-', async db => {
-      const { saveModuleEvidence, deleteModuleEvidence, getModuleEvidence } = await import('../lib/evidenceRepository')
+      const { saveModuleEvidence, deleteModuleEvidence, getModuleEvidence } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const userId = 800002
       await seedRoadmapAndUser(db, userId)
 
@@ -105,7 +105,7 @@ describe('evidenceRepository (sqlite backend)', () => {
 
   it('lists evidences joined with user, module and roadmap data with filters', async () => {
     await withTempDb('moodle-evidence-list-', async db => {
-      const { saveModuleEvidence, listEvidences } = await import('../lib/evidenceRepository')
+      const { saveModuleEvidence, listEvidences } = await import('../lib/domains/progress/repositories/evidenceRepository')
       const userId = 800003
       await seedRoadmapAndUser(db, userId)
 

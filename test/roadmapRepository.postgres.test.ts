@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PostgresDb } from '../lib/postgresDb'
+import type { PostgresDb } from '../lib/persistence/postgresDb'
 
 type QueryHandler = (sql: string, params: unknown[]) => Promise<{ command?: string; rows: unknown[]; rowCount?: number }>
 
@@ -27,7 +27,7 @@ describe('roadmapRepository (postgres backend)', () => {
 
   describe('findRoadmapById', () => {
     it('selects the roadmap joined with its category via Kysely', async () => {
-      const { findRoadmapById } = await import('../lib/roadmapRepository')
+      const { findRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
 
       const { pool, client } = createFakePool(async (sql) => {
         expect(sql).toContain('select')
@@ -64,7 +64,7 @@ describe('roadmapRepository (postgres backend)', () => {
     })
 
     it('returns undefined when no row is found', async () => {
-      const { findRoadmapById } = await import('../lib/roadmapRepository')
+      const { findRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
 
       const { pool } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
@@ -76,7 +76,7 @@ describe('roadmapRepository (postgres backend)', () => {
 
   describe('updateRoadmapCore', () => {
     it('updates all optional fields when they are provided', async () => {
-      const { updateRoadmapCore } = await import('../lib/roadmapRepository')
+      const { updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
 
       const { pool, client } = createFakePool(async (sql, params) => {
         expect(sql).toContain('update "roadmaps"')
@@ -98,7 +98,7 @@ describe('roadmapRepository (postgres backend)', () => {
     })
 
     it('updates only the required fields when optional ones are omitted', async () => {
-      const { updateRoadmapCore } = await import('../lib/roadmapRepository')
+      const { updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
 
       const { pool, client } = createFakePool(async (sql, params) => {
         expect(sql).not.toContain('"duration"')
@@ -117,7 +117,7 @@ describe('roadmapRepository (postgres backend)', () => {
     })
 
     it('sets duration and durationWeeks to null when explicitly cleared', async () => {
-      const { updateRoadmapCore } = await import('../lib/roadmapRepository')
+      const { updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
 
       const { pool, client } = createFakePool(async () => ({ command: 'UPDATE', rowCount: 1, rows: [] }))
 
@@ -135,7 +135,7 @@ describe('roadmapRepository (postgres backend)', () => {
 
   describe('findExistingRoadmapIds', () => {
     it('selects only the matching ids via Kysely', async () => {
-      const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+      const { findExistingRoadmapIds } = await import('../lib/domains/content/repositories/roadmapRepository')
 
       const { pool, client } = createFakePool(async sql => {
         expect(sql).toContain('select "id"')
@@ -150,7 +150,7 @@ describe('roadmapRepository (postgres backend)', () => {
     })
 
     it('returns an empty array without querying for an empty input', async () => {
-      const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+      const { findExistingRoadmapIds } = await import('../lib/domains/content/repositories/roadmapRepository')
       const { pool, client } = createFakePool(async () => ({ command: 'SELECT', rowCount: 0, rows: [] }))
 
       const found = await findExistingRoadmapIds(fakeDb(pool), [])

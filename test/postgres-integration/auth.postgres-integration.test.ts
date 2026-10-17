@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { PostgresDb } from '../../lib/postgresDb'
-import { createSession, clearSession, getUserFromRequest } from '../../lib/auth'
+import { PostgresDb } from '../../lib/persistence/postgresDb'
+import { createSession, clearSession, getUserFromRequest } from '../../lib/http/auth'
 
 /**
- * Verifies lib/auth.ts session lifecycle (create/lookup/expiry/clear) against
+ * Verifies lib/domains/auth/repositories/sessionRepository.ts session lifecycle (create/lookup/expiry/clear) against
  * a real Postgres instance (backlog.md: "Tests de integracion contra
  * PostgreSQL real" - dominio auth). auth.ts has no separate Postgres SQL
  * branch (it uses the generic DatabaseClient interface), but its raw SQL

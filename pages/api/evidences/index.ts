@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireAdmin } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { listEvidences } from '../../../lib/evidenceRepository'
+import { createServices } from '../../../lib/container'
+import { requireAdmin } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
 import { evidenceListQuerySchema } from '../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../lib/validation/http'
 
@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const query = parseOrRespond(evidenceListQuerySchema, req.query, res)
   if (!query) return
 
-  const evidences = await listEvidences(db, {
+  const evidences = await createServices(db).progress.listEvidences({
     userId: query.user_id ?? null,
     moduleId: query.module_id ?? null,
     roadmapId: query.roadmap_id ?? null,

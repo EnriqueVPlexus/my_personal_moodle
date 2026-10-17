@@ -2,10 +2,11 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { describe, expect, it, vi } from 'vitest'
-import { exportRoadmapAsJson, validateRoadmapImport } from '../lib/roadmapImport'
-import { openSqliteDb } from '../lib/db'
+import { validateRoadmapImport } from '../lib/domains/content/import'
+import { exportRoadmapAsJson } from '../lib/domains/content/repositories/importRepository'
+import { openSqliteDb } from '../lib/persistence'
 import { createRequest, createResponse } from './helpers/api'
-import type { DatabaseClient } from '../lib/database'
+import type { DatabaseClient } from '../lib/persistence/database'
 
 async function setupDb(): Promise<DatabaseClient> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-export-'))
@@ -89,8 +90,8 @@ describe('roadmap JSON export', () => {
   it('serves the exported JSON file via GET /api/roadmaps/[id]/export endpoint', async () => {
     const db = await setupDb()
     vi.resetModules()
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/auth', () => ({
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/auth', () => ({
       getRoadmapReadScope: vi.fn().mockResolvedValue({ allRoadmaps: true, roadmapIds: [] }),
       scopeAllowsRoadmap: vi.fn().mockReturnValue(true)
     }))

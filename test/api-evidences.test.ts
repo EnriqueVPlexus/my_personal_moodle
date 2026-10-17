@@ -16,8 +16,8 @@ function denyUser(res: any) {
 
 async function mockIndexApi(db: any, options: { admin?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       if (options.admin === null) return denyAdmin(res)
       return options.admin ?? admin
@@ -30,14 +30,15 @@ async function mockModuleIdApi(
   options: { scope?: any; user?: any; scopeAllows?: boolean } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.scope === null) {
         res.status(401).json({ error: 'authentication required' })
         return null
       }
-      return options.scope ?? { user, allRoadmaps: true, roadmapIds: [] }
+      // scopeAllows: false means the scope grants no roadmap (the real policy decides)
+      return options.scope ?? { user, allRoadmaps: options.scopeAllows !== false, roadmapIds: [] }
     }),
     requireUser: vi.fn((_req: any, res: any) => {
       if (options.user === null) return denyUser(res)
@@ -45,19 +46,21 @@ async function mockModuleIdApi(
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(options.scopeAllows ?? true)
   }))
-  vi.doMock('../lib/progressRepository', () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/domains/progress/repositories/progressRepository', () => ({
+    createProgressRepository: () => ({ touchRoadmapProgress: vi.fn().mockResolvedValue(undefined) })
+  }))
 }
 
 async function mockReviewApi(db: any, options: { admin?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       if (options.admin === null) return denyAdmin(res)
       return options.admin ?? admin
     })
   }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 
 describe('GET/POST /api/evidences', () => {

@@ -6,7 +6,7 @@ import LessonForm from '../../components/LessonForm'
 import ModuleEvidencePanel, { ModuleEvidence } from '../../components/ModuleEvidencePanel'
 import ModuleLearningContent from '../../components/ModuleLearningContent'
 import { useAuth } from '../../components/AuthProvider'
-import { LearningModule } from '../../lib/roadmapPresentation'
+import { LearningModule } from '../../lib/domains/content/presentation'
 import { branding } from '../../lib/branding'
 
 type ModuleProgress = {

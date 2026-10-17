@@ -2,9 +2,9 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { openSqliteDb } from '../lib/db'
+import { openSqliteDb } from '../lib/persistence'
 import { createRequest, createResponse } from './helpers/api'
-import type { DatabaseClient } from '../lib/database'
+import type { DatabaseClient } from '../lib/persistence/database'
 
 const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 const roadmap = { title: 'Ruta importada', category: 'Cloud', topics: ['AWS'], modules: [{ title: 'Inicio' }] }
@@ -16,9 +16,9 @@ async function apiDb(): Promise<DatabaseClient> {
 
 async function loadHandler(db: any, allowed: any = admin) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(allowed) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(allowed) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
   return (await import('../pages/api/roadmaps/import')).default
 }
 

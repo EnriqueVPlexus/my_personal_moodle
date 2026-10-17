@@ -4,7 +4,7 @@ import { bodyObject } from './primitives'
 export const MAX_IMPORT_BYTES = 1024 * 1024
 
 // Envelope only. The roadmap document itself is validated in depth (with
-// per-field `issues`) by validateRoadmapImport in lib/roadmapImport.ts.
+// per-field `issues`) by validateRoadmapImport in lib/domains/content/import.ts.
 export const roadmapImportBodySchema = bodyObject({
   action: z.enum(['preview', 'publish'], { error: 'Acción de importación no válida.' }),
   strategy: z.enum(['create', 'update'], { error: 'La estrategia debe ser create o update.' }).optional(),

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireUser } from '../../../lib/auth'
-import { openDb } from '../../../lib/db'
-import { listUserRoadmapProgress } from '../../../lib/progressRepository'
+import { createServices } from '../../../lib/container'
+import { requireUser } from '../../../lib/http/auth'
+import { openDb } from '../../../lib/persistence'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -13,6 +13,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireUser(req, res, db)
   if (!user) return
 
-  const progress = await listUserRoadmapProgress(db, user.id)
+  const progress = await createServices(db).progress.listRoadmapProgress(user.id)
   return res.status(200).json(progress)
 }

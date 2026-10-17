@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { PostgresDb } from '../../lib/postgresDb'
+import { PostgresDb } from '../../lib/persistence/postgresDb'
 import {
   findExistingRoadmapIds,
   findRoadmapById,
   updateRoadmapCore
-} from '../../lib/roadmapRepository'
+} from '../../lib/domains/content/repositories/roadmapRepository'
 import {
   findModulesByRoadmapId,
   findModulesByRoadmapIds,
@@ -13,7 +13,7 @@ import {
   insertModule,
   updateModuleCore,
   deleteModule
-} from '../../lib/moduleRepository'
+} from '../../lib/domains/content/repositories/moduleRepository'
 import {
   findLessonsByModuleId,
   findLessonById,
@@ -21,7 +21,7 @@ import {
   insertLesson,
   updateLesson,
   deleteLesson
-} from '../../lib/lessonRepository'
+} from '../../lib/domains/content/repositories/lessonRepository'
 
 /**
  * CRUD/list round-trip for roadmapRepository, moduleRepository and

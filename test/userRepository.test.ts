@@ -13,7 +13,7 @@ afterEach(async () => {
 async function setupDb() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-user-repo-'))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   return openDb()
 }
 
@@ -46,7 +46,7 @@ async function insertTestUser(db: any, overrides: Partial<{
 describe('userRepository (SQLite backend)', () => {
   it('findAllUsers lists users ordered by created_at desc', async () => {
     const db = await setupDb()
-    const { findAllUsers } = await import('../lib/userRepository')
+    const { findAllUsers } = await import('../lib/domains/admin/repositories/userRepository')
 
     const firstId = await insertTestUser(db, { email: 'first@example.com' })
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -62,7 +62,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('findUserById returns undefined for a missing user', async () => {
     const db = await setupDb()
-    const { findUserById } = await import('../lib/userRepository')
+    const { findUserById } = await import('../lib/domains/admin/repositories/userRepository')
 
     expect(await findUserById(db, 999999)).toBeUndefined()
 
@@ -71,7 +71,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('insertUser creates a user and rejects duplicate emails', async () => {
     const db = await setupDb()
-    const { insertUser, findUserById, DuplicateEmailError } = await import('../lib/userRepository')
+    const { insertUser, findUserById, DuplicateEmailError } = await import('../lib/domains/admin/repositories/userRepository')
 
     const now = new Date().toISOString()
     const id = await insertUser(db, {
@@ -100,7 +100,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('updateUserActive toggles is_active and reports changed rows', async () => {
     const db = await setupDb()
-    const { updateUserActive, findUserById } = await import('../lib/userRepository')
+    const { updateUserActive, findUserById } = await import('../lib/domains/admin/repositories/userRepository')
 
     const id = await insertTestUser(db)
     const changes = await updateUserActive(db, id, false, new Date().toISOString())
@@ -117,7 +117,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('updateUserPassword updates the password hash', async () => {
     const db = await setupDb()
-    const { updateUserPassword } = await import('../lib/userRepository')
+    const { updateUserPassword } = await import('../lib/domains/admin/repositories/userRepository')
 
     const id = await insertTestUser(db)
     const changes = await updateUserPassword(db, id, 'new-hash', new Date().toISOString())
@@ -131,7 +131,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('updateUserRoadmapAccessFlag updates can_view_all_roadmaps', async () => {
     const db = await setupDb()
-    const { updateUserRoadmapAccessFlag, findUserById } = await import('../lib/userRepository')
+    const { updateUserRoadmapAccessFlag, findUserById } = await import('../lib/domains/admin/repositories/userRepository')
 
     const id = await insertTestUser(db, { can_view_all_roadmaps: 1 })
     await updateUserRoadmapAccessFlag(db, id, false, new Date().toISOString())
@@ -144,7 +144,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('countActiveAdmins excludes the given user and inactive admins', async () => {
     const db = await setupDb()
-    const { countActiveAdmins } = await import('../lib/userRepository')
+    const { countActiveAdmins } = await import('../lib/domains/admin/repositories/userRepository')
 
     const admin1 = await insertTestUser(db, { email: 'admin1@example.com', role: 'admin', is_active: 1 })
     await insertTestUser(db, { email: 'admin2@example.com', role: 'admin', is_active: 1 })
@@ -158,7 +158,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('deleteSessionsByUserId removes all sessions for that user', async () => {
     const db = await setupDb()
-    const { deleteSessionsByUserId } = await import('../lib/userRepository')
+    const { deleteSessionsByUserId } = await import('../lib/domains/admin/repositories/userRepository')
 
     const userId = await insertTestUser(db)
     const now = new Date().toISOString()
@@ -182,7 +182,7 @@ describe('userRepository (SQLite backend)', () => {
       findUserRoadmapAccessIds,
       findAllUserRoadmapAccess,
       deleteUserRoadmapAccess
-    } = await import('../lib/userRepository')
+    } = await import('../lib/domains/admin/repositories/userRepository')
 
     const userId = await insertTestUser(db)
     const roadmap = await db.get<{ id: number }>('SELECT id FROM roadmaps LIMIT 1')
@@ -205,7 +205,7 @@ describe('userRepository (SQLite backend)', () => {
 
   it('insertUserRoadmapAccessMany is a no-op for an empty list', async () => {
     const db = await setupDb()
-    const { insertUserRoadmapAccessMany, findUserRoadmapAccessIds } = await import('../lib/userRepository')
+    const { insertUserRoadmapAccessMany, findUserRoadmapAccessIds } = await import('../lib/domains/admin/repositories/userRepository')
 
     const userId = await insertTestUser(db)
     await insertUserRoadmapAccessMany(db, userId, [], new Date().toISOString())

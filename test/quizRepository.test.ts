@@ -8,7 +8,7 @@ const originalCwd = process.cwd()
 async function withTempDb<T>(prefix: string, run: (db: any) => Promise<T>): Promise<T> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   const db = await openDb()
   try {
     return await run(db)
@@ -54,7 +54,7 @@ async function seedRoadmapAndUser(db: any, userId: number) {
 describe('quizRepository (sqlite backend)', () => {
   it('saves a quiz attempt with the graded score', async () => {
     await withTempDb('moodle-quiz-save-', async db => {
-      const { saveModuleQuizAttempt } = await import('../lib/quizRepository')
+      const { saveModuleQuizAttempt } = await import('../lib/domains/progress/repositories/quizRepository')
       const userId = 700001
       await seedRoadmapAndUser(db, userId)
 
@@ -84,7 +84,7 @@ describe('quizRepository (sqlite backend)', () => {
 
   it('returns null averages/best when there are no attempts', async () => {
     await withTempDb('moodle-quiz-empty-', async db => {
-      const { getModuleQuizSummary } = await import('../lib/quizRepository')
+      const { getModuleQuizSummary } = await import('../lib/domains/progress/repositories/quizRepository')
       const userId = 700002
       await seedRoadmapAndUser(db, userId)
 
@@ -101,7 +101,7 @@ describe('quizRepository (sqlite backend)', () => {
 
   it('aggregates attempts and orders the latest attempt by submitted_at', async () => {
     await withTempDb('moodle-quiz-summary-', async db => {
-      const { saveModuleQuizAttempt } = await import('../lib/quizRepository')
+      const { saveModuleQuizAttempt } = await import('../lib/domains/progress/repositories/quizRepository')
       const userId = 700003
       await seedRoadmapAndUser(db, userId)
 
@@ -109,7 +109,7 @@ describe('quizRepository (sqlite backend)', () => {
       await new Promise(resolve => setTimeout(resolve, 10))
       const second = await saveModuleQuizAttempt(db, userId, moduleFixture, {})
 
-      const { getModuleQuizSummary } = await import('../lib/quizRepository')
+      const { getModuleQuizSummary } = await import('../lib/domains/progress/repositories/quizRepository')
       const summary = await getModuleQuizSummary(db, userId, MODULE_ID)
 
       expect(summary.attempts_count).toBe(2)
@@ -121,7 +121,7 @@ describe('quizRepository (sqlite backend)', () => {
 
   it('counts attempts for eligibility and blocks once max attempts is reached', async () => {
     await withTempDb('moodle-quiz-eligibility-', async db => {
-      const { saveModuleQuizAttempt, checkAttemptEligibility } = await import('../lib/quizRepository')
+      const { saveModuleQuizAttempt, checkAttemptEligibility } = await import('../lib/domains/progress/repositories/quizRepository')
       const userId = 700004
       await seedRoadmapAndUser(db, userId)
       const limited = { ...moduleFixture, quiz_max_attempts: 1 }
@@ -139,7 +139,7 @@ describe('quizRepository (sqlite backend)', () => {
 
   it('finds the last failed attempt to compute a cooldown window', async () => {
     await withTempDb('moodle-quiz-cooldown-', async db => {
-      const { saveModuleQuizAttempt, checkAttemptEligibility } = await import('../lib/quizRepository')
+      const { saveModuleQuizAttempt, checkAttemptEligibility } = await import('../lib/domains/progress/repositories/quizRepository')
       const userId = 700005
       await seedRoadmapAndUser(db, userId)
       const cooled = { ...moduleFixture, quiz_cooldown_minutes: 30 }

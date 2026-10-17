@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PostgresDb } from '../lib/postgresDb'
+import type { PostgresDb } from '../lib/persistence/postgresDb'
 
 type QueryHandler = (sql: string, params: unknown[]) => Promise<{ command?: string; rows: unknown[]; rowCount?: number }>
 
@@ -26,7 +26,7 @@ describe('auditRepository (postgres backend)', () => {
   })
 
   it('insertAuditLog inserts a new audit log entry', async () => {
-    const { insertAuditLog } = await import('../lib/auditRepository')
+    const { insertAuditLog } = await import('../lib/domains/audit/repositories/auditRepository')
 
     const { pool, client } = createFakePool(async (sql) => {
       expect(sql).toContain('insert into "audit_logs"')
@@ -49,7 +49,7 @@ describe('auditRepository (postgres backend)', () => {
   })
 
   it('listAuditLogs selects and orders audit logs with a limit', async () => {
-    const { listAuditLogs } = await import('../lib/auditRepository')
+    const { listAuditLogs } = await import('../lib/domains/audit/repositories/auditRepository')
 
     const sampleRow = {
       id: 1,
@@ -77,7 +77,7 @@ describe('auditRepository (postgres backend)', () => {
   })
 
   it('listAuditLogs defaults the limit to 200 when not provided', async () => {
-    const { listAuditLogs } = await import('../lib/auditRepository')
+    const { listAuditLogs } = await import('../lib/domains/audit/repositories/auditRepository')
 
     const { pool } = createFakePool(async (sql, params) => {
       expect(params[params.length - 1]).toBe(200)

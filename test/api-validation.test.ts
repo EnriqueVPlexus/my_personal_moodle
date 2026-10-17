@@ -17,14 +17,14 @@ function createDb() {
 async function loadHandler(route: string) {
   vi.resetModules()
   const db = createDb()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
-  vi.doMock('../lib/rateLimit', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/http/rateLimit', () => ({
     rateLimit: vi.fn().mockResolvedValue(true),
     clearRateLimit: vi.fn().mockResolvedValue(undefined)
   }))
-  vi.doMock('../lib/auth', async () => ({
-    ...(await vi.importActual('../lib/auth') as object),
+  vi.doMock('../lib/http/auth', async () => ({
+    ...(await vi.importActual('../lib/http/auth') as object),
     requireAdmin: vi.fn().mockResolvedValue(admin),
     requireUser: vi.fn().mockResolvedValue(user),
     requireSameOrigin: vi.fn().mockReturnValue(true),
@@ -163,10 +163,10 @@ describe('API input validation contract', () => {
   it('does not run auth-protected validation before the 401/403 guards', async () => {
     vi.resetModules()
     const db = createDb()
-    vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-    vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn() }))
-    vi.doMock('../lib/auth', async () => ({
-      ...(await vi.importActual('../lib/auth') as object),
+    vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+    vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn() }))
+    vi.doMock('../lib/http/auth', async () => ({
+      ...(await vi.importActual('../lib/http/auth') as object),
       requireAdmin: vi.fn((_req: unknown, res: any) => {
         res.status(403).json({ error: 'admin role required' })
         return null

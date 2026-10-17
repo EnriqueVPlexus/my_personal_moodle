@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { PostgresDb } from '../../lib/postgresDb'
-import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } from '../../lib/quizRepository'
-import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/quizzes'
+import { PostgresDb } from '../../lib/persistence/postgresDb'
+import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } from '../../lib/domains/progress/repositories/quizRepository'
+import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/domains/content/quizzes'
 
 /**
- * Verifies lib/quizRepository.ts (attempts + per-module stats) against real
+ * Verifies lib/domains/progress/repositories/quizRepository.ts (attempts + per-module stats) against real
  * Postgres (backlog.md: "Tests de integracion contra PostgreSQL real" -
  * dominio quizzes). Exercises the aggregate/latest-attempt raw SQL passed
  * through Kysely's `sql` tag, including `ORDER BY submitted_at DESC` (the

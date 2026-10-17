@@ -5,8 +5,8 @@ const admin = { id: 1, email: 'admin@example.com', role: 'admin' as const }
 
 async function mockBase(db: any) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/audit', () => ({ writeAuditLog: vi.fn().mockResolvedValue(undefined) }))
 }
 
 describe('auth API handlers', () => {
@@ -24,12 +24,12 @@ describe('auth API handlers', () => {
       run: vi.fn()
     }
     await mockBase(db)
-    vi.doMock('../lib/password', () => ({
+    vi.doMock('../lib/domains/auth/password', () => ({
       normalizeEmail: (email: string) => email.toLowerCase(),
       verifyPassword: vi.fn().mockResolvedValue(true)
     }))
-    vi.doMock('../lib/auth', async () => ({
-      ...(await vi.importActual('../lib/auth') as any),
+    vi.doMock('../lib/http/auth', async () => ({
+      ...(await vi.importActual('../lib/http/auth') as any),
       createSession: vi.fn().mockImplementation((_res: any) => _res.setHeader('Set-Cookie', 'moodle_session=token')),
       requireSameOrigin: vi.fn().mockReturnValue(true)
     }))
@@ -48,8 +48,8 @@ describe('auth API handlers', () => {
   it('returns current session and logs out', async () => {
     const db = { run: vi.fn() }
     await mockBase(db)
-    vi.doMock('../lib/auth', async () => ({
-      ...(await vi.importActual('../lib/auth') as any),
+    vi.doMock('../lib/http/auth', async () => ({
+      ...(await vi.importActual('../lib/http/auth') as any),
       getUserFromRequest: vi.fn().mockResolvedValue(admin),
       clearSession: vi.fn().mockImplementation((_req: any, res: any) => res.setHeader('Set-Cookie', 'moodle_session=; Max-Age=0')),
       requireSameOrigin: vi.fn().mockReturnValue(true)
@@ -75,13 +75,13 @@ describe('auth API handlers', () => {
       run: vi.fn().mockResolvedValue({ lastID: 1 })
     }
     await mockBase(db)
-    vi.doMock('../lib/password', () => ({
+    vi.doMock('../lib/domains/auth/password', () => ({
       normalizeEmail: (email: string) => email.toLowerCase(),
       validatePassword: vi.fn().mockReturnValue(null),
       hashPassword: vi.fn().mockResolvedValue('hash')
     }))
-    vi.doMock('../lib/auth', async () => ({
-      ...(await vi.importActual('../lib/auth') as any),
+    vi.doMock('../lib/http/auth', async () => ({
+      ...(await vi.importActual('../lib/http/auth') as any),
       createSession: vi.fn().mockImplementation((_res: any) => _res.setHeader('Set-Cookie', 'moodle_session=token')),
       requireSameOrigin: vi.fn().mockReturnValue(true),
       validateSetupToken: vi.fn().mockReturnValue(true)
@@ -117,11 +117,11 @@ describe('users API handlers', () => {
       get: vi.fn().mockResolvedValue({ id: 2, email: 'user@example.com', role: 'user', is_active: 1 })
     }
     await mockBase(db)
-    vi.doMock('../lib/auth', () => ({
+    vi.doMock('../lib/http/auth', () => ({
       isValidRole: (role: unknown) => role === 'admin' || role === 'user',
       requireAdmin: vi.fn().mockResolvedValue(admin)
     }))
-    vi.doMock('../lib/password', () => ({
+    vi.doMock('../lib/domains/auth/password', () => ({
       normalizeEmail: (email: string) => email.toLowerCase(),
       validatePassword: vi.fn().mockReturnValue(null),
       hashPassword: vi.fn().mockResolvedValue('hash')
@@ -160,8 +160,8 @@ describe('users API handlers', () => {
       run: vi.fn().mockResolvedValue({ changes: 1 })
     }
     await mockBase(db)
-    vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
-    vi.doMock('../lib/password', () => ({
+    vi.doMock('../lib/http/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
+    vi.doMock('../lib/domains/auth/password', () => ({
       validatePassword: vi.fn().mockReturnValue(null),
       hashPassword: vi.fn().mockResolvedValue('hash')
     }))
@@ -191,7 +191,7 @@ describe('users API handlers', () => {
       run: vi.fn()
     }
     await mockBase(db)
-    vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
+    vi.doMock('../lib/http/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
     const handler = (await import('../pages/api/users/[id]')).default
 
     const res = createResponse()
@@ -221,7 +221,7 @@ describe('users API handlers', () => {
       run: vi.fn()
     }
     await mockBase(db)
-    vi.doMock('../lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
+    vi.doMock('../lib/http/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue(admin) }))
     const handler = (await import('../pages/api/users/[id]')).default
 
     const res = createResponse()

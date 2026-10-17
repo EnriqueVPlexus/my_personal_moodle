@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { normalizeDurationRange, parseDurationWeeks } from '../roadmapMetadata'
-import type { DurationRange } from '../roadmapMetadata'
+import { normalizeDurationRange, parseDurationWeeks } from '../domains/content/metadata'
+import type { DurationRange } from '../domains/content/metadata'
 
 type DurationInput = {
   duration?: unknown

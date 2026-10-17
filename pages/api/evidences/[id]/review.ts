@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { writeAuditLog } from '../../../../lib/audit'
-import { requireAdmin } from '../../../../lib/auth'
-import { openDb } from '../../../../lib/db'
-import { getEvidenceById, reviewModuleEvidence } from '../../../../lib/evidenceRepository'
+import { createServices } from '../../../../lib/container'
+import { writeAuditLog } from '../../../../lib/http/audit'
+import { requireAdmin } from '../../../../lib/http/auth'
+import { openDb } from '../../../../lib/persistence'
 import { evidenceReviewQuerySchema, reviewEvidenceBodySchema } from '../../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../../lib/validation/http'
 
@@ -24,15 +24,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!body) return
 
   try {
-    const previous = await getEvidenceById(db, evidenceId)
-    const updated = await reviewModuleEvidence(db, evidenceId, admin.id, {
+    const reviewed = await createServices(db).progress.reviewEvidence(evidenceId, admin.id, {
       reviewStatus: body.review_status,
       adminComment: body.admin_comment
     })
 
-    if (!updated) {
+    if (!reviewed) {
       return res.status(404).json({ error: 'Evidencia no encontrada' })
     }
+    const { previous, updated } = reviewed
 
     await writeAuditLog({
       db,

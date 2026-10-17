@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { normalizeModuleLevel } from '../roadmapMetadata'
+import { normalizeModuleLevel } from '../domains/content/metadata'
 import { resolveCreateDurationWeeks, resolveUpdateDurationWeeks, weeksField } from './duration'
 import { bodyObject, optionalPositiveInt, optionalText, positiveInt, queryObject, text } from './primitives'
 

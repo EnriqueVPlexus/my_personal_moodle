@@ -8,7 +8,7 @@ const originalCwd = process.cwd()
 async function withTempDb<T>(prefix: string, run: (db: any, openDb: any) => Promise<T>): Promise<T> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   const db = await openDb()
   try {
     return await run(db, openDb)
@@ -25,7 +25,7 @@ afterEach(async () => {
 describe('progressRepository (sqlite backend)', () => {
   it('builds roadmap summaries with next step and completion status', async () => {
     await withTempDb('moodle-progress-summary-', async db => {
-      const { listUserRoadmapProgress, touchRoadmapProgress, setLessonProgress } = await import('../lib/progressRepository')
+      const { listUserRoadmapProgress, touchRoadmapProgress, setLessonProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       await db.exec(`
         INSERT INTO roadmaps (id, title, description, duration) VALUES (9500, 'Roadmap Summary', 'Ruta test', '8 semanas');
@@ -61,7 +61,7 @@ describe('progressRepository (sqlite backend)', () => {
 
   it('derives fresh summaries, resumes the first pending lesson and reopens stale completion', async () => {
     await withTempDb('moodle-progress-fresh-', async db => {
-      const { listUserRoadmapProgress } = await import('../lib/progressRepository')
+      const { listUserRoadmapProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       await db.exec(`
         INSERT INTO roadmaps (id, title, description, duration) VALUES (9001, 'Roadmap Test', 'Ruta test', '8 semanas');
@@ -115,7 +115,7 @@ describe('progressRepository (sqlite backend)', () => {
 
   it('caps study increments, preserves first completion and supports reopening', async () => {
     await withTempDb('moodle-progress-cap-', async db => {
-      const { setLessonProgress, touchRoadmapProgress } = await import('../lib/progressRepository')
+      const { setLessonProgress, touchRoadmapProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       await db.exec(`
         INSERT INTO roadmaps (id, title) VALUES (9002, 'Roadmap Cap');
@@ -178,7 +178,7 @@ describe('progressRepository (sqlite backend)', () => {
 
   it('builds detailed roadmap progress grouped by module', async () => {
     await withTempDb('moodle-progress-detail-', async db => {
-      const { getRoadmapDetailProgress, setLessonProgress, touchRoadmapProgress } = await import('../lib/progressRepository')
+      const { getRoadmapDetailProgress, setLessonProgress, touchRoadmapProgress } = await import('../lib/domains/progress/repositories/progressRepository')
 
       await db.exec(`
         INSERT INTO roadmaps (id, title) VALUES (9003, 'Roadmap Detail');

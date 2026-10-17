@@ -15,8 +15,8 @@ describe('findRoadmapById', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
-    const { findRoadmapById } = await import('../lib/roadmapRepository')
+    const { openDb } = await import('../lib/persistence')
+    const { findRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const roadmap = await db.get<{ id: number }>(
@@ -38,8 +38,8 @@ describe('findRoadmapById', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-missing-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
-    const { findRoadmapById } = await import('../lib/roadmapRepository')
+    const { openDb } = await import('../lib/persistence')
+    const { findRoadmapById } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const found = await findRoadmapById(db, 999999)
@@ -55,8 +55,8 @@ describe('updateRoadmapCore', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-update-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
-    const { findRoadmapById, updateRoadmapCore } = await import('../lib/roadmapRepository')
+    const { openDb } = await import('../lib/persistence')
+    const { findRoadmapById, updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const before = await db.get<{ id: number; version: string }>(
@@ -88,8 +88,8 @@ describe('updateRoadmapCore', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-update-missing-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
-    const { updateRoadmapCore } = await import('../lib/roadmapRepository')
+    const { openDb } = await import('../lib/persistence')
+    const { updateRoadmapCore } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const changes = await updateRoadmapCore(db, 999999, {
@@ -108,8 +108,8 @@ describe('findExistingRoadmapIds', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-existing-ids-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
-    const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+    const { openDb } = await import('../lib/persistence')
+    const { findExistingRoadmapIds } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     const rows = await db.all<{ id: number }>('SELECT id FROM roadmaps LIMIT 2')
@@ -126,8 +126,8 @@ describe('findExistingRoadmapIds', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-roadmap-repo-existing-ids-empty-'))
     process.chdir(tmp)
 
-    const { openDb } = await import('../lib/db')
-    const { findExistingRoadmapIds } = await import('../lib/roadmapRepository')
+    const { openDb } = await import('../lib/persistence')
+    const { findExistingRoadmapIds } = await import('../lib/domains/content/repositories/roadmapRepository')
     const db = await openDb()
 
     expect(await findExistingRoadmapIds(db, [])).toEqual([])

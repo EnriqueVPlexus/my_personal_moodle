@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { normalizeTopics } from '../roadmapMetadata'
-import { normalizePublishedAt, normalizeRoadmapVersion } from '../roadmapVersion'
+import { normalizeTopics } from '../domains/content/metadata'
+import { normalizePublishedAt, normalizeRoadmapVersion } from '../domains/content/version'
 import { resolveCreateDurationWeeks, resolveUpdateDurationWeeks, weeksField } from './duration'
 import { bodyObject, optionalText, positiveInt, queryObject, text } from './primitives'
 

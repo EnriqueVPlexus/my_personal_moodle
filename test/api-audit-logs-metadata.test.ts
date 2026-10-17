@@ -11,8 +11,8 @@ function denyAdmin(res: any) {
 
 async function mockAuditLogsApi(db: any, options: { admin?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     requireAdmin: vi.fn((_req: any, res: any) => {
       if (options.admin === null) return denyAdmin(res)
       return options.admin ?? admin
@@ -25,8 +25,8 @@ async function mockRoadmapExportApi(
   options: { scope?: any; scopeAllows?: boolean; exportData?: any } = {}
 ) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     getRoadmapReadScope: vi.fn((_req: any, res: any) => {
       if (options.scope === null) {
         res.status(401).json({ error: 'authentication required' })
@@ -36,23 +36,27 @@ async function mockRoadmapExportApi(
     }),
     scopeAllowsRoadmap: vi.fn().mockReturnValue(options.scopeAllows ?? true)
   }))
-  vi.doMock('../lib/roadmapImport', () => ({
-    exportRoadmapAsJson: vi.fn().mockResolvedValue(
-      options.exportData === undefined ? { title: 'Roadmap de prueba' } : options.exportData
-    )
+  vi.doMock('../lib/domains/content/repositories/importRepository', () => ({
+    createImportRepository: () => ({
+      exportRoadmap: vi.fn().mockResolvedValue(
+        options.exportData === undefined ? { title: 'Roadmap de prueba' } : options.exportData
+      )
+    })
   }))
 }
 
 async function mockMetadataApi(db: any, options: { scope?: any; userProgress?: any[] } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue(db) }))
+  vi.doMock('../lib/http/auth', () => ({
     getRoadmapReadScope: vi.fn().mockResolvedValue(
       options.scope ?? { user: null, allRoadmaps: true, roadmapIds: [] }
     )
   }))
-  vi.doMock('../lib/progressRepository', () => ({
-    listUserRoadmapProgress: vi.fn().mockResolvedValue(options.userProgress ?? [])
+  vi.doMock('../lib/domains/progress/repositories/progressRepository', () => ({
+    createProgressRepository: () => ({
+      listUserRoadmapProgress: vi.fn().mockResolvedValue(options.userProgress ?? [])
+    })
   }))
 }
 

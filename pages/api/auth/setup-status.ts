@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { openDb } from '../../../lib/db'
+import { openDb } from '../../../lib/persistence'
+import { createAuthService } from '../../../lib/domains/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -8,9 +9,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const db = await openDb()
-  const row = await db.get('SELECT COUNT(*) AS count FROM users')
+  const needsSetup = await createAuthService(db).needsSetup()
   return res.status(200).json({
-    needsSetup: Number(row.count) === 0,
+    needsSetup,
     requiresToken: Boolean(process.env.AUTH_SETUP_TOKEN),
     productionRequiresToken: process.env.NODE_ENV === 'production'
   })

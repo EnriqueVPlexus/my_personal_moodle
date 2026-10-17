@@ -13,14 +13,14 @@ afterEach(async () => {
 async function setupTempDb(prefix: string) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   process.chdir(tmp)
-  const { openDb } = await import('../lib/db')
+  const { openDb } = await import('../lib/persistence')
   return openDb()
 }
 
 describe('module repository', () => {
   it('lists modules for a roadmap ordered by position, reads by id and inserts new modules', async () => {
     const db = await setupTempDb('moodle-module-repo-')
-    const repo = await import('../lib/moduleRepository')
+    const repo = await import('../lib/domains/content/repositories/moduleRepository')
 
     const roadmap = await db.get<{ id: number }>(
       'SELECT id FROM roadmaps WHERE title = ?',
@@ -56,7 +56,7 @@ describe('module repository', () => {
 
   it('updates only the provided fields and reports zero changes for a missing module', async () => {
     const db = await setupTempDb('moodle-module-repo-update-')
-    const repo = await import('../lib/moduleRepository')
+    const repo = await import('../lib/domains/content/repositories/moduleRepository')
 
     const moduleRow = await db.get<{ id: number; level: string | null }>(
       'SELECT id, level FROM modules ORDER BY id LIMIT 1'
@@ -84,7 +84,7 @@ describe('module repository', () => {
 
   it('deletes a module and reports zero changes for a missing module', async () => {
     const db = await setupTempDb('moodle-module-repo-delete-')
-    const repo = await import('../lib/moduleRepository')
+    const repo = await import('../lib/domains/content/repositories/moduleRepository')
 
     const moduleRow = await db.get<{ id: number }>('SELECT id FROM modules ORDER BY id LIMIT 1')
 

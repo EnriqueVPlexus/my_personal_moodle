@@ -5,8 +5,8 @@ const user = { id: 2, email: 'user@example.com', name: 'User Test', role: 'user'
 
 async function mockPortfolioApi(options: { user?: any; portfolio?: any } = {}) {
   vi.resetModules()
-  vi.doMock('../lib/db', () => ({ openDb: vi.fn().mockResolvedValue({}) }))
-  vi.doMock('../lib/auth', () => ({
+  vi.doMock('../lib/persistence', () => ({ openDb: vi.fn().mockResolvedValue({}) }))
+  vi.doMock('../lib/http/auth', () => ({
     requireUser: vi.fn((_req: any, res: any) => {
       if (options.user === null) {
         res.status(401).json({ error: 'authentication required' })
@@ -15,12 +15,16 @@ async function mockPortfolioApi(options: { user?: any; portfolio?: any } = {}) {
       return options.user ?? user
     })
   }))
-  vi.doMock('../lib/portfolio', () => ({
-    getUserPortfolio: vi.fn().mockResolvedValue(
-      options.portfolio === undefined
-        ? { user, total_evidences: 0, approved_evidences: 0, roadmaps: [] }
-        : options.portfolio
-    ),
+  vi.doMock('../lib/domains/progress/repositories/portfolioRepository', () => ({
+    createPortfolioRepository: () => ({
+      getForUser: vi.fn().mockResolvedValue(
+        options.portfolio === undefined
+          ? { user, total_evidences: 0, approved_evidences: 0, roadmaps: [] }
+          : options.portfolio
+      )
+    })
+  }))
+  vi.doMock('../lib/domains/progress/portfolio', () => ({
     exportPortfolioAsMarkdown: vi.fn().mockReturnValue('# Portfolio de Evidencias - User Test')
   }))
 }
