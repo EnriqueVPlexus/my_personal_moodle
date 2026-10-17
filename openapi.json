@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cantera Hub API",
-    "version": "3.0.0",
+    "version": "3.1.0",
     "description": "Contrato de la API HTTP de Cantera Hub. Generado desde `lib/contracts` (`npm run contracts:generate`); no editar a mano. Describe el comportamiento actual: los mensajes de error son texto en español salvo los de autenticación, origen y límite de intentos, que están en inglés. Reglas de versionado y compatibilidad: `API_CONTRACTS.md`."
   },
   "servers": [
@@ -1051,8 +1051,8 @@
                     ]
                   },
                   "roadmap": {
-                    "type": "object",
-                    "description": "Documento del roadmap (ver `GET /api/roadmaps/{id}/export`). Máximo 1 MB serializado."
+                    "description": "Documento del roadmap (ver `GET /api/roadmaps/{id}/export`). Máximo 1 MB serializado.",
+                    "$ref": "#/components/schemas/RoadmapImportDocument"
                   }
                 },
                 "required": [
@@ -7133,6 +7133,457 @@
           "evaluation_weights",
           "version",
           "published_at",
+          "modules"
+        ]
+      },
+      "RoadmapImportDocument": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 20
+          },
+          "objectives": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 100
+          },
+          "methodology": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 100
+          },
+          "evaluation_weights": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "version": {
+            "pattern": "^v\\d+\\.\\d+\\.\\d+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "published_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_weeks_min": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Semanas mínimas del roadmap; si falta se suman las de los módulos."
+          },
+          "duration_weeks_max": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Semanas máximas del roadmap; si falta se suman las de los módulos."
+          },
+          "duration_weeks": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Semanas del roadmap (equivale a mínimo y máximo iguales)."
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Posición del módulo; sin ella se usa su índice. No puede repetirse."
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "level": {
+                  "enum": [
+                    "beginner",
+                    "intermediate",
+                    "advanced",
+                    "capstone",
+                    null
+                  ],
+                  "description": "También se aceptan mayúsculas y los alias `beginner-intermediate` e `intermediate-advanced`.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "beginner",
+                        "intermediate",
+                        "advanced",
+                        "capstone"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "duration": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 150
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "duration_weeks_min": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Semanas mínimas del módulo."
+                },
+                "duration_weeks_max": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Semanas máximas del módulo."
+                },
+                "duration_weeks": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Semanas del módulo (equivale a mínimo y máximo iguales)."
+                },
+                "objective": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 5000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "contents": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "importance": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 5000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "official_resources": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 2000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ]
+                  },
+                  "description": "Cada recurso es un texto (su `label`) o un objeto `{ label, url? }`; `url` debe comenzar por http:// o https://."
+                },
+                "support_videos": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 2000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ]
+                  },
+                  "description": "Cada recurso es un texto (su `label`) o un objeto `{ label, url? }`; `url` debe comenzar por http:// o https://."
+                },
+                "practical_activity": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "deliverable_evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "evaluation": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 5000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "quiz": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "multiple_choice"
+                          },
+                          "question": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000
+                          },
+                          "answer": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "explanation": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 2000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "feedback": {
+                            "type": "string",
+                            "description": "Alias de `explanation`; se usa solo si `explanation` falta o es `null`."
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 2,
+                            "maxItems": 6
+                          }
+                        },
+                        "required": [
+                          "question",
+                          "answer",
+                          "options"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "true_false"
+                          },
+                          "question": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000
+                          },
+                          "answer": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "explanation": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 2000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "feedback": {
+                            "type": "string",
+                            "description": "Alias de `explanation`; se usa solo si `explanation` falta o es `null`."
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 2,
+                            "maxItems": 6
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "question",
+                          "answer",
+                          "options"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "code_snippet"
+                          },
+                          "question": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000
+                          },
+                          "answer": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "explanation": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 2000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "feedback": {
+                            "type": "string",
+                            "description": "Alias de `explanation`; se usa solo si `explanation` falta o es `null`."
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 2,
+                            "maxItems": 6
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "question",
+                          "answer",
+                          "options"
+                        ]
+                      }
+                    ]
+                  },
+                  "maxItems": 100
+                }
+              },
+              "required": [
+                "title"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "title",
           "modules"
         ]
       },

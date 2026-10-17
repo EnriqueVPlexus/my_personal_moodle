@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { adminUserSchema, adminUserWithAccessSchema, auditLogEntrySchema, dashboardResponseSchema } from './admin'
+import { roadmapImportSchema } from '../domains/content/importSchema'
 import { authUserSchema } from './auth'
 import {
   attemptEligibilitySchema,
@@ -59,6 +60,7 @@ export const namedModels = {
   LessonRecord: lessonRecordSchema,
   CatalogMetadata: catalogMetadataSchema,
   RoadmapDocument: roadmapDocumentSchema,
+  RoadmapImportDocument: roadmapImportSchema,
   ImportPreview: importPreviewResponseSchema,
   ImportResult: importResultResponseSchema,
   UserRoadmapProgress: userRoadmapProgressSchema,
