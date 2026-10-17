@@ -3,26 +3,29 @@ import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { getRoadmapDetailProgress, touchRoadmapProgress } from '../../../lib/progressRepository'
-import {
-  getRoadmapTopics,
-  normalizeDurationRange,
-  normalizeTopics,
-  parseDurationWeeks,
-  saveRoadmapMetadata
-} from '../../../lib/roadmapMetadata'
-import { normalizePublishedAt, normalizeRoadmapVersion } from '../../../lib/roadmapVersion'
+import { getRoadmapTopics, saveRoadmapMetadata } from '../../../lib/roadmapMetadata'
 import { findRoadmapById, updateRoadmapCore } from '../../../lib/roadmapRepository'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { roadmapIdQuerySchema, updateRoadmapBodySchema } from '../../../lib/validation/roadmaps'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const { id } = req.query
+
+  if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
+    res.setHeader('Allow', 'GET, PUT, DELETE')
+    return res.status(405).end('Method Not Allowed')
+  }
+
+  const params = parseOrRespond(roadmapIdQuerySchema, req.query, res)
+  if (!params) return
+  const { id } = params
 
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    if (!scopeAllowsRoadmap(scope, id)) return res.status(404).json({ error: 'not found' })
-    const roadmap = await findRoadmapById(db, Number(id))
-    if (!roadmap) return res.status(404).json({ error: 'not found' })
+    if (!scopeAllowsRoadmap(scope, id)) return res.status(404).json({ error: 'No encontrado.' })
+    const roadmap = await findRoadmapById(db, id)
+    if (!roadmap) return res.status(404).json({ error: 'No encontrado.' })
     const user = scope.user
 
     if (user) {
@@ -74,38 +77,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PUT') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, description, duration, category, topics, duration_weeks_min, duration_weeks_max, version, published_at } = req.body
-    if (!title) return res.status(400).json({ error: 'title required' })
-    const hasDuration = Object.prototype.hasOwnProperty.call(req.body, 'duration')
-    const hasDurationRange = Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_min') ||
-      Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_max')
-    const durationRange = hasDurationRange
-      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
-      : hasDuration
-        ? parseDurationWeeks(duration)
-        : { min: null, max: null }
-    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
-    const hasCategory = Object.prototype.hasOwnProperty.call(req.body, 'category')
-    const hasTopics = Object.prototype.hasOwnProperty.call(req.body, 'topics')
-    const hasVersion = Object.prototype.hasOwnProperty.call(req.body, 'version')
-    const hasPublishedAt = Object.prototype.hasOwnProperty.call(req.body, 'published_at')
-    const normalizedVersion = hasVersion ? normalizeRoadmapVersion(version) : null
-    const normalizedPublishedAt = hasPublishedAt ? normalizePublishedAt(published_at) : null
-    if (hasVersion && !normalizedVersion) return res.status(400).json({ error: 'invalid roadmap version' })
-    if (hasPublishedAt && !normalizedPublishedAt) return res.status(400).json({ error: 'invalid publication date' })
-    const normalizedTopics = normalizeTopics(topics)
-    if (normalizedTopics.length > 20) return res.status(400).json({ error: 'a roadmap can have at most 20 topics' })
-    const changes = await updateRoadmapCore(db, Number(id), {
+    const body = parseOrRespond(updateRoadmapBodySchema, req.body, res)
+    if (!body) return
+    const { title, description, duration, category, durationWeeks, version, publishedAt } = body
+    const normalizedTopics = body.topics ?? []
+    const hasCategory = category !== undefined
+    const hasTopics = body.topics !== undefined
+    const changes = await updateRoadmapCore(db, id, {
       title,
       description: description || null,
-      ...(hasDuration ? { duration: duration || null } : {}),
-      ...(hasDuration || hasDurationRange
-        ? { durationWeeks: { min: durationRange.min, max: durationRange.max } }
-        : {}),
-      ...(hasVersion ? { version: normalizedVersion! } : {}),
-      ...(hasPublishedAt ? { publishedAt: normalizedPublishedAt! } : {})
+      ...(duration !== undefined ? { duration: duration || null } : {}),
+      ...(durationWeeks ? { durationWeeks: { min: durationWeeks.min, max: durationWeeks.max } } : {}),
+      ...(version !== undefined ? { version } : {}),
+      ...(publishedAt !== undefined ? { publishedAt } : {})
     })
-    if (!changes) return res.status(404).json({ error: 'roadmap not found' })
+    if (!changes) return res.status(404).json({ error: 'Roadmap no encontrado.' })
     if (hasCategory || hasTopics) {
       const currentCategory = hasCategory
         ? category
@@ -153,7 +139,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
     return res.status(204).end()
   }
-
-  res.setHeader('Allow', 'GET, PUT, DELETE')
-  res.status(405).end('Method Not Allowed')
 }

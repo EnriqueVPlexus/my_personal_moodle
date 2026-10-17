@@ -148,6 +148,7 @@ lib/
   db.ts                     Migraciones SQLite y seed AWS.
   auth.ts                   Sesiones, roles y protección de origen.
   password.ts               Hash y validación de contraseñas.
+  validation/               Esquemas Zod y contrato de error de la API (ver VALIDATION.md).
   audit.ts                  Escritura de eventos.
   roadmapPresentation.ts    Helpers de presentación para JSON/texto.
   branding.ts               Branding configurable por entorno.
@@ -270,6 +271,17 @@ npm run test:coverage
 npm run build
 ```
 
+## Validación De Entradas
+
+Las API Routes validan cuerpo, query y parámetros `[id]` con `zod` antes de
+ejecutar las consultas de negocio. Los esquemas viven en `lib/validation/` (uno por
+dominio) y los errores siguen un contrato único: `400` con
+`{ error: string, issues?: Array<{ path, message }> }`, con mensajes en español.
+`error` es el mensaje del primer problema, porque la interfaz lo muestra tal cual.
+
+Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
+`VALIDATION.md`.
+
 ## Endpoints Relevantes
 
 Consulta y contenido:
@@ -307,7 +319,7 @@ Auth, usuarios y auditoría:
 - `PATCH /api/users/:id`
 - `GET /api/audit-logs`
 
-Las escrituras requieren sesión admin y pasan por comprobación de origen.
+Las escrituras requieren sesión admin y pasan por comprobación de origen. Los identificadores de ruta (`:id`) deben ser enteros positivos y cualquier entrada inválida devuelve `400` (ver `Validación De Entradas`).
 
 ## Seguridad Operativa
 

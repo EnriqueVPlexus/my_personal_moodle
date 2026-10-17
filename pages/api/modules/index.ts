@@ -3,18 +3,21 @@ import { writeAuditLog } from '../../../lib/audit'
 import { getRoadmapReadScope, requireAdmin, scopeAllowsRoadmap } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import { findAllModules, findModuleById, findModulesByRoadmapId, findModulesByRoadmapIds, insertModule } from '../../../lib/moduleRepository'
-import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { createModuleBodySchema, moduleListQuerySchema } from '../../../lib/validation/modules'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method === 'GET') {
+    const query = parseOrRespond(moduleListQuerySchema, req.query, res)
+    if (!query) return
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const { roadmap_id } = req.query
+    const { roadmap_id } = query
     if (roadmap_id) {
       if (!scopeAllowsRoadmap(scope, roadmap_id)) return res.status(200).json([])
-      const rows = await findModulesByRoadmapId(db, roadmap_id as string)
+      const rows = await findModulesByRoadmapId(db, roadmap_id)
       return res.status(200).json(rows)
     }
 
@@ -31,15 +34,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, roadmap_id, level, duration, duration_weeks_min, duration_weeks_max } = req.body
-    if (!title || !roadmap_id) return res.status(400).json({ error: 'title and roadmap_id required' })
-    const normalizedLevel = normalizeModuleLevel(level)
-    if (level && !normalizedLevel) return res.status(400).json({ error: 'invalid module level' })
-    const hasManualDuration = duration_weeks_min !== undefined || duration_weeks_max !== undefined
-    const durationRange = hasManualDuration
-      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
-      : parseDurationWeeks(duration)
-    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
+    const body = parseOrRespond(createModuleBodySchema, req.body, res)
+    if (!body) return
+    const { title, roadmap_id, duration } = body
+    const normalizedLevel = body.level
+    const durationRange = body.durationWeeks
     const newId = await insertModule(db, {
       roadmap_id,
       title,

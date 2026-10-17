@@ -99,7 +99,11 @@ describe('GET/POST /api/evidences', () => {
     await handler(createRequest({ method: 'GET', query: { user_id: 'abc' } }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'invalid filter id' })
+    expect(res.body).toEqual({
+      error: 'El campo «user_id» debe ser un número entero positivo.',
+      issues: [{ path: 'user_id', message: 'El campo «user_id» debe ser un número entero positivo.' }]
+    })
+    expect(db.all).not.toHaveBeenCalled()
   })
 
   it('rejects non-positive filter ids provided as array query values', async () => {
@@ -161,7 +165,11 @@ describe('/api/evidences/modules/[id]', () => {
     await handler(createRequest({ method: 'GET', query: { id: 'abc' } }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'invalid module id' })
+    expect(res.body).toEqual({
+      error: 'El campo «id» debe ser un número entero positivo.',
+      issues: [{ path: 'id', message: 'El campo «id» debe ser un número entero positivo.' }]
+    })
+    expect(db.get).not.toHaveBeenCalled()
   })
 
   it('stops GET reads when the roadmap scope is unavailable', async () => {
@@ -185,7 +193,7 @@ describe('/api/evidences/modules/[id]', () => {
     await handler(createRequest({ method: 'GET', query: { id: '7' } }), res)
 
     expect(res.statusCode).toBe(401)
-    expect(res.body).toEqual({ error: 'authentication required' })
+    expect(res.body).toEqual({ error: 'Debes iniciar sesión.' })
   })
 
   it('returns 404 when the module does not exist on GET', async () => {
@@ -228,7 +236,7 @@ describe('/api/evidences/modules/[id]', () => {
     const handler = (await import('../pages/api/evidences/modules/[id]')).default
 
     const res = createResponse()
-    await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: {} }), res)
+    await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: { evidence_type: 'note', note: 'Nota' } }), res)
 
     expect(res.statusCode).toBe(404)
   })
@@ -239,7 +247,7 @@ describe('/api/evidences/modules/[id]', () => {
     const handler = (await import('../pages/api/evidences/modules/[id]')).default
 
     const res = createResponse()
-    await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: {} }), res)
+    await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: { evidence_type: 'note', note: 'Nota' } }), res)
 
     expect(res.statusCode).toBe(404)
   })
@@ -250,7 +258,7 @@ describe('/api/evidences/modules/[id]', () => {
     const handler = (await import('../pages/api/evidences/modules/[id]')).default
 
     const res = createResponse()
-    await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: {} }), res)
+    await handler(createRequest({ method: 'PUT', query: { id: '7' }, body: { evidence_type: 'note', note: 'Nota' } }), res)
 
     expect(res.statusCode).toBe(404)
   })
@@ -268,7 +276,11 @@ describe('/api/evidences/modules/[id]', () => {
     }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'invalid evidence type' })
+    expect(res.body).toEqual({
+      error: 'El tipo de evidencia no es válido.',
+      issues: [{ path: 'evidence_type', message: 'El tipo de evidencia no es válido.' }]
+    })
+    expect(db.get).not.toHaveBeenCalled()
   })
 
   it('requires an authenticated user for DELETE', async () => {
@@ -404,7 +416,8 @@ describe('PUT /api/evidences/[id]/review', () => {
     }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'ID de evidencia no válido' })
+    expect(res.body.error).toBe('El campo «id» debe ser un número entero positivo.')
+    expect(db.get).not.toHaveBeenCalled()
   })
 
   it('rejects a non-positive evidence id', async () => {
@@ -435,7 +448,11 @@ describe('PUT /api/evidences/[id]/review', () => {
     }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'Estado de revisión no válido' })
+    expect(res.body).toEqual({
+      error: 'El estado de revisión no es válido.',
+      issues: [{ path: 'review_status', message: 'El estado de revisión no es válido.' }]
+    })
+    expect(db.get).not.toHaveBeenCalled()
   })
 
   it('rejects a non-string admin comment', async () => {
@@ -451,7 +468,10 @@ describe('PUT /api/evidences/[id]/review', () => {
     }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'El comentario del administrador debe ser un texto' })
+    expect(res.body).toEqual({
+      error: 'El campo «comentario del administrador» debe ser un texto.',
+      issues: [{ path: 'admin_comment', message: 'El campo «comentario del administrador» debe ser un texto.' }]
+    })
   })
 
   it('returns 404 when the evidence to review does not exist', async () => {
@@ -470,7 +490,8 @@ describe('PUT /api/evidences/[id]/review', () => {
     expect(res.body).toEqual({ error: 'Evidencia no encontrada' })
   })
 
-  it('returns 500 when reviewing the evidence throws', async () => {
+  it('returns 500 with a generic message when reviewing the evidence throws', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const db = { run: vi.fn().mockRejectedValue(new Error('boom')), get: vi.fn() }
     await mockReviewApi(db)
     const handler = (await import('../pages/api/evidences/[id]/review')).default
@@ -483,6 +504,8 @@ describe('PUT /api/evidences/[id]/review', () => {
     }), res)
 
     expect(res.statusCode).toBe(500)
-    expect(res.body).toEqual({ error: 'boom' })
+    expect(res.body).toEqual({ error: 'Error al revisar la evidencia.' })
+    expect(JSON.stringify(res.body)).not.toContain('boom')
+    expect(consoleError).toHaveBeenCalled()
   })
 })

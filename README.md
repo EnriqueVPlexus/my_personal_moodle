@@ -142,6 +142,11 @@ Autenticación:
 
 Las guías rápidas con `curl` para módulos y lecciones están en `test/modules_api.md` y `test/lessons_api.md`.
 
+Errores de validación: si el cuerpo, la query o un `:id` no son válidos, la API responde `400` con
+`{ "error": "<mensaje en español>", "issues": [{ "path": "title", "message": "..." }] }`.
+`error` es siempre un texto legible (el del primer problema) e `issues` lista todos los problemas por campo.
+Los errores nunca incluyen trazas ni detalles internos. Más detalle en `VALIDATION.md`.
+
 El importador acepta un objeto con `title`, `modules` y, opcionalmente, `description`, `duration`,
 `category`, `topics`, `objectives`, `methodology` y `evaluation_weights`. Cada módulo requiere `title`
 y puede incluir `position`, `level`, duración, contenidos, recursos, actividad, evidencia y evaluación.

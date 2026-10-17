@@ -227,6 +227,6 @@ describe('users API handlers', () => {
     const res = createResponse()
     await handler(createRequest({ method: 'PATCH', query: { id: '2' }, body: { action: 'set_active', is_active: false } }), res)
     expect(res.statusCode).toBe(400)
-    expect(res.body.error).toContain('last active admin')
+    expect(res.body.error).toContain('último administrador activo')
   })
 })

@@ -6,7 +6,8 @@ import { deleteModule, findModuleById, updateModuleCore } from '../../../lib/mod
 import { touchRoadmapProgress } from '../../../lib/progressRepository'
 import { getModuleQuizSummary } from '../../../lib/quizRepository'
 import { buildModuleQuiz, toPublicModuleQuiz } from '../../../lib/quizzes'
-import { normalizeDurationRange, normalizeModuleLevel, parseDurationWeeks } from '../../../lib/roadmapMetadata'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { moduleIdQuerySchema, updateModuleBodySchema } from '../../../lib/validation/modules'
 
 function buildModuleProgress(lessons: any[], opened: boolean) {
   const totalLessons = lessons.length
@@ -37,14 +38,22 @@ function buildModuleProgress(lessons: any[], opened: boolean) {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const { id } = req.query
+
+  if (req.method !== 'GET' && req.method !== 'PUT' && req.method !== 'DELETE') {
+    res.setHeader('Allow', 'GET, PUT, DELETE')
+    return res.status(405).end('Method Not Allowed')
+  }
+
+  const params = parseOrRespond(moduleIdQuerySchema, req.query, res)
+  if (!params) return
+  const { id } = params
 
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
-    const moduleRow = await findModuleById(db, id as string)
-    if (!moduleRow) return res.status(404).json({ error: 'not found' })
-    if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(404).json({ error: 'not found' })
+    const moduleRow = await findModuleById(db, id)
+    if (!moduleRow) return res.status(404).json({ error: 'No encontrado.' })
+    if (!scopeAllowsRoadmap(scope, moduleRow.roadmap_id)) return res.status(404).json({ error: 'No encontrado.' })
     const user = scope.user
 
     if (user) {
@@ -87,31 +96,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PUT') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const { title, level, duration, duration_weeks_min, duration_weeks_max } = req.body
-    if (!title) return res.status(400).json({ error: 'title required' })
-    const hasLevel = Object.prototype.hasOwnProperty.call(req.body, 'level')
-    const hasDuration = Object.prototype.hasOwnProperty.call(req.body, 'duration')
-    const hasDurationRange = Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_min') ||
-      Object.prototype.hasOwnProperty.call(req.body, 'duration_weeks_max')
-    const normalizedLevel = normalizeModuleLevel(level)
-    if (level && !normalizedLevel) return res.status(400).json({ error: 'invalid module level' })
-    const durationRange = hasDurationRange
-      ? normalizeDurationRange(duration_weeks_min, duration_weeks_max)
-      : hasDuration
-        ? parseDurationWeeks(duration)
-        : { min: null, max: null }
-    if (!durationRange) return res.status(400).json({ error: 'invalid duration range' })
-    const changes = await updateModuleCore(db, id as string, {
+    const body = parseOrRespond(updateModuleBodySchema, req.body, res)
+    if (!body) return
+    const { title, level, duration, durationWeeks } = body
+    const changes = await updateModuleCore(db, id, {
       title,
-      ...(hasLevel ? { level: normalizedLevel } : {}),
-      ...(hasDuration ? { duration: duration || null } : {}),
-      ...(hasDuration || hasDurationRange
-        ? { durationWeeks: { min: durationRange.min, max: durationRange.max } }
-        : {})
+      ...(level !== undefined ? { level } : {}),
+      ...(duration !== undefined ? { duration: duration || null } : {}),
+      ...(durationWeeks ? { durationWeeks: { min: durationWeeks.min, max: durationWeeks.max } } : {})
     })
-    if (!changes) return res.status(404).json({ error: 'module not found' })
+    if (!changes) return res.status(404).json({ error: 'Módulo no encontrado.' })
 
-    const updated = await findModuleById(db, id as string)
+    const updated = await findModuleById(db, id)
     await writeAuditLog({
       db,
       req,
@@ -119,7 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       action: 'module.update',
       entityType: 'module',
       entityId: String(id),
-      details: { title, level: normalizedLevel }
+      details: { title, level: level ?? null }
     })
     return res.status(200).json(updated)
   }
@@ -127,10 +123,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'DELETE') {
     const admin = await requireAdmin(req, res, db)
     if (!admin) return
-    const moduleRow = await findModuleById(db, id as string)
-    if (!moduleRow) return res.status(404).json({ error: 'module not found' })
+    const moduleRow = await findModuleById(db, id)
+    if (!moduleRow) return res.status(404).json({ error: 'Módulo no encontrado.' })
 
-    await deleteModule(db, id as string)
+    await deleteModule(db, id)
     await writeAuditLog({
       db,
       req,
@@ -142,7 +138,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
     return res.status(204).end()
   }
-
-  res.setHeader('Allow', 'GET, PUT, DELETE')
-  res.status(405).end('Method Not Allowed')
 }

@@ -32,6 +32,7 @@ del producto poco a poco.
 - [x] Favicon propio de Plexus Academy para la pestana del navegador.
 - [x] UI Redesign: header compacto, admin dropdown, branding actualizado.
 - [x] Reset de contraseña admin en SQLite local.
+- [x] Validacion de entradas y contratos de error con `zod` (`VALIDATION.md`).
 
 ## Siguiente hoja de ruta tecnica
 
@@ -276,16 +277,24 @@ Hecho cuando:
   repositorio tipado, sin SQL disperso en los handlers.
 - Existen tests de regresion para SQLite y PostgreSQL en cada dominio migrado.
 
-### [ ] Validacion de entradas y contratos con Zod
+### [x] Validacion de entradas y contratos con Zod
 
-Estado: pendiente.
+Estado: hecho (2026-10-15). `zod` v4 es dependencia de runtime y las APIs que
+leen entrada (cuerpo, query y `[id]`) la validan con esquemas de `lib/validation/`
+antes de las consultas de negocio. Los errores usan un contrato unico
+`{ error, issues? }` con mensajes en espanol, sin trazas ni detalles internos.
+Arquitectura, contrato, orden de validacion, decisiones y seguimiento en
+[`VALIDATION.md`](VALIDATION.md).
 
 Tareas:
 
-- Anadir `zod` como dependencia de runtime.
-- Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
-  progreso, quizzes e importaciones.
-- Devolver errores de validacion consistentes sin filtrar detalles internos.
+- [x] Anadir `zod` como dependencia de runtime.
+- [x] Crear esquemas compartidos para auth, usuarios, roadmaps, modulos,
+  lecciones, progreso, quizzes, evidencias, catalogo e importaciones.
+- [x] Devolver errores de validacion consistentes sin filtrar detalles internos.
+- Seguimiento (fuera de alcance): mensajes 401/403/405/429 de `lib/auth.ts`
+  y `lib/rateLimit.ts` siguen en ingles; `validateRoadmapImport` sigue sin
+  migrar a Zod. Ver `VALIDATION.md`.
 
 Rama sugerida: `feature/input-validation-zod`.
 

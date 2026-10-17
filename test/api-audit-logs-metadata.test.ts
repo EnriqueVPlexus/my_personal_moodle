@@ -124,7 +124,7 @@ describe('GET /api/roadmaps/[id]/export', () => {
     await handler(createRequest({ method: 'GET', query: { id: 'abc' } }), res)
 
     expect(res.statusCode).toBe(400)
-    expect(res.body).toEqual({ error: 'ID de roadmap no válido' })
+    expect(res.body.error).toBe('El campo «id» debe ser un número entero positivo.')
   })
 
   it('rejects a non-positive roadmap id', async () => {

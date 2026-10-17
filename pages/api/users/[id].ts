@@ -3,7 +3,9 @@ import { writeAuditLog } from '../../../lib/audit'
 import { requireAdmin } from '../../../lib/auth'
 import { openDb } from '../../../lib/db'
 import type { DatabaseClient } from '../../../lib/database'
-import { hashPassword, validatePassword } from '../../../lib/password'
+import { hashPassword } from '../../../lib/password'
+import { parseOrRespond } from '../../../lib/validation/http'
+import { updateUserBodySchema, userIdQuerySchema } from '../../../lib/validation/users'
 import { findExistingRoadmapIds } from '../../../lib/roadmapRepository'
 import {
   countActiveAdmins,
@@ -16,13 +18,6 @@ import {
   updateUserPassword,
   updateUserRoadmapAccessFlag
 } from '../../../lib/userRepository'
-
-function normalizeRoadmapIds(value: unknown) {
-  if (!Array.isArray(value)) return []
-  const ids = value.map(item => Number(item))
-  if (!ids.every(id => Number.isInteger(id) && id > 0)) return null
-  return Array.from(new Set(ids))
-}
 
 async function userWithRoadmapAccess(db: DatabaseClient, userId: number) {
   const user = await findUserById(db, userId)
@@ -39,7 +34,6 @@ async function userWithRoadmapAccess(db: DatabaseClient, userId: number) {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
-  const { id } = req.query
 
   if (req.method !== 'PATCH') {
     res.setHeader('Allow', 'PATCH')
@@ -49,25 +43,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const admin = await requireAdmin(req, res, db)
   if (!admin) return
 
-  const userId = Number(Array.isArray(id) ? id[0] : id)
-  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'invalid user id' })
+  const params = parseOrRespond(userIdQuerySchema, req.query, res)
+  if (!params) return
+  const userId = params.id
+
+  const body = parseOrRespond(updateUserBodySchema, req.body, res)
+  if (!body) return
 
   const target = await findUserById(db, userId)
-  if (!target) return res.status(404).json({ error: 'user not found' })
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado.' })
 
-  const { action } = req.body || {}
-
-  if (action === 'set_active') {
-    const isActive = Boolean(req.body.is_active)
+  if (body.action === 'set_active') {
+    const isActive = body.is_active
 
     if (!isActive && userId === admin.id) {
-      return res.status(400).json({ error: 'you cannot deactivate your own account' })
+      return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta.' })
     }
 
     if (!isActive && target.role === 'admin') {
       const count = await countActiveAdmins(db, userId)
       if (count === 0) {
-        return res.status(400).json({ error: 'cannot deactivate the last active admin' })
+        return res.status(400).json({ error: 'No se puede desactivar al último administrador activo.' })
       }
     }
 
@@ -75,12 +71,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!isActive && target.role === 'admin') {
       const count = await countActiveAdmins(db, userId)
       if (count === 0) {
-        return res.status(400).json({ error: 'cannot deactivate the last active admin' })
+        return res.status(400).json({ error: 'No se puede desactivar al último administrador activo.' })
       }
     }
 
     const changes = await updateUserActive(db, userId, isActive, new Date().toISOString())
-    if (!changes) return res.status(404).json({ error: 'user not found' })
+    if (!changes) return res.status(404).json({ error: 'Usuario no encontrado.' })
 
     if (!isActive) await deleteSessionsByUserId(db, userId)
 
@@ -99,15 +95,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json(updated)
   }
 
-  if (action === 'reset_password') {
-    const { password } = req.body || {}
-    if (typeof password !== 'string') return res.status(400).json({ error: 'password required' })
-
-    const validationError = validatePassword(password)
-    if (validationError) return res.status(400).json({ error: validationError })
-
-    const changes = await updateUserPassword(db, userId, await hashPassword(password), new Date().toISOString())
-    if (!changes) return res.status(404).json({ error: 'user not found' })
+  if (body.action === 'reset_password') {
+    const changes = await updateUserPassword(db, userId, await hashPassword(body.password), new Date().toISOString())
+    if (!changes) return res.status(404).json({ error: 'Usuario no encontrado.' })
 
     await deleteSessionsByUserId(db, userId)
 
@@ -126,19 +116,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json(updated)
   }
 
-  if (action === 'set_roadmap_access') {
+  if (body.action === 'set_roadmap_access') {
     if (target.role === 'admin') {
-      return res.status(400).json({ error: 'admin users always have access to every roadmap' })
+      return res.status(400).json({ error: 'Los administradores siempre tienen acceso a todos los roadmaps.' })
     }
 
-    const canViewAllRoadmaps = Boolean(req.body.can_view_all_roadmaps)
-    const roadmapIds = canViewAllRoadmaps ? [] : normalizeRoadmapIds(req.body.roadmap_ids)
-    if (!roadmapIds) return res.status(400).json({ error: 'invalid roadmap ids' })
+    const canViewAllRoadmaps = body.can_view_all_roadmaps
+    const roadmapIds = canViewAllRoadmaps ? [] : body.roadmap_ids ?? []
 
     if (roadmapIds.length > 0) {
       const existingIds = await findExistingRoadmapIds(db, roadmapIds)
       if (existingIds.length !== roadmapIds.length) {
-        return res.status(400).json({ error: 'invalid roadmap ids' })
+        return res.status(400).json({
+          error: 'Algún roadmap indicado no existe.',
+          issues: [{ path: 'roadmap_ids', message: 'Algún roadmap indicado no existe.' }]
+        })
       }
     }
 
@@ -164,6 +156,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json(updated)
   }
-
-  return res.status(400).json({ error: 'unsupported action' })
 }
