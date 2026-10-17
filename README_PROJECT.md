@@ -303,14 +303,17 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.1.0).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.2.0).
 
 Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
 `DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
 devuelve siempre la misma forma de usuario. La 3.1.0 documenta el documento completo
 de la importación de roadmaps en OpenAPI: el importador valida ahora el JSON con un
 esquema Zod (`lib/domains/content/importSchema.ts`) y mantiene los mismos errores por
-campo que ve el administrador.
+campo que ve el administrador. La 3.2.0 hace que `POST /api/users` devuelva también
+`roadmap_access_ids`, corrige el doble `401`+`404` de `PUT`/`DELETE`
+`/api/evidences/modules/{id}` y comparte el formato de `version` y `published_at` entre
+el importador, los roadmaps y el seed.
 
 Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
 ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para

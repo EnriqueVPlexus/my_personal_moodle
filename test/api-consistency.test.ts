@@ -170,3 +170,28 @@ describe('PATCH /api/users/{id}', () => {
     expect(keys[0]).toEqual(expect.arrayContaining(['can_view_all_roadmaps', 'roadmap_access_ids']))
   })
 })
+
+describe('POST /api/users', () => {
+  it('returns the same user shape as PATCH and the list, without secrets', async () => {
+    const created = await call('../pages/api/users/index', {
+      method: 'POST',
+      headers: { cookie: adminCookie },
+      body: { email: 'nuevo@example.com', name: 'Nuevo', password: 'una-clave-larga-123' }
+    })
+    expect(created.statusCode).toBe(201)
+    for (const secret of SECRET_KEYS) expect(created.body).not.toHaveProperty(secret)
+    expect(created.body).toMatchObject({ email: 'nuevo@example.com', role: 'user', roadmap_access_ids: [] })
+
+    const patched = await call('../pages/api/users/[id]', {
+      method: 'PATCH',
+      query: { id: String(created.body.id) },
+      headers: { cookie: adminCookie },
+      body: { action: 'set_active', is_active: true }
+    })
+    const listed = await call('../pages/api/users/index', { method: 'GET', headers: { cookie: adminCookie } })
+    const listedUser = listed.body.find((account: any) => account.id === created.body.id)
+
+    expect(Object.keys(created.body).sort()).toEqual(Object.keys(patched.body).sort())
+    expect(Object.keys(created.body).sort()).toEqual(Object.keys(listedUser).sort())
+  })
+})

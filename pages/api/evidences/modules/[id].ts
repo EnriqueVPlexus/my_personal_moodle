@@ -13,6 +13,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const moduleId = params.id
   const { progress } = createServices(db)
 
+  // The scope loader writes its own 401 when the scope cannot be resolved; remember
+  // it so the handler does not add a second (404) response on top of it.
+  let scopeRejected = false
+  const loadScope = async () => {
+    const scope = await getRoadmapReadScope(req, res, db)
+    if (!scope) scopeRejected = true
+    return scope
+  }
+
   if (req.method === 'GET') {
     const scope = await getRoadmapReadScope(req, res, db)
     if (!scope) return
@@ -31,7 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body = parseOrRespond(saveEvidenceBodySchema, req.body, res)
     if (!body) return
 
-    const result = await progress.saveModuleEvidence(user.id, moduleId, body, () => getRoadmapReadScope(req, res, db))
+    const result = await progress.saveModuleEvidence(user.id, moduleId, body, loadScope)
+    if (scopeRejected) return
     if (!result) return res.status(404).json({ error: 'No encontrado.' })
 
     return res.status(200).json(result)
@@ -41,7 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await requireUser(req, res, db)
     if (!user) return
 
-    const deleted = await progress.deleteModuleEvidence(user.id, moduleId, () => getRoadmapReadScope(req, res, db))
+    const deleted = await progress.deleteModuleEvidence(user.id, moduleId, loadScope)
+    if (scopeRejected) return
     if (!deleted) return res.status(404).json({ error: 'No encontrado.' })
     return res.status(204).end()
   }

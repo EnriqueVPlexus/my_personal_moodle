@@ -36,7 +36,7 @@ export type UpdateUserOutcome =
   | { status: 'ok'; user: UserWithAccess | null; audit: AuditDescriptor }
 
 export type CreateUserOutcome =
-  | { status: 'created'; id: number; user: AdminUserRecord | undefined; role: 'admin' | 'user' }
+  | { status: 'created'; id: number; user: UserWithAccess | undefined; role: 'admin' | 'user' }
   | { status: 'duplicate_email' }
   | { status: 'failed' }
 
@@ -98,7 +98,9 @@ export function makeAdminService(ports: AdminPorts, now: () => Date = () => new 
         })
         if (!id) return { status: 'failed' }
 
-        return { status: 'created', id, user: await users.findById(id), role }
+        // Same representation as the list and the update: a new user has no explicit roadmap grants.
+        const created = await users.findById(id)
+        return { status: 'created', id, user: created ? withRoadmapAccess(created, []) : undefined, role }
       } catch (error) {
         if (error instanceof DuplicateEmailError) return { status: 'duplicate_email' }
         throw error

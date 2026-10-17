@@ -45,7 +45,13 @@ Los esquemas **no duplican** reglas existentes; las invocan:
 - `lib/domains/auth/password.ts`: `normalizeEmail` y `validatePassword` (`emailField`, `newPasswordField`).
 - `lib/domains/content/metadata.ts`: `normalizeModuleLevel`, `normalizeDurationRange`,
   `parseDurationWeeks`, `normalizeTopics`.
-- `lib/domains/content/version.ts`: `normalizeRoadmapVersion`, `normalizePublishedAt`.
+- `lib/domains/content/version.ts`: `normalizeRoadmapVersion`, `normalizePublishedAt` y
+  `ROADMAP_VERSION_PATTERN`, la única definición del formato `v1.0.0`.
+- `lib/domains/content/roadmapFields.ts`: `roadmapVersionField(message)` y
+  `publishedAtField(message)`, primitivas Zod construidas sobre esos normalizadores y
+  usadas por el importador (cada llamador pone su mensaje). `lib/validation/roadmaps.ts` y
+  el seed usan directamente los normalizadores, de modo que formato, valores por defecto
+  y fecha ISO tienen una sola fuente.
 - `lib/domains/progress/evidences.ts`: `validateEvidenceInput` (ahora devuelve mensajes en español y
   el campo afectado).
 - `lib/domains/content/importSchema.ts`: esquema Zod del documento del roadmap importado, que

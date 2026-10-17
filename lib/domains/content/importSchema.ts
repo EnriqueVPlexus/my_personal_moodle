@@ -7,7 +7,7 @@ import {
   normalizeTopics,
   parseDurationWeeks
 } from './metadata'
-import { DEFAULT_ROADMAP_VERSION } from './version'
+import { publishedAtField, roadmapVersionField } from './roadmapFields'
 
 /**
  * Zod schema of the roadmap JSON document accepted by the importer.
@@ -172,19 +172,9 @@ const evaluationWeights = z
   .optional()
   .transform(value => value ?? {})
 
-const version = z
-  .string({ error: MSG.version })
-  .refine(value => value === '' || /^v\d+\.\d+\.\d+$/.test(value.trim()), MSG.version)
-  .nullish()
-  .transform(value => (value ? value.trim() : DEFAULT_ROADMAP_VERSION))
-  .meta({ pattern: '^v\\d+\\.\\d+\\.\\d+$' })
+const version = roadmapVersionField(MSG.version)
 
-const publishedAt = z
-  .string({ error: MSG.publishedAt })
-  .refine(value => value === '' || !Number.isNaN(Date.parse(value)), MSG.publishedAt)
-  .nullish()
-  .transform(value => (value ? new Date(value).toISOString() : new Date().toISOString()))
-  .meta({ format: 'date-time' })
+const publishedAt = publishedAtField(MSG.publishedAt)
 
 /** The trimmed text of a field that may have failed validation (then it is raw input). */
 function textOrNull(value: unknown) {

@@ -111,7 +111,10 @@ detalle de cada ruta (parámetros, cuerpo, respuestas y errores).
   por ejemplo [Swagger Editor](https://editor.swagger.io), o impórtalo en Postman
   o Insomnia.
 - Reglas de versionado y cómo evoluciona: `API_CONTRACTS.md`. La versión del
-  contrato es `info.version` (semver) y hoy es **3.0.0**.
+  contrato es `info.version` (semver) y hoy es **3.2.0**.
+- Novedades de la 3.2.0: `POST /api/users` devuelve el mismo usuario que el listado y
+  `PATCH` (con `roadmap_access_ids`, vacío al crearlo); `PUT`/`DELETE`
+  `/api/evidences/modules/{id}` sin sesión responden solo `401`.
 - Novedades de la 3.0.0: todos los errores están en español (el texto es para
   personas, decide por el estado HTTP); `405` es JSON `{ "error": "Método no permitido." }`
   con `Allow`; `DELETE /api/roadmaps/{id}` responde `204` si borra y `200` con
@@ -225,7 +228,8 @@ comprueba que esta tabla incluye todas las rutas. El detalle completo está en
 
 `PATCH /api/users/{id}` elige la operación con `action` (`set_active`,
 `reset_password` o `set_roadmap_access`) y siempre devuelve el mismo usuario, con
-`can_view_all_roadmaps` y `roadmap_access_ids`. `DELETE /api/roadmaps/{id}` es
+`can_view_all_roadmaps` y `roadmap_access_ids`; `POST /api/users` (`201`) devuelve esa
+misma forma. `DELETE /api/roadmaps/{id}` es
 idempotente: `204` si lo borra y `200` con `{ "message" }` si no existía. El importador acepta un objeto con
 `title`, `modules` y, opcionalmente, `description`, `duration`, `category`,
 `topics`, `objectives`, `methodology` y `evaluation_weights`; al actualizar se
