@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { requireAdmin } from '../../../lib/http/auth'
@@ -8,7 +9,7 @@ import { parseOrRespond, sendValidationIssues } from '../../../lib/validation/ht
 import { MAX_IMPORT_BYTES, roadmapImportBodySchema } from '../../../lib/validation/import'
 import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   if (req.method !== 'POST') {
     return methodNotAllowed(res, 'POST')
@@ -61,3 +62,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   })
   return res.status(strategy === 'create' ? 201 : 200).json(result)
 }
+
+export default withApiErrors(handler)

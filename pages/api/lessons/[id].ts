@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { getRoadmapReadScope, requireAdmin } from '../../../lib/http/auth'
@@ -7,7 +8,7 @@ import { parseOrRespond } from '../../../lib/validation/http'
 import { lessonIdQuerySchema, updateLessonBodySchema } from '../../../lib/validation/lessons'
 import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { content } = createServices(db)
 
@@ -69,3 +70,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(204).end()
   }
 }
+
+export default withApiErrors(handler)

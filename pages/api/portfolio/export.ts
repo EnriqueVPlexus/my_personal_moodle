@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { requireUser } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
 import { normalizeMetadataKey } from '../../../lib/domains/content/metadata'
 import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return methodNotAllowed(res, 'GET')
   }
@@ -28,3 +29,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   return res.status(200).end(markdownContent)
 }
+
+export default withApiErrors(handler)

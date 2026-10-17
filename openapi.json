@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cantera Hub API",
-    "version": "3.2.0",
+    "version": "3.3.0",
     "description": "Contrato de la API HTTP de Cantera Hub. Generado desde `lib/contracts` (`npm run contracts:generate`); no editar a mano. Describe el comportamiento actual: los mensajes de error son texto en español salvo los de autenticación, origen y límite de intentos, que están en inglés. Reglas de versionado y compatibilidad: `API_CONTRACTS.md`."
   },
   "servers": [
@@ -85,6 +85,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -405,6 +415,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [],
@@ -466,6 +486,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [],
@@ -517,6 +547,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -752,6 +792,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1010,6 +1060,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1157,6 +1217,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1238,6 +1308,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1452,6 +1532,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1543,6 +1633,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1656,6 +1756,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1730,6 +1840,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1883,6 +2003,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1964,6 +2094,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2133,6 +2273,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2222,6 +2372,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2296,6 +2456,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2404,6 +2574,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2485,6 +2665,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2612,6 +2802,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2701,6 +2901,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2753,6 +2963,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2908,6 +3128,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3019,6 +3249,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3209,6 +3449,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3306,6 +3556,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3462,6 +3722,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3544,6 +3814,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3669,6 +3949,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3810,7 +4100,7 @@
             }
           },
           "500": {
-            "description": "Error inesperado al revisar (`Error al revisar la evidencia.`).",
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3877,6 +4167,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3958,6 +4258,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4017,6 +4327,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4093,6 +4413,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4155,6 +4485,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4465,6 +4805,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4513,6 +4863,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
             "content": {
               "application/json": {
                 "schema": {

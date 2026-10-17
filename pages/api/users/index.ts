@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { writeAuditLog } from '../../../lib/http/audit'
 import { requireAdmin } from '../../../lib/http/auth'
@@ -7,7 +8,7 @@ import { parseOrRespond } from '../../../lib/validation/http'
 import { createUserBodySchema } from '../../../lib/validation/users'
 import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
   const { admin: adminService } = createServices(db)
 
@@ -44,3 +45,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return methodNotAllowed(res, 'GET, POST')
 }
+
+export default withApiErrors(handler)

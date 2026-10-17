@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiErrors } from '../../../lib/http/errors'
 import { createServices } from '../../../lib/container'
 import { requireAdmin } from '../../../lib/http/auth'
 import { openDb } from '../../../lib/persistence'
@@ -6,7 +7,7 @@ import { evidenceListQuerySchema } from '../../../lib/validation/evidences'
 import { parseOrRespond } from '../../../lib/validation/http'
 import { methodNotAllowed } from '../../../lib/http/methods'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await openDb()
 
   if (req.method !== 'GET') {
@@ -27,3 +28,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(200).json(evidences)
 }
+
+export default withApiErrors(handler)
