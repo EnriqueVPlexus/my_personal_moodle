@@ -29,7 +29,7 @@ común; los handlers importan directamente el archivo que necesitan.
 | `modules.ts` | Alta/edición de módulos y filtro `roadmap_id`. |
 | `lessons.ts` | Alta/edición de lecciones y filtro `module_id`. |
 | `progress.ts` | Progreso de lecciones (`completed`, `time_spent_seconds`). |
-| `quizzes.ts` | Forma del intento de quiz (`answers`). |
+| `quizzes.ts` | Forma del intento de quiz (`answers` y, opcional, `attempt_id`). |
 | `evidences.ts` | Evidencias del usuario, revisión admin y filtros del listado. |
 | `catalog.ts` | Query del catálogo de roadmaps (`q`, filtros, `sort`). |
 | `import.ts` | Sobre de la importación (`action`, `strategy`, `roadmap`) y su variante de contrato, que describe el documento completo. |
