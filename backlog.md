@@ -1355,9 +1355,10 @@ Rama: `feature/ui-redesign` (mergeada a `chore/audit-fix-force`).
 
 ## Prioridad media
 
-### [x] Quizzes reales por modulo
+### [ ] Quizzes reales por modulo
 
-Estado: hecho. Los roadmaps iniciales cargan bancos explícitos por módulo,
+Estado: en curso. Fases 1 y 3 hechas; queda la fase 2 (banco y
+aleatorizacion). Los roadmaps iniciales cargan bancos explícitos por módulo,
 con opciones, respuesta correcta, tipo y explicación. El importador JSON
 permite ampliar o sustituir el banco de cada módulo.
 
@@ -1365,7 +1366,8 @@ Valor: reutiliza los datos ya presentes en los roadmaps y aporta evaluacion lige
 
 #### [x] Fase 1. Tipos de pregunta enriquecidos y feedback explicativo
 
-Estado: pendiente.
+Estado: hecho. Las preguntas tienen `type` (incluido `code_snippet`) y
+`explanation`, que el detalle del modulo muestra tras responder.
 
 Tareas:
 
@@ -1373,9 +1375,10 @@ Tareas:
 - Incluir un campo `explicacion` o `feedback` que se muestre tras responder para argumentar por que la opcion elegida es correcta o incorrecta.
 - Tests de API y UI para la renderizacion y correccion de respuestas.
 
-#### [x] Fase 2. Banco de preguntas y aleatorizacion
+#### [ ] Fase 2. Banco de preguntas y aleatorizacion
 
-Estado: pendiente.
+Estado: pendiente. Revisado (2026-10-21): estaba marcada como hecha por error;
+el codigo no selecciona preguntas al azar ni baraja opciones.
 
 Tareas:
 
@@ -1384,7 +1387,8 @@ Tareas:
 
 #### [x] Fase 3. Nota minima exigible y modo evaluativo
 
-Estado: pendiente.
+Estado: hecho. Cada modulo admite `quiz_pass_percentage`, `quiz_max_attempts`
+y `quiz_cooldown_minutes`; la API rechaza intentos fuera de limite.
 
 Tareas:
 
@@ -1486,10 +1490,6 @@ Tareas:
 Estado: idea.
 
 Valor: permitiria uso mas cercano a formacion interna o mentoring donde un tutor asigna itinerarios especificos a cada integrante del equipo.
-
-### [ ] Feedback y revision de evidencias por el admin (Mentoria)
-
-Estado: en planificacion (ver subtarea en Evidencias y Portfolio).
 
 ### [ ] Notificaciones o recordatorios
 
