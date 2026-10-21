@@ -12,7 +12,7 @@ hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuar
 la 3.1.0 documenta por completo el documento de `POST /api/roadmaps/import`;
 la 3.2.0 hace que `POST /api/users` devuelva `roadmap_access_ids` y corrige el doble
 `401`+`404` de las evidencias; la 3.3.0 hace que todo fallo inesperado responda un
-`500` JSON `{ error }` (ver el [Historial](#historial-del-contrato)).
+`500` JSON `{ error }`; la 3.4.0 sirve los quizzes por intento, con `attempt_id` (ver el [Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
 
@@ -270,6 +270,40 @@ contratos).
 | 3.1.0 | 2026-10-16 | Aditivo: `POST /api/roadmaps/import` describe el documento `roadmap` completo (modelo `RoadmapImportDocument`) en lugar de `object`. Sin cambios de comportamiento. Ver [3.1.0](#310-2026-10-16). |
 | 3.2.0 | 2026-10-16 | Aditivo: `POST /api/users` devuelve el mismo usuario que el listado y `PATCH` (con `roadmap_access_ids`). Corrección: `PUT`/`DELETE /api/evidences/modules/{id}` ya no escriben un `404` tras el `401`. Ver [3.2.0](#320-2026-10-16). |
 | 3.3.0 | 2026-10-17 | Aditivo: todas las rutas documentan el `500` JSON `{ error: "Error interno del servidor." }` para fallos inesperados (antes, el `500` por defecto de Next, sin JSON). Ver [3.3.0](#330-2026-10-17). |
+| 3.4.0 | 2026-10-21 | Aditivo: los quizzes se sirven por intento (selección aleatoria del banco y opciones barajadas). `GET /api/quizzes/modules/{id}` devuelve `attempt_id`, `POST` acepta `attempt_id` opcional, lo devuelve y documenta el `409`. Los ids de pregunta de los quizzes con banco cambian de valor (opacos: recarga el cuestionario). Ver [3.4.0](#340-2026-10-21). |
+
+### 3.4.0 (2026-10-21)
+
+Versión **MINOR**. Todo lo que funcionaba sigue funcionando: el campo de petición nuevo es
+opcional, los de respuesta son aditivos y el `409` solo aparece si un cliente envía un
+`attempt_id`. Por la [política](#qué-sube-la-versión) no es **MAJOR** (no se quita ni cambia
+un campo ni un estado existente) ni solo **PATCH** (hay campos y un estado nuevos).
+
+- `GET /api/quizzes/modules/{id}` devuelve `attempt_id`. Con sesión, el servidor elige hasta 5
+  preguntas del banco al azar y baraja las opciones; guarda lo servido (copia completa, con la
+  respuesta correcta, que nunca sale al cliente) en un intento válido 24 horas. Recargar devuelve el
+  mismo intento hasta que se envía o caduca. Sin sesión, `attempt_id` es `null` y se devuelve la vista
+  previa estable de siempre.
+- `POST /api/quizzes/modules/{id}` acepta `attempt_id` (opcional, hasta 64 caracteres
+  alfanuméricos o guiones) y lo devuelve en la respuesta (`null` si se corrigió sin intento). Se corrige
+  contra lo servido y solo se puede enviar una vez. Si el intento no existe, es de otro alumno o
+  módulo, ya se envió o ha caducado responde `409`
+  `{ "error": "El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo." }`.
+  La comprobación de límite de intentos (`429`) sigue yendo antes.
+- Compatibilidad: sin `attempt_id` (clientes antiguos) se corrige siempre el quiz determinista de
+  siempre, exactamente como antes de la 3.4.0: no se consulta ni se cierra ningún intento, el intento
+  guardado lleva `attempt_id: null` y la respuesta devuelve `attempt_id: null`.
+- Los ids de pregunta de un banco pasan a ser `bank-<posición en el banco guardado>` (antes, la
+  posición tras barajar). Los ids son identificadores opacos y sus valores cambian en los quizzes con
+  banco: el cliente debe usar los ids devueltos por el último `GET`, y un cuestionario cargado antes de
+  actualizar debe recargarse (si no, el envío sin `attempt_id` responde `400` por respuestas que no
+  corresponden).
+- `GET /api/modules/{id}` conserva `quiz`, ahora documentado como vista previa estable: quitarlo
+  sería **MAJOR**. Para responder hay que usar `GET /api/quizzes/modules/{id}`; la interfaz ya no
+  responde con el cuestionario embebido.
+
+Qué hacer en un cliente: pide el cuestionario con `GET /api/quizzes/modules/{id}`, envía el
+`attempt_id` recibido y, ante un `409`, vuelve a pedir el cuestionario para empezar otro intento.
 
 ### 3.3.0 (2026-10-17)
 

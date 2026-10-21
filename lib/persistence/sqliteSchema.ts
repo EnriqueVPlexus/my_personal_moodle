@@ -158,6 +158,20 @@ export async function migrateSqliteSchema(db: any) {
     CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_module_id ON user_quiz_attempts(module_id);
     CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_submitted_at ON user_quiz_attempts(submitted_at);
 
+    CREATE TABLE IF NOT EXISTS quiz_attempt_sessions (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      module_id INTEGER NOT NULL,
+      questions TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      submitted_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quiz_attempt_sessions_user_module ON quiz_attempt_sessions(user_id, module_id);
+
     CREATE TABLE IF NOT EXISTS user_module_evidences (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,

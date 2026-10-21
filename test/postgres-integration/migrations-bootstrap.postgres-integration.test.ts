@@ -43,6 +43,7 @@ const EXPECTED_TABLES = [
   'user_lesson_progress',
   'user_roadmap_progress',
   'user_quiz_attempts',
+  'quiz_attempt_sessions',
   'user_module_evidences',
   'rate_limits'
 ].sort()

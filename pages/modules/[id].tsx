@@ -12,6 +12,7 @@ import type {
   ModuleLesson,
   ModuleProgress as ContractModuleProgress,
   ModuleQuiz,
+  ModuleQuizResponse,
   QuizAttemptResponse,
   QuizSummary
 } from '../../lib/contracts'
@@ -45,6 +46,23 @@ function statusLabel(status: ModuleProgress['status']) {
   if (status === 'completed') return 'Completado'
   if (status === 'in_progress') return 'En curso'
   return 'No iniciado'
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+/** One line about the learner's attempts left or the cooldown, if the server reports any. */
+function describeEligibility(eligibility: ModuleQuizResponse['eligibility']) {
+  if (!eligibility) return ''
+  if (!eligibility.allowed) {
+    return eligibility.cooldown_ends_at
+      ? `Podrás volver a intentarlo a partir del ${formatDateTime(eligibility.cooldown_ends_at)}.`
+      : 'Has alcanzado el límite de intentos de este módulo.'
+  }
+  const remaining = eligibility.remaining_attempts
+  if (remaining === null || remaining === undefined) return ''
+  return remaining === 1 ? 'Te queda 1 intento.' : `Te quedan ${remaining} intentos.`
 }
 
 function formatQuizPercentage(value?: number | null) {
@@ -83,6 +101,8 @@ export default function ModulePage() {
   const [module, setModule] = useState<ModuleDetail | null>(null)
   const [lessons, setLessons] = useState<LessonWithProgress[]>([])
   const [evidence, setEvidence] = useState<ModuleEvidence | null>(null)
+  // Logged-in learners answer the quiz of an attempt session (`attempt_id`), not the module-detail preview.
+  const [attemptQuiz, setAttemptQuiz] = useState<ModuleQuizResponse | null>(null)
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({})
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
   const [quizError, setQuizError] = useState('')
@@ -91,6 +111,26 @@ export default function ModulePage() {
   const [lessonUpdatingId, setLessonUpdatingId] = useState<number | null>(null)
   const [loadError, setLoadError] = useState('')
   const moduleOpenedAt = useRef(Date.now())
+
+  /** Fetches the learner's active attempt (or a new one) and resets the answers. */
+  const loadAttemptQuiz = useCallback(async () => {
+    if (!id) return
+    // Drop the previous attempt first: if the reload fails the learner must not
+    // keep submitting a dead `attempt_id`.
+    setAttemptQuiz(null)
+    setQuizAnswers({})
+    setQuizResult(null)
+    try {
+      const res = await fetch(`/api/quizzes/modules/${id}`)
+      if (!res.ok) {
+        setQuizError('No se pudo cargar el cuestionario.')
+        return
+      }
+      setAttemptQuiz(await res.json())
+    } catch {
+      setQuizError('No se pudo conectar con el servidor.')
+    }
+  }, [id])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -121,11 +161,13 @@ export default function ModulePage() {
       setQuizResult(null)
       setQuizError('')
       setProgressError('')
+      if (user) await loadAttemptQuiz()
+      else setAttemptQuiz(null)
       moduleOpenedAt.current = Date.now()
     } catch {
       setLoadError('No se pudo conectar con el servidor.')
     }
-  }, [id, router, user])
+  }, [id, router, user, loadAttemptQuiz])
 
   useEffect(() => { load() }, [load])
 
@@ -155,8 +197,15 @@ export default function ModulePage() {
     }
   }
 
+  async function startNewAttempt() {
+    setQuizError('')
+    setQuizSubmitting(true)
+    await loadAttemptQuiz()
+    setQuizSubmitting(false)
+  }
+
   async function submitQuiz() {
-    if (!module?.quiz) return
+    if (!attemptQuiz || !module) return
     setQuizSubmitting(true)
     setQuizError('')
 
@@ -164,17 +213,25 @@ export default function ModulePage() {
       const res = await fetch(`/api/quizzes/modules/${module.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: quizAnswers })
+        body: JSON.stringify({
+          answers: quizAnswers,
+          ...(attemptQuiz.attempt_id ? { attempt_id: attemptQuiz.attempt_id } : {})
+        })
       })
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
+        if (res.status === 409) {
+          // The attempt was already sent or expired: start over with a fresh one.
+          await loadAttemptQuiz()
+        }
         setQuizError(data.error || 'No se pudo guardar el intento.')
         return
       }
 
-      const data = await res.json()
+      const data: QuizResult = await res.json()
       setQuizResult(data)
+      setAttemptQuiz(current => current ? { ...current, eligibility: data.eligibility ?? current.eligibility } : current)
       setModule(current => current ? { ...current, quiz_summary: data.summary } : current)
     } catch {
       setQuizError('No se pudo conectar con el servidor.')
@@ -197,7 +254,9 @@ export default function ModulePage() {
   )
 
   const progress = user ? module.progress || fallbackProgress(lessons) : null
-  const quiz = module.quiz
+  const quiz = user ? attemptQuiz?.quiz : module.quiz
+  const eligibilityNote = user ? describeEligibility(attemptQuiz?.eligibility ?? null) : ''
+  const canAttempt = !attemptQuiz?.eligibility || attemptQuiz.eligibility.allowed
   const quizSummary = module.quiz_summary
   const quizComplete = Boolean(quiz?.questions.every(question => Number.isInteger(quizAnswers[question.id])))
 
@@ -339,6 +398,19 @@ export default function ModulePage() {
           </section>
         )}
 
+        {user && !quiz && quizError && (
+          <section className="panel mt-6 p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Quiz del módulo</h2>
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{quizError}</p>
+            <button
+              className="mt-3 text-sm font-semibold underline"
+              onClick={async () => { setQuizError(''); await loadAttemptQuiz() }}
+            >
+              Reintentar
+            </button>
+          </section>
+        )}
+
         {quiz && quiz.questions.length > 0 && (
           <section className="panel mt-6 p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -383,9 +455,9 @@ export default function ModulePage() {
                           const selected = quizAnswers[question.id] === optionIndex
                           return (
                             <button
-                              key={option}
+                              key={optionIndex}
                               type="button"
-                              disabled={!user || quizSubmitting}
+                              disabled={!user || quizSubmitting || Boolean(quizResult)}
                               onClick={() => setQuizAnswers(current => ({ ...current, [question.id]: optionIndex }))}
                               className={`flex-1 rounded-lg border-2 py-3 text-sm font-semibold transition ${
                                 selected
@@ -401,12 +473,12 @@ export default function ModulePage() {
                     ) : (
                       <div className="mt-3 grid gap-2">
                         {question.options.map((option, optionIndex) => (
-                          <label key={option} className="flex items-start gap-3 rounded-md bg-white p-3 text-sm text-slate-700 shadow-sm">
+                          <label key={optionIndex} className="flex items-start gap-3 rounded-md bg-white p-3 text-sm text-slate-700 shadow-sm">
                             <input
                               type="radio"
                               name={`quiz-${question.id}`}
                               checked={quizAnswers[question.id] === optionIndex}
-                              disabled={!user || quizSubmitting}
+                              disabled={!user || quizSubmitting || Boolean(quizResult)}
                               onChange={() => setQuizAnswers(current => ({ ...current, [question.id]: optionIndex }))}
                               className="mt-1"
                             />
@@ -423,6 +495,10 @@ export default function ModulePage() {
                 )
               })}
             </div>
+
+            {eligibilityNote && (
+              <p className="mt-4 text-sm text-slate-600" role="status">{eligibilityNote}</p>
+            )}
 
             {quizError && (
               <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{quizError}</p>
@@ -473,10 +549,18 @@ export default function ModulePage() {
             )}
 
             <div className="mt-5">
-              {user ? (
+              {user && quizResult ? (
+                <button
+                  onClick={startNewAttempt}
+                  disabled={quizSubmitting || !canAttempt}
+                  className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  Nuevo intento
+                </button>
+              ) : user ? (
                 <button
                   onClick={submitQuiz}
-                  disabled={quizSubmitting || !quizComplete}
+                  disabled={quizSubmitting || !quizComplete || !canAttempt}
                   className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
                   {quizSubmitting ? 'Guardando...' : quizComplete ? 'Enviar quiz' : 'Responde todas las preguntas'}

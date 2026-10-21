@@ -137,6 +137,7 @@ function arrangeServices() {
       getRoadmapDetail: vi.fn(async () => fx.roadmapDetail),
       getModuleDetail: vi.fn(async () => fx.moduleDetail),
       getModuleQuiz: vi.fn(async (userId: number | null) => ({
+        attempt_id: userId === null ? null : '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90',
         quiz: fx.publicQuiz,
         summary: userId === null ? null : fx.quizSummary,
         eligibility: userId === null ? null : fx.eligibility
@@ -144,6 +145,7 @@ function arrangeServices() {
       submitQuizAttempt: vi.fn(async () => ({
         status: 'ok',
         attempt: fx.gradedAttempt,
+        attemptId: '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90',
         summary: fx.quizSummary,
         eligibility: fx.eligibility
       })),
@@ -317,6 +319,10 @@ const calls: Array<[string, Call]> = [
   ['quiz missing', { operationId: 'getModuleQuiz', status: 404, role: 'user', arrange: () => { state.services.progress.getModuleQuiz = vi.fn(async () => null) } }],
   ['quiz needs a session when reads are protected', { operationId: 'getModuleQuiz', status: 401, role: null, session: { readRequired: true }, arrange: () => { vi.stubEnv('REQUIRE_AUTH_FOR_READS', 'true') } }],
   ['quiz attempt', { operationId: 'submitQuizAttempt', status: 201, role: 'user', req: { body: { answers: fx.quizAnswers() } } }],
+  ['quiz attempt with attempt_id', { operationId: 'submitQuizAttempt', status: 201, role: 'user', req: { body: { attempt_id: '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90', answers: fx.quizAnswers() } } }],
+  ['quiz attempt without attempt_id (legacy client)', { operationId: 'submitQuizAttempt', status: 201, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'ok', attempt: fx.gradedAttempt, attemptId: null, summary: fx.quizSummary, eligibility: fx.eligibility })) }, req: { body: { answers: fx.quizAnswers() } } }],
+  ['quiz attempt with an invalid attempt_id', { operationId: 'submitQuizAttempt', status: 400, role: 'user', req: { body: { attempt_id: 'x'.repeat(65), answers: fx.quizAnswers() } } }],
+  ['quiz attempt already submitted or expired', { operationId: 'submitQuizAttempt', status: 409, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'session_unavailable' })) }, req: { body: { attempt_id: '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90', answers: fx.quizAnswers() } } }],
   ['quiz attempt invalid body', { operationId: 'submitQuizAttempt', status: 400, role: 'user', req: { body: {} } }],
   ['quiz attempt with incomplete answers', { operationId: 'submitQuizAttempt', status: 400, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'invalid_answers' })) }, req: { body: { answers: {} } } }],
   ['quiz attempt missing module', { operationId: 'submitQuizAttempt', status: 404, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'not_found' })) }, req: { body: { answers: {} } } }],

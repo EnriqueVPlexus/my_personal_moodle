@@ -14,7 +14,8 @@ type MigrationResult = {
   applied: boolean
 }
 
-const SKIPPED_TABLES = ['sessions']
+// Ephemeral rows: login sessions and quiz attempt sessions (24 h TTL) are not copied.
+const SKIPPED_TABLES = ['sessions', 'quiz_attempt_sessions']
 
 function quoteIdentifier(value: string) {
   return `"${value.replace(/"/g, '""')}"`

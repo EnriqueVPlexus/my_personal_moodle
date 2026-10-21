@@ -1,4 +1,10 @@
-import type { AttemptEligibility, ModuleQuizSource, ModuleQuizSummary, QuizGrade } from '../content/quizzes'
+import type {
+  AttemptEligibility,
+  ModuleQuizQuestion,
+  ModuleQuizSource,
+  ModuleQuizSummary,
+  QuizGrade
+} from '../content/quizzes'
 import type { ModuleRecord, ModuleWithQuizBank, RoadmapWithCategory, TopicRecord } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType, ModuleEvidence } from './evidences'
 import type { PortfolioItem, UserPortfolio } from './portfolio'
@@ -44,10 +50,41 @@ export interface QuizAttemptRepository {
     userId: number,
     module: ModuleQuizSource,
     answers: Record<string, unknown>,
-    grade: QuizGrade
+    grade: QuizGrade,
+    /** Session the attempt was graded against; null for the legacy (session-less) path. */
+    attemptId?: string | null
   ): Promise<QuizGrade & { submitted_at: string }>
   getSummary(userId: number, moduleId: number): Promise<ModuleQuizSummary>
   checkEligibility(userId: number, module: ModuleQuizSource): Promise<AttemptEligibility>
+}
+
+/** What the server served for one attempt. `questions` keeps the answers: never send it to a client. */
+export type QuizAttemptSession = {
+  id: string
+  user_id: number
+  module_id: number
+  questions: ModuleQuizQuestion[]
+  created_at: string
+  expires_at: string
+  submitted_at: string | null
+}
+
+export type NewQuizAttemptSession = {
+  id: string
+  userId: number
+  moduleId: number
+  questions: ModuleQuizQuestion[]
+  createdAt: string
+  expiresAt: string
+}
+
+export interface QuizSessionRepository {
+  /** Latest session of the user for the module that is neither submitted nor expired at `now`. */
+  findActive(userId: number, moduleId: number, now: string): Promise<QuizAttemptSession | null>
+  create(session: NewQuizAttemptSession): Promise<QuizAttemptSession>
+  findById(id: string): Promise<QuizAttemptSession | null>
+  /** Conditional update: resolves false when the session was already submitted (or does not exist). */
+  markSubmitted(id: string, submittedAt: string): Promise<boolean>
 }
 
 export type EvidenceListFilter = {

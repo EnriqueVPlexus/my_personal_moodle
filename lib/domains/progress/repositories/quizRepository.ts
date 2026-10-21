@@ -27,7 +27,8 @@ export async function insertModuleQuizAttempt(
   userId: number,
   module: ModuleQuizSource,
   answers: Record<string, unknown>,
-  grade: QuizGrade
+  grade: QuizGrade,
+  attemptId: string | null = null
 ) {
   const submittedAt = new Date().toISOString()
 
@@ -44,7 +45,7 @@ export async function insertModuleQuizAttempt(
         'module',
         grade.score,
         grade.max_score,
-        JSON.stringify({ answers, feedback: grade.feedback }),
+        JSON.stringify({ attempt_id: attemptId, answers, feedback: grade.feedback }),
         submittedAt,
         submittedAt,
         submittedAt
@@ -60,7 +61,7 @@ export async function insertModuleQuizAttempt(
         quiz_scope: 'module',
         score: grade.score,
         max_score: grade.max_score,
-        answers: JSON.stringify({ answers, feedback: grade.feedback }),
+        answers: JSON.stringify({ attempt_id: attemptId, answers, feedback: grade.feedback }),
         submitted_at: submittedAt,
         created_at: submittedAt,
         updated_at: submittedAt
@@ -244,7 +245,7 @@ export async function checkAttemptEligibility(
 
 export function createQuizAttemptRepository(db: DatabaseClient): QuizAttemptRepository {
   return {
-    save: (userId, module, answers, grade) => insertModuleQuizAttempt(db, userId, module, answers, grade),
+    save: (userId, module, answers, grade, attemptId) => insertModuleQuizAttempt(db, userId, module, answers, grade, attemptId),
     getSummary: (userId, moduleId) => getModuleQuizSummary(db, userId, moduleId),
     checkEligibility: (userId, module) => checkAttemptEligibility(db, userId, module)
   }
