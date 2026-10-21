@@ -407,7 +407,9 @@ export const operations: ApiOperation[] = [
     path: '/api/modules/{id}',
     tag: 'Catálogo',
     summary: 'Detalle de un módulo con lecciones, progreso y cuestionario',
-    description: 'El cuestionario es público: nunca incluye las respuestas correctas. Con sesión, registra la visita.',
+    description:
+      '`quiz` es una vista previa estable y pública (nunca incluye las respuestas correctas); para responder hay que usar `GET /api/quizzes/modules/{id}`. ' +
+      'Con sesión, registra la visita.',
     auth: 'read',
     request: { params: moduleIdQuerySchema },
     responses: {
@@ -537,7 +539,10 @@ export const operations: ApiOperation[] = [
     path: '/api/quizzes/modules/{id}',
     tag: 'Progreso',
     summary: 'Cuestionario público de un módulo',
-    description: '`summary` y `eligibility` solo se rellenan con sesión. El cuestionario nunca incluye las respuestas correctas.',
+    description:
+      '`summary`, `eligibility` y `attempt_id` solo se rellenan con sesión; sin ella se devuelve una vista previa estable. ' +
+      'Con sesión, el servidor elige hasta 5 preguntas del banco al azar (con las opciones mezcladas) y guarda lo servido en un intento ' +
+      'válido 24 horas: recargar devuelve el mismo intento hasta enviarlo o caducar. El cuestionario nunca incluye las respuestas correctas.',
     auth: 'read',
     request: { params: quizModuleQuerySchema },
     responses: {
@@ -552,7 +557,9 @@ export const operations: ApiOperation[] = [
     tag: 'Progreso',
     summary: 'Enviar un intento de cuestionario',
     description:
-      '`answers` asocia cada `question.id` con el índice de la opción elegida. Hay que responder todas las preguntas. ' +
+      '`answers` asocia cada `question.id` con el índice de la opción elegida. Hay que responder todas las preguntas del intento. ' +
+      '`attempt_id` (opcional) es el intento devuelto por `GET`; se corrige contra lo que se sirvió y solo se puede enviar una vez. ' +
+      'Sin `attempt_id` (clientes antiguos) se corrige el cuestionario determinista de siempre, exactamente como antes de la 3.4.0, sin tocar ningún intento. ' +
       'Los parámetros se validan antes de comprobar la sesión.',
     auth: 'user',
     request: { params: quizModuleQuerySchema, body: quizAttemptBodySchema },
@@ -562,6 +569,7 @@ export const operations: ApiOperation[] = [
         'Cuerpo no válido (`issues`) o respuestas incompletas/inválidas (`Responde a todas las preguntas del cuestionario con una opción válida.`, sin `issues`).'
       ),
       404: notFound('No encontrado.'),
+      409: error('El `attempt_id` no existe, es de otro alumno o módulo, ya se envió o ha caducado (`El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.`).'),
       422: error('El módulo no tiene preguntas de cuestionario (`El módulo no tiene preguntas de cuestionario.`).'),
       429: {
         description: 'Límite de intentos alcanzado o periodo de espera activo. `eligibility` detalla cuándo se puede reintentar.',

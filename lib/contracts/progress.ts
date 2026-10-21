@@ -123,8 +123,12 @@ export const quizFeedbackItemSchema = z.object({
   explanation: z.string()
 })
 
-/** `GET /api/quizzes/modules/{id}`; `summary` and `eligibility` are `null` for anonymous readers. */
+/**
+ * `GET /api/quizzes/modules/{id}`; `summary`, `eligibility` and `attempt_id` are `null` for anonymous readers.
+ * A learner gets a quiz bound to an attempt session (random selection and option order).
+ */
 export const moduleQuizResponseSchema = z.object({
+  attempt_id: z.string().nullable().meta({ description: 'Intento al que pertenece el cuestionario; envíalo en `POST`. `null` para lectores anónimos (vista previa) o si el módulo no tiene preguntas.' }),
   quiz: moduleQuizSchema,
   summary: quizSummarySchema.nullable(),
   eligibility: attemptEligibilitySchema.nullable()
@@ -138,6 +142,7 @@ export const quizAttemptResponseSchema = z.object({
   passed: z.boolean(),
   feedback: z.array(quizFeedbackItemSchema),
   submitted_at: z.string(),
+  attempt_id: z.string().nullable().meta({ description: 'Intento corregido; `null` si se corrigió sin `attempt_id` (clientes antiguos).' }),
   summary: quizSummarySchema,
   eligibility: attemptEligibilitySchema
 })
@@ -165,7 +170,7 @@ export const moduleProgressSchema = z.object({
 export const moduleDetailResponseSchema = moduleRecordSchema.extend({
   lessons: z.array(moduleLessonSchema),
   progress: moduleProgressSchema.nullable(),
-  quiz: moduleQuizSchema,
+  quiz: moduleQuizSchema.meta({ description: 'Vista previa determinista del cuestionario. Para responder usa `GET /api/quizzes/modules/{id}`, que devuelve el intento con su `attempt_id`.' }),
   quiz_summary: quizSummarySchema.nullable()
 })
 

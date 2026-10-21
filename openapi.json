@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cantera Hub API",
-    "version": "3.3.0",
+    "version": "3.4.0",
     "description": "Contrato de la API HTTP de Cantera Hub. Generado desde `lib/contracts` (`npm run contracts:generate`); no editar a mano. Describe el comportamiento actual: los mensajes de error son texto en español salvo los de autenticación, origen y límite de intentos, que están en inglés. Reglas de versionado y compatibilidad: `API_CONTRACTS.md`."
   },
   "servers": [
@@ -2030,7 +2030,7 @@
           "Catálogo"
         ],
         "summary": "Detalle de un módulo con lecciones, progreso y cuestionario",
-        "description": "El cuestionario es público: nunca incluye las respuestas correctas. Con sesión, registra la visita.\n\nLectura: pública salvo que el servidor defina `REQUIRE_AUTH_FOR_READS`.",
+        "description": "`quiz` es una vista previa estable y pública (nunca incluye las respuestas correctas); para responder hay que usar `GET /api/quizzes/modules/{id}`. Con sesión, registra la visita.\n\nLectura: pública salvo que el servidor defina `REQUIRE_AUTH_FOR_READS`.",
         "parameters": [
           {
             "name": "id",
@@ -3155,7 +3155,7 @@
           "Progreso"
         ],
         "summary": "Cuestionario público de un módulo",
-        "description": "`summary` y `eligibility` solo se rellenan con sesión. El cuestionario nunca incluye las respuestas correctas.\n\nLectura: pública salvo que el servidor defina `REQUIRE_AUTH_FOR_READS`.",
+        "description": "`summary`, `eligibility` y `attempt_id` solo se rellenan con sesión; sin ella se devuelve una vista previa estable. Con sesión, el servidor elige hasta 5 preguntas del banco al azar (con las opciones mezcladas) y guarda lo servido en un intento válido 24 horas: recargar devuelve el mismo intento hasta enviarlo o caducar. El cuestionario nunca incluye las respuestas correctas.\n\nLectura: pública salvo que el servidor defina `REQUIRE_AUTH_FOR_READS`.",
         "parameters": [
           {
             "name": "id",
@@ -3176,6 +3176,13 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "attempt_id": {
+                      "description": "Intento al que pertenece el cuestionario; envíalo en `POST`. `null` para lectores anónimos (vista previa) o si el módulo no tiene preguntas.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "quiz": {
                       "$ref": "#/components/schemas/ModuleQuiz"
                     },
@@ -3201,6 +3208,7 @@
                     }
                   },
                   "required": [
+                    "attempt_id",
                     "quiz",
                     "summary",
                     "eligibility"
@@ -3282,7 +3290,7 @@
           "Progreso"
         ],
         "summary": "Enviar un intento de cuestionario",
-        "description": "`answers` asocia cada `question.id` con el índice de la opción elegida. Hay que responder todas las preguntas. Los parámetros se validan antes de comprobar la sesión.\n\nRequiere sesión (cualquier usuario activo).",
+        "description": "`answers` asocia cada `question.id` con el índice de la opción elegida. Hay que responder todas las preguntas del intento. `attempt_id` (opcional) es el intento devuelto por `GET`; se corrige contra lo que se sirvió y solo se puede enviar una vez. Sin `attempt_id` (clientes antiguos) se corrige el cuestionario determinista de siempre, exactamente como antes de la 3.4.0, sin tocar ningún intento. Los parámetros se validan antes de comprobar la sesión.\n\nRequiere sesión (cualquier usuario activo).",
         "parameters": [
           {
             "name": "id",
@@ -3302,6 +3310,12 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "attempt_id": {
+                    "description": "Identificador del intento devuelto por `GET /api/quizzes/modules/{id}`. Sin él (clientes antiguos) se corrige el cuestionario determinista de siempre, sin intento.",
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9-]+$"
+                  },
                   "answers": {
                     "type": "object",
                     "propertyNames": {
@@ -3351,6 +3365,13 @@
                     "submitted_at": {
                       "type": "string"
                     },
+                    "attempt_id": {
+                      "description": "Intento corregido; `null` si se corrigió sin `attempt_id` (clientes antiguos).",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "summary": {
                       "$ref": "#/components/schemas/QuizSummary"
                     },
@@ -3365,6 +3386,7 @@
                     "passed",
                     "feedback",
                     "submitted_at",
+                    "attempt_id",
                     "summary",
                     "eligibility"
                   ]
@@ -3422,6 +3444,16 @@
                 }
               }
             },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El `attempt_id` no existe, es de otro alumno o módulo, ya se envió o ha caducado (`El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -6004,6 +6036,7 @@
             ]
           },
           "quiz": {
+            "description": "Vista previa determinista del cuestionario. Para responder usa `GET /api/quizzes/modules/{id}`, que devuelve el intento con su `attempt_id`.",
             "$ref": "#/components/schemas/ModuleQuiz"
           },
           "quiz_summary": {

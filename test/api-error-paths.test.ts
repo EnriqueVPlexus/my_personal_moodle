@@ -317,42 +317,18 @@ describe('content API edge cases', () => {
   })
 
   it('validates module quiz payloads and method guards', async () => {
+    const ec2 = {
+      id: 1,
+      title: 'EC2',
+      roadmap_id: 7,
+      contents: '["AMI"]',
+      practical_activity: '["Crear instancia"]'
+    }
+    // Module lookups answer in call order; every other query (eligibility,
+    // active quiz session, ...) finds nothing.
+    const modules: unknown[] = [null, { id: 1, title: 'Empty module', roadmap_id: 7 }, ec2, ec2, ec2, ec2]
     const db = {
-      get: vi.fn()
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: 1, title: 'Empty module', roadmap_id: 7 })
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          id: 1,
-          title: 'EC2',
-          roadmap_id: 7,
-          contents: '["AMI"]',
-          practical_activity: '["Crear instancia"]'
-        })
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          id: 1,
-          title: 'EC2',
-          roadmap_id: 7,
-          contents: '["AMI"]',
-          practical_activity: '["Crear instancia"]'
-        })
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          id: 1,
-          title: 'EC2',
-          roadmap_id: 7,
-          contents: '["AMI"]',
-          practical_activity: '["Crear instancia"]'
-        })
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          id: 1,
-          title: 'EC2',
-          roadmap_id: 7,
-          contents: '["AMI"]',
-          practical_activity: '["Crear instancia"]'
-        }),
+      get: vi.fn(async (sql: string) => (/FROM modules/.test(sql) ? modules.shift() ?? null : null)),
       run: vi.fn()
     }
     await mockContentApi(db, { user: normalUser })

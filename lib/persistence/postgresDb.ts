@@ -159,6 +159,16 @@ CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_user_id ON user_quiz_attempts(
 CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_roadmap_id ON user_quiz_attempts(roadmap_id);
 CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_module_id ON user_quiz_attempts(module_id);
 CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_submitted_at ON user_quiz_attempts(submitted_at);
+CREATE TABLE IF NOT EXISTS quiz_attempt_sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_id INTEGER NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  questions TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  submitted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempt_sessions_user_module ON quiz_attempt_sessions(user_id, module_id);
 CREATE TABLE IF NOT EXISTS user_module_evidences (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

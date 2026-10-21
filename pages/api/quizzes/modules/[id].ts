@@ -31,7 +31,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const body = parseOrRespond(quizAttemptBodySchema, req.body, res)
     if (!body) return
 
-    const outcome = await progress.submitQuizAttempt(user.id, moduleId, body.answers)
+    const outcome = await progress.submitQuizAttempt(user.id, moduleId, body.answers, body.attempt_id)
 
     if (outcome.status === 'not_found') return res.status(404).json({ error: 'No encontrado.' })
     if (outcome.status === 'not_eligible') {
@@ -42,6 +42,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         eligibility: outcome.eligibility
       })
     }
+    if (outcome.status === 'session_unavailable') {
+      return res.status(409).json({ error: 'El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.' })
+    }
     if (outcome.status === 'no_questions') {
       return res.status(422).json({ error: 'El módulo no tiene preguntas de cuestionario.' })
     }
@@ -51,6 +54,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(201).json({
       ...outcome.attempt,
+      attempt_id: outcome.attemptId,
       summary: outcome.summary,
       eligibility: outcome.eligibility
     })
