@@ -367,8 +367,8 @@ con un token con `read:packages`; hazlo público para evitarlo.
 ### Persistencia y reset
 
 Los datos viven en el volumen `cantera-hub_cantera_pgdata`: sobreviven a
-`docker compose down` y a las actualizaciones. Para borrarlo todo y empezar de
-cero: `docker compose down -v`.
+`docker compose --env-file .env.docker down` y a las actualizaciones. Para
+borrarlo todo y empezar de cero: `docker compose --env-file .env.docker down -v`.
 
 ## Calidad Y Tests
 
