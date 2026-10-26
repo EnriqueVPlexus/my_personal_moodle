@@ -49,6 +49,15 @@ export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> 
   return withSqliteTransactions(db)
 }
 
+export async function openSqliteDbReadOnly(filename: string) {
+  const { default: sqlite3 } = await loadSqlite3()
+  return open({
+    filename,
+    driver: sqlite3.Database,
+    mode: sqlite3.OPEN_READONLY
+  })
+}
+
 // Each openDb()/openSqliteDb() call owns its own connection, so on that client a transaction is plain
 // BEGIN IMMEDIATE / COMMIT / ROLLBACK on it. The tx client delegates to the
 // same connection; a mutex keeps concurrent transaction() calls on THAT client

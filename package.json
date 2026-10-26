@@ -16,6 +16,8 @@
     "migrate:up": "tsx scripts/migrate.ts up",
     "migrate:down": "tsx scripts/migrate.ts down",
     "migrate:status": "tsx scripts/migrate.ts status",
+    "db:dev:up": "docker compose -f docker-compose.dev.yml up -d --wait && DATABASE_URL=postgresql://postgres:postgres@localhost:55433/app_dev npm run migrate:up",
+    "db:dev:down": "docker compose -f docker-compose.dev.yml down",
     "test:db:up": "docker compose -f docker-compose.test.yml up -d --wait && DATABASE_URL=${TEST_DATABASE_URL:-postgresql://postgres:postgres@localhost:55432/app_test} tsx scripts/migrate.ts up",
     "test:db:down": "docker compose -f docker-compose.test.yml down -v",
     "test:integration:run": "vitest run --config vitest.integration.config.ts",

@@ -8,6 +8,8 @@
 # aislada").
 #
 # Usage: npm run test:db:up / npm run test:db:down
+name: cantera-hub-test
+
 services:
   postgres-test:
     image: postgres:16-alpine
