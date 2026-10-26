@@ -266,6 +266,89 @@ También inserta o actualiza los roadmaps iniciales desde `lib/persistence/boots
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
 
+## Docker (distribución demo)
+
+Mientras no haya hosting, la app se distribuye como imagen Docker
+(`ghcr.io/enriquevplexus/cantera-hub`) que cada persona ejecuta en su máquina con
+`docker compose` contra un PostgreSQL **local** (un contenedor `db` con volumen
+propio). Cada instancia es independiente: no comparte datos con las demás.
+Para que el mentor vea resultados, el alumno exporta sus resultados de quizzes
+desde la app (ver `GET /api/progress/quiz-attempts/export`) y envía el fichero.
+
+Ficheros: `Dockerfile`, `docker-compose.yml`, `.env.docker.example`,
+`.github/workflows/docker-publish.yml`. `docker-compose.test.yml` es otra cosa
+(base de datos efímera para los tests de integración).
+
+### Qué hay en el compose
+
+- `db`: `postgres:16-alpine`, volumen `cantera_pgdata`, con healthcheck.
+- `migrate`: one-shot que ejecuta `scripts/migrate.ts up` (migraciones Kysely,
+  idempotente). Usa la **misma imagen** que `app` con otro `command`, así el
+  usuario solo descarga un tag. La imagen incluye `migrations/`, `tsx` y las
+  dependencias de producción (más pesada que un runner mínimo, pero un solo
+  artefacto que versionar).
+- `app`: servidor Next.js (`output: 'standalone'`) como usuario no root, en el
+  puerto `APP_PORT` (3000 por defecto). Arranca solo si `migrate` termina bien.
+
+La imagen no incluye `sqlite3` (módulo nativo opcional): solo funciona con
+PostgreSQL.
+
+### Primer arranque
+
+Requisitos: Docker con `docker compose` (v2).
+
+```bash
+cp .env.docker.example .env.docker   # edita contraseñas, AUTH_SETUP_TOKEN y pepper
+docker compose pull
+docker compose up -d
+```
+
+Abre `http://localhost:3000`. Variables relevantes de `.env.docker`:
+
+- `DATABASE_URL` debe apuntar al host `db` y coincidir con `POSTGRES_*`.
+- `DATABASE_SSL=false`: el Postgres del compose no soporta SSL y su host (`db`)
+  no es `localhost`, así que hay que desactivarlo explícitamente. Sin esta
+  variable se mantiene el comportamiento anterior (SSL salvo en
+  `localhost`/`127.0.0.1`), que es el que necesita Supabase. Admite
+  `false|disable|0|off|no` (sin SSL) y `true|require|1|on|yes` (SSL).
+- `COOKIE_SECURE=false`: en producción la cookie de sesión lleva `Secure` y el
+  navegador no la guarda sobre `http://localhost`, lo que rompería el login.
+  Déjalo en `false` en local; quítalo si pones la app detrás de HTTPS.
+- `NEXT_PUBLIC_*` (marca) se fijan en el **build** de la imagen (`--build-arg`),
+  no en runtime.
+
+### Crear el primer admin
+
+La app corre con `NODE_ENV=production`, así que `/setup` exige `AUTH_SETUP_TOKEN`:
+abre `http://localhost:3000/setup`, introduce email, contraseña (12+ caracteres)
+y el token definido en `.env.docker`. Alternativa sin pantalla: define
+`ADMIN_EMAIL` y `ADMIN_PASSWORD` y reinicia `app`; el admin se crea (o se
+promociona) al arrancar.
+
+### Actualizar a una versión nueva
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+`migrate` se vuelve a ejecutar y aplica solo las migraciones pendientes. Para
+fijar versión: `CANTERA_VERSION=1.2.3` en `.env.docker` (por defecto `latest`).
+
+### Publicar una versión nueva
+
+Con `main` actualizado y probado: `git tag vX.Y.Z && git push origin vX.Y.Z`. El
+workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hub`
+con los tags `X.Y.Z` y `latest`. También puede lanzarse a mano
+(`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
+Si el paquete GHCR es privado, los alumnos necesitan `docker login ghcr.io`
+con un token con `read:packages`; hazlo público para evitarlo.
+
+### Persistencia y reset
+
+Los datos viven en el volumen `cantera-hub_cantera_pgdata`: sobreviven a
+`docker compose down` y a las actualizaciones. Para borrarlo todo y empezar de
+cero: `docker compose down -v`.
+
 ## Calidad Y Tests
 
 La semantica, los rangos y la decision de rendimiento del catalogo se documentan

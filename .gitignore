@@ -434,3 +434,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Local Docker demo config (real values)
+/.env.docker

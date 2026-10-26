@@ -1,0 +1,45 @@
+# Demo distribution: the app + its own local Postgres, from the published image.
+#
+#   cp .env.docker.example .env.docker   # then edit the placeholders
+#   docker compose pull && docker compose up -d
+#
+# Not to be confused with docker-compose.test.yml (ephemeral test database).
+#
+# The `migrate` service reuses the SAME image as `app` (it also ships
+# migrations/ and the runner), so one pulled tag is enough.
+name: cantera-hub
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.docker
+    volumes:
+      - cantera_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: ghcr.io/enriquevplexus/cantera-hub:${CANTERA_VERSION:-latest}
+    env_file: .env.docker
+    command: ['node_modules/.bin/tsx', 'scripts/migrate.ts', 'up']
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    image: ghcr.io/enriquevplexus/cantera-hub:${CANTERA_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env.docker
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  cantera_pgdata:

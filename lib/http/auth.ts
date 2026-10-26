@@ -26,6 +26,9 @@ export { isReadAuthRequired, isValidRole, scopeAllowsRoadmap }
 const SESSION_COOKIE = 'moodle_session'
 
 function cookieSecureFlag() {
+  // COOKIE_SECURE=false lets a production build served over plain http (e.g.
+  // the local Docker demo on http://localhost) keep its session cookie.
+  if (process.env.COOKIE_SECURE?.trim().toLowerCase() === 'false') return ''
   return process.env.NODE_ENV === 'production' ? '; Secure' : ''
 }
 

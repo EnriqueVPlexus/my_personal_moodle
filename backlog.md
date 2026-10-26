@@ -1599,6 +1599,16 @@ detectar bloqueantes de publicar en un hosting real. Resultado y arreglos:
   en una unica variable de modulo; verificado estable en 5 ejecuciones
   repetidas del escenario que fallaba y 3 ejecuciones completas de la suite.
 
+Decision (fase demo): hasta decidir hosting, la app se distribuye como imagen
+Docker publicada en GHCR (`ghcr.io/enriquevplexus/cantera-hub`, workflow
+`docker-publish.yml` al etiquetar `vX.Y.Z`) que cada persona ejecuta con
+`docker compose` contra un PostgreSQL local. Cada instancia es independiente,
+asi que el alumno exporta sus resultados de quizzes y los envia al mentor. Se
+anadieron `DATABASE_SSL` (SSL explicito para app y `scripts/migrate.ts`) y
+`COOKIE_SECURE` (login por http://localhost en produccion). Una sola imagen
+sirve para `app` y `migrate`. Guia en `README_PROJECT.md`, seccion "Docker
+(distribucion demo)". El hosting definitivo sigue pendiente.
+
 Alcance restante:
 
 - Decidir hosting definitivo y adaptar esta lista a sus particularidades
