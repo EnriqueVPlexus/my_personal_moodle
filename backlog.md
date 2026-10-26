@@ -51,7 +51,8 @@ del producto poco a poco.
 
 La base funcional principal ya esta implementada. Los siguientes pasos se
 centran en convertir la aplicacion en una plataforma web multiusuario con
-PostgreSQL central, manteniendo SQLite para desarrollo y tests.
+PostgreSQL central, conservando compatibilidad con SQLite para desarrollo y
+tests.
 
 1. [x] Capa de acceso SQL estructurada.
 2. [x] Validacion de entradas y contratos con `zod`.
@@ -64,8 +65,10 @@ PostgreSQL central, manteniendo SQLite para desarrollo y tests.
 8. [ ] Observabilidad, backups y recuperacion (pausado hasta decidir hosting).
 9. Versionado completo de roadmaps.
 10. PWA con manifest y service worker.
+11. [x] PostgreSQL local persistente con Docker para desarrollo.
+12. [x] Validar la migracion de datos desde SQLite a PostgreSQL.
 
-Cada punto debe mantener compatibilidad con SQLite local salvo que el propio
+Cada punto debe mantener compatibilidad con SQLite salvo que el propio
 objetivo requiera PostgreSQL. La migracion `feature/migration_2_postgresql`
 ya esta integrada en `main`; los detalles pendientes de esa integracion se
 mantienen en los bloques tecnicos de abajo.
@@ -1562,9 +1565,9 @@ Valor: cachear contenidos y lecciones mediante un Service Worker para poder cons
 
 ### [ ] Preparacion para despliegue
 
-Estado: en curso. La aplicacion ya puede usar PostgreSQL de Supabase y mantiene
-SQLite para desarrollo; faltan despliegue reproducible, secretos, backups y
-pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
+Estado: en curso. La aplicacion ya puede usar PostgreSQL local en Docker o
+PostgreSQL de Supabase, y conserva SQLite como alternativa; faltan despliegue
+reproducible, secretos, backups y pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
 alojamiento interno de la empresa o uno externo gratuito/bajo coste).
 
 Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
@@ -1636,10 +1639,40 @@ Hecho cuando:
 - Existe una guia de despliegue reproducible.
 - La contraseña admin por defecto deja de ser un riesgo.
 
+### [x] Validar la migración de datos desde SQLite a PostgreSQL
+
+Estado: completado (2026-10-17). Los datos de `data/dev.db` se copiaron a
+`app_dev`, la PostgreSQL local persistente que queda como base real de
+desarrollo. La simulación fue ejecutada primero; después la importación se
+aplicó en una transacción. Recuento confirmado en ambas bases: 3 roadmaps,
+34 módulos, 3 usuarios, 1 registro de progreso de roadmap y 6 registros de
+auditoría; las demás tablas de contenido/progreso tenían 0 filas. No hubo
+relaciones sin mapear ni huérfanas. Se omitió 1 sesión activa deliberadamente
+(requerirá iniciar sesión de nuevo); `rate_limits` tenía 0 filas y se excluyó
+por ser estado transitorio. SQLite quedó intacta y se conserva como copia
+histórica, sin sincronización automática. Una segunda simulación detectó el
+contenido ya existente y no prevé altas duplicadas.
+
+Tareas:
+
+- [x] Mejorar la simulación para mostrar qué filas se crearían y validar las
+  relaciones que se importarían, incluso con un destino vacío.
+- [x] Probar la aplicación completa contra una PostgreSQL Docker desechable y
+  verificar recuentos, relaciones e idempotencia antes de tocar la base
+  persistente.
+- [x] Aplicar la migración a la base local de desarrollo tras revisar los
+  recuentos y confirmar que es el origen/destino esperado.
+
+Hecho cuando:
+
+- [x] Los datos relevantes y sus relaciones se importan sin pérdida.
+- [x] La simulación predice y la verificación posterior confirma los recuentos.
+- [x] La importación no modifica el origen SQLite y es segura frente a duplicados.
+
 ## Notas de producto
 
 - Stack objetivo: React + Next.js + TypeScript, API Node/Next.js,
-  PostgreSQL, SQLite para desarrollo/tests, PWA y Capacitor como posible
+  PostgreSQL y Docker para desarrollo, SQLite para tests/alternativa, PWA y Capacitor como posible
   cliente movil futuro.
 - La app esta evolucionando desde un catalogo de roadmaps hacia una
   herramienta de seguimiento formativo.

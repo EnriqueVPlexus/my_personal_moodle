@@ -20,6 +20,19 @@ npm install
 cp .env.example .env.local
 ```
 
+1. Arranca PostgreSQL local y aplica las migraciones:
+
+```bash
+npm run db:dev:up
+```
+
+La base de desarrollo usa un volumen Docker persistente independiente de la
+base efímera de tests. Para detener el contenedor sin borrar los datos:
+
+```bash
+npm run db:dev:down
+```
+
 1. Arranca el servidor:
 
 ```bash
@@ -28,16 +41,21 @@ npm run dev
 
 1. Abre `http://localhost:3000`.
 
-Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
-Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
-el proyecto de Supabase configurado en `.env.local`.
+Por defecto, `.env.example` configura PostgreSQL local en Docker. La aplicación
+elige SQLite (`data/dev.db`) si `DATABASE_URL` está vacía; si apunta a una
+instancia PostgreSQL, usa esa base. En este entorno, la base Docker persistente
+es la base real de desarrollo. Los datos de `data/dev.db` se copiaron a ella;
+SQLite se conserva como origen histórico y no se sincroniza automáticamente.
+Las sesiones y los límites de tasa no se copian. No uses las credenciales
+locales del compose en producción.
 
 El código está organizado por dominios con servicios, puertos y repositorios;
 ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
 **Todos los dominios ya están migrados** por repositorios tipados
-(`lib/domains/<dominio>/repositories/`), manteniendo SQLite local y PostgreSQL remoto:
+(`lib/domains/<dominio>/repositories/`), manteniendo compatibilidad entre
+SQLite y PostgreSQL:
 roadmaps, módulos, lecciones, auditoría, usuarios, progreso
 (`lib/domains/progress/repositories/progressRepository.ts`, incluyendo el CTE con función ventana de
 `listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
@@ -192,12 +210,17 @@ openapi.json                Contrato OpenAPI 3.1 generado (npm run contracts:gen
 
 `lib/persistence/` crea y migra estas tablas. El backend se selecciona así:
 
-- Desarrollo y tests: SQLite local cuando `DATABASE_URL` no existe.
+- Desarrollo: PostgreSQL local persistente en Docker cuando `DATABASE_URL`
+  apunta a `localhost:55433`; SQLite local cuando `DATABASE_URL` está vacía.
+- Tests de integración: PostgreSQL efímero separado en Docker (`55432`).
 - Supabase/producción: PostgreSQL cuando `DATABASE_URL` existe.
 
 No se deben configurar ambos backends para compartir datos automáticamente:
-SQLite es una base local independiente y PostgreSQL es la fuente central del
-entorno remoto.
+SQLite, PostgreSQL local y PostgreSQL remoto son bases independientes.
+
+Para usar SQLite en desarrollo, deja `DATABASE_URL` vacía en `.env.local`.
+Para reiniciar completamente la base PostgreSQL local y borrar sus datos,
+ejecuta `docker compose -f docker-compose.dev.yml down -v` de forma explícita.
 
 Variables mínimas para PostgreSQL:
 
@@ -210,15 +233,18 @@ SUPABASE_PROJECT_REF=PROJECT_REF
 La contraseña de la base de datos y cualquier clave privada deben permanecer
 en `.env.local` o en los secretos del proveedor de despliegue.
 
-Para copiar datos de una SQLite existente a PostgreSQL, usa primero la
-simulación:
+Para copiar datos de una SQLite existente a PostgreSQL, aplica antes el
+esquema formal en el destino (`npm run migrate:up`) y usa primero la simulación.
+La simulación abre SQLite en modo solo lectura y no escribe en PostgreSQL;
+informa de registros nuevos, conservados, preparados para copiar y relaciones
+sin mapear:
 
 ```bash
 npm run migrate:postgres
 ```
 
-El comando no modifica PostgreSQL y omite las sesiones activas. Revisa los
-recuentos antes de aplicar la copia con:
+El comando omite las sesiones activas. Revisa todos los recuentos y resuelve
+cualquier relación sin mapear antes de aplicar la copia con:
 
 ```bash
 npm run migrate:postgres -- --apply
@@ -226,6 +252,15 @@ npm run migrate:postgres -- --apply
 
 No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
 comparar antes los IDs y recuentos de ambas bases.
+
+Migración local realizada el 2026-10-17 desde `data/dev.db` hacia `app_dev`:
+3 roadmaps, 34 módulos, 3 usuarios, 1 registro de progreso de roadmap y 6
+registros de auditoría. No había categorías, temas, lecciones, evidencias,
+intentos de quiz, accesos ni progreso de lección. La simulación no detectó
+relaciones sin mapear; los recuentos PostgreSQL se verificaron después y
+coinciden con el origen. Se omitió 1 sesión para forzar un nuevo inicio de
+sesión; `rate_limits` tenía 0 filas y tampoco se importa. La copia se ejecuta
+dentro de una transacción y SQLite queda sin modificar.
 
 ### Migraciones formales de PostgreSQL
 
