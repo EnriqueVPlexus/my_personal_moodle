@@ -1,7 +1,14 @@
 # Demo distribution: the app + its own local Postgres, from the published image.
 #
-#   cp .env.docker.example .env.docker   # then edit the placeholders
-#   docker compose pull && docker compose up -d
+#   cp .env.docker.example .env.docker   # then replace every change-me value
+#   docker compose --env-file .env.docker pull
+#   docker compose --env-file .env.docker up -d
+#
+# `--env-file` feeds the ${VAR} interpolation below (image tag, port and the
+# db/migrate variables). Only `app` receives the whole file via env_file;
+# `db` and `migrate` get just the variables they need, so the auth secrets
+# are not exposed to them. (A plain `.env` is avoided on purpose: Next.js
+# also loads `.env` in local dev.)
 #
 # Not to be confused with docker-compose.test.yml (ephemeral test database).
 #
@@ -13,7 +20,10 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
-    env_file: .env.docker
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.docker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.docker}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.docker}
     volumes:
       - cantera_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +34,9 @@ services:
 
   migrate:
     image: ghcr.io/enriquevplexus/cantera-hub:${CANTERA_VERSION:-latest}
-    env_file: .env.docker
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env.docker}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
     command: ['node_modules/.bin/tsx', 'scripts/migrate.ts', 'up']
     depends_on:
       db:

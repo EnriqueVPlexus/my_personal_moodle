@@ -9,6 +9,7 @@ describe('resolvePgSsl', () => {
   it('keeps the legacy host-based behaviour when DATABASE_SSL is unset', () => {
     expect(resolvePgSsl(LOCAL, undefined)).toBe(false)
     expect(resolvePgSsl('postgresql://u:p@127.0.0.1:5432/app', '')).toBe(false)
+    expect(resolvePgSsl('postgres://u:p@localhost:5432/app', undefined)).toBe(false)
     expect(resolvePgSsl(REMOTE, undefined)).toEqual({ rejectUnauthorized: false })
     expect(resolvePgSsl(SERVICE, undefined)).toEqual({ rejectUnauthorized: false })
   })

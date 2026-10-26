@@ -1614,7 +1614,12 @@ Docker publicada en GHCR (`ghcr.io/enriquevplexus/cantera-hub`, workflow
 asi que el alumno exporta sus resultados de quizzes y los envia al mentor. Se
 anadieron `DATABASE_SSL` (SSL explicito para app y `scripts/migrate.ts`) y
 `COOKIE_SECURE` (login por http://localhost en produccion). Una sola imagen
-sirve para `app` y `migrate`. Guia en `README_PROJECT.md`, seccion "Docker
+sirve para `app` y `migrate`. Endurecimiento posterior: `latest` solo en tags
+sin `-` (los prerelease `vX.Y.Z-rc1` no la mueven); en produccion la app
+rechaza `AUTH_PASSWORD_PEPPER`/`AUTH_SETUP_TOKEN` con valor `change-me*`;
+`db` y `migrate` solo reciben sus variables (compose con
+`--env-file .env.docker`); y la deteccion SSL de `localhost`/`127.0.0.1`
+acepta URLs `postgres://` ademas de `postgresql://` (sin SSL). Guia en `README_PROJECT.md`, seccion "Docker
 (distribucion demo)". El hosting definitivo sigue pendiente.
 
 Alcance restante:

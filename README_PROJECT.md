@@ -298,10 +298,28 @@ PostgreSQL.
 Requisitos: Docker con `docker compose` (v2).
 
 ```bash
-cp .env.docker.example .env.docker   # edita contraseñas, AUTH_SETUP_TOKEN y pepper
-docker compose pull
-docker compose up -d
+cp .env.docker.example .env.docker
+# Genera dos secretos aleatorios y pégalos en .env.docker como
+# AUTH_PASSWORD_PEPPER y AUTH_SETUP_TOKEN (uno distinto para cada uno):
+openssl rand -hex 32
+openssl rand -hex 32
+# Cambia también POSTGRES_PASSWORD (y la misma contraseña en DATABASE_URL).
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
 ```
+
+`--env-file .env.docker` es necesario: compose lo usa para interpolar las
+variables de `db` y `migrate` (que solo reciben `POSTGRES_*` y
+`DATABASE_URL`/`DATABASE_SSL`, no los secretos de auth) y para
+`CANTERA_VERSION`/`APP_PORT`. Se usa `.env.docker` y no `.env` porque Next.js
+también carga `.env` en desarrollo.
+
+En producción la app **se niega a funcionar** si `AUTH_PASSWORD_PEPPER` o
+`AUTH_SETUP_TOKEN` siguen con un valor `change-me*`: el login/setup responde
+`Error interno del servidor.` y el log del contenedor
+(`docker compose --env-file .env.docker logs app`) indica qué variable cambiar.
+`POSTGRES_PASSWORD` con valor de ejemplo es tolerable porque `db` no se publica
+fuera de la red de compose, pero cámbiala igualmente.
 
 Abre `http://localhost:3000`. Variables relevantes de `.env.docker`:
 
@@ -309,7 +327,8 @@ Abre `http://localhost:3000`. Variables relevantes de `.env.docker`:
 - `DATABASE_SSL=false`: el Postgres del compose no soporta SSL y su host (`db`)
   no es `localhost`, así que hay que desactivarlo explícitamente. Sin esta
   variable se mantiene el comportamiento anterior (SSL salvo en
-  `localhost`/`127.0.0.1`), que es el que necesita Supabase. Admite
+  `localhost`/`127.0.0.1`, tanto con `postgres://` como con `postgresql://`),
+  que es el que necesita Supabase. Admite
   `false|disable|0|off|no` (sin SSL) y `true|require|1|on|yes` (SSL).
 - `COOKIE_SECURE=false`: en producción la cookie de sesión lleva `Secure` y el
   navegador no la guarda sobre `http://localhost`, lo que rompería el login.
@@ -328,7 +347,8 @@ promociona) al arrancar.
 ### Actualizar a una versión nueva
 
 ```bash
-docker compose pull && docker compose up -d
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
 ```
 
 `migrate` se vuelve a ejecutar y aplica solo las migraciones pendientes. Para
@@ -338,7 +358,8 @@ fijar versión: `CANTERA_VERSION=1.2.3` en `.env.docker` (por defecto `latest`).
 
 Con `main` actualizado y probado: `git tag vX.Y.Z && git push origin vX.Y.Z`. El
 workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hub`
-con los tags `X.Y.Z` y `latest`. También puede lanzarse a mano
+con los tags `X.Y.Z` y `latest`. Un tag con prerelease (`vX.Y.Z-rc1`, cualquier
+nombre con `-`) publica solo `X.Y.Z-rc1`, nunca `latest`. También puede lanzarse a mano
 (`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
 Si el paquete GHCR es privado, los alumnos necesitan `docker login ghcr.io`
 con un token con `read:packages`; hazlo público para evitarlo.

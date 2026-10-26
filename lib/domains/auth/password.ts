@@ -1,3 +1,4 @@
+import { assertNoPlaceholderSecrets } from './secrets'
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, type ScryptOptions } from 'crypto'
 const SCRYPT_N = 16384
 const SCRYPT_R = 8
@@ -5,6 +6,7 @@ const SCRYPT_P = 1
 const KEY_LENGTH = 64
 
 function passwordSecret(password: string) {
+  assertNoPlaceholderSecrets()
   return `${password}${process.env.AUTH_PASSWORD_PEPPER || ''}`
 }
 

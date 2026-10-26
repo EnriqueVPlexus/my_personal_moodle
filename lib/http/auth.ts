@@ -14,6 +14,7 @@ import {
 import type { DatabaseClient } from '../persistence'
 import { openDb } from '../persistence'
 import { getHeaderValue } from './headers'
+import { assertNoPlaceholderSecrets } from '../domains/auth/secrets'
 
 export type { AuthRole, AuthUser, RoadmapReadScope }
 export { isReadAuthRequired, isValidRole, scopeAllowsRoadmap }
@@ -179,5 +180,6 @@ export async function getRoadmapReadScope(
 }
 
 export function validateSetupToken(candidate: string | undefined) {
+  assertNoPlaceholderSecrets()
   return isSetupTokenValid(candidate, process.env.AUTH_SETUP_TOKEN, process.env.NODE_ENV === 'production')
 }
