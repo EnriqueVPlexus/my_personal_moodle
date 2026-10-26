@@ -152,3 +152,40 @@ describe('quizRepository (postgres backend)', () => {
     })
   })
 })
+
+describe('listUserQuizAttempts (postgres backend)', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('queries one user via the Kysely builder and normalises Date and numeric values', async () => {
+    const { listUserQuizAttempts } = await import('../lib/domains/progress/repositories/quizRepository')
+    const { pool } = createFakePool(async (sql, params) => {
+      expect(sql).not.toContain('datetime(')
+      expect(sql).toContain('left join "roadmaps"')
+      expect(sql).toContain('order by "a"."submitted_at" asc')
+      expect(params).toEqual([2])
+      return {
+        command: 'SELECT',
+        rowCount: 1,
+        rows: [{
+          id: 5, roadmap_id: 7, roadmap_title: 'AWS', module_id: 4, module_title: 'EC2', quiz_scope: 'module',
+          score: '3', max_score: 4, submitted_at: new Date('2026-10-20T10:00:00.000Z')
+        }]
+      }
+    })
+
+    expect(await listUserQuizAttempts(fakeDb(pool), 2)).toEqual([{
+      attempt_id: 5,
+      roadmap_id: 7,
+      roadmap_title: 'AWS',
+      module_id: 4,
+      module_title: 'EC2',
+      quiz_scope: 'module',
+      score: 3,
+      max_score: 4,
+      percentage: 75,
+      submitted_at: '2026-10-20T10:00:00.000Z'
+    }])
+  })
+})

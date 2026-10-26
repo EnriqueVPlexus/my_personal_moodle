@@ -253,6 +253,28 @@ export const portfolioResponseSchema = z.object({
   }))
 })
 
+// --- Student quiz results export ---------------------------------------------
+
+export const quizAttemptExportRowSchema = z.object({
+  attempt_id: z.number().int(),
+  roadmap_id: z.number().int().nullable(),
+  roadmap_title: z.string().nullable(),
+  module_id: z.number().int().nullable(),
+  module_title: z.string().nullable(),
+  quiz_scope: z.string(),
+  score: z.number(),
+  max_score: z.number(),
+  percentage: z.number().meta({ description: 'Porcentaje entero redondeado; 0 si `max_score` no es positivo.' }),
+  submitted_at: z.string().meta({ description: 'Fecha ISO 8601.' })
+})
+
+export const quizResultsExportSchema = z.object({
+  exported_at: z.string().meta({ description: 'Fecha ISO 8601 de la exportación.' }),
+  user: z.object({ email: z.string(), name: z.string().nullable() }),
+  total_attempts: z.number().int(),
+  attempts: z.array(quizAttemptExportRowSchema).meta({ description: 'Del más antiguo al más reciente. Sin las respuestas enviadas.' })
+})
+
 export type UserRoadmapProgress = z.infer<typeof userRoadmapProgressSchema>
 export type RoadmapDetailProgress = z.infer<typeof roadmapDetailProgressSchema>
 export type RoadmapDetailModule = z.infer<typeof roadmapDetailModuleSchema>
@@ -270,4 +292,5 @@ export type LessonProgressResponse = z.infer<typeof lessonProgressResponseSchema
 export type ModuleEvidence = z.infer<typeof moduleEvidenceSchema>
 export type ModuleEvidenceResponse = z.infer<typeof moduleEvidenceResponseSchema>
 export type EvidenceListItem = z.infer<typeof evidenceListItemSchema>
+export type QuizResultsExport = z.infer<typeof quizResultsExportSchema>
 export type PortfolioResponse = z.infer<typeof portfolioResponseSchema>

@@ -120,6 +120,31 @@ export default function PortfolioPage() {
                 </div>
               </div>
 
+              <div className="panel mb-8 flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between" data-testid="quiz-export-panel">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-950">Exportar mis resultados de quizzes</h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Descarga tus intentos de quiz (módulo, nota y fecha) para enviárselos a tu mentor.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="/api/progress/quiz-attempts/export?format=json"
+                    download
+                    className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
+                  >
+                    Exportar resultados (JSON)
+                  </a>
+                  <a
+                    href="/api/progress/quiz-attempts/export?format=csv"
+                    download
+                    className="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
+                  >
+                    Exportar resultados (CSV)
+                  </a>
+                </div>
+              </div>
+
               {portfolio.roadmaps.length === 0 ? (
                 <div className="panel p-8 text-center">
                   <h2 className="text-lg font-semibold text-slate-950">Aún no has registrado evidencias</h2>

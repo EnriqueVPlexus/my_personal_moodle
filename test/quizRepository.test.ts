@@ -153,3 +153,66 @@ describe('quizRepository (sqlite backend)', () => {
     })
   })
 })
+
+describe('listUserQuizAttempts (sqlite backend)', () => {
+  it('lists only the given user attempts, oldest first, with titles and percentage', async () => {
+    await withTempDb('moodle-quiz-export-', async db => {
+      const { saveModuleQuizAttempt, listUserQuizAttempts } = await import('../lib/domains/progress/repositories/quizRepository')
+      const userId = 700010
+      const otherId = 700011
+      await seedRoadmapAndUser(db, userId)
+      await db.run(
+        `INSERT INTO users (id, email, name, role, password_hash, can_view_all_roadmaps, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, 'user', 'hash', 1, 1, datetime('now'), datetime('now'))`,
+        [otherId, 'other@example.com', 'Other']
+      )
+
+      await saveModuleQuizAttempt(db, userId, moduleFixture, { 'module-content': -1 })
+      await saveModuleQuizAttempt(db, userId, moduleFixture, { 'module-content': 0 })
+      await saveModuleQuizAttempt(db, otherId, moduleFixture, { 'module-content': 0 })
+
+      const rows = await listUserQuizAttempts(db, userId)
+
+      expect(rows).toHaveLength(2)
+      expect(rows[0].attempt_id).toBeLessThan(rows[1].attempt_id)
+      expect(rows[0]).toMatchObject({
+        roadmap_id: ROADMAP_ID,
+        roadmap_title: 'Roadmap EC2',
+        module_id: MODULE_ID,
+        module_title: 'EC2',
+        quiz_scope: 'module'
+      })
+      expect(typeof rows[0].submitted_at).toBe('string')
+      expect(rows[0].percentage).toBe(Math.round((rows[0].score / rows[0].max_score) * 100))
+      expect(await listUserQuizAttempts(db, 999999)).toEqual([])
+    })
+  })
+
+  it('keeps attempts whose roadmap/module were detached and is exposed by the repository port', async () => {
+    await withTempDb('moodle-quiz-export-port-', async db => {
+      const { createQuizAttemptRepository } = await import('../lib/domains/progress/repositories/quizRepository')
+      const userId = 700012
+      await seedRoadmapAndUser(db, userId)
+      await db.run(
+        `INSERT INTO user_quiz_attempts (user_id, roadmap_id, module_id, quiz_scope, score, max_score, submitted_at, created_at, updated_at)
+         VALUES (?, NULL, NULL, 'module', NULL, NULL, '2026-10-20T10:00:00.000Z', '2026-10-20T10:00:00.000Z', '2026-10-20T10:00:00.000Z')`,
+        [userId]
+      )
+
+      const rows = await createQuizAttemptRepository(db).listForUser(userId)
+
+      expect(rows).toEqual([{
+        attempt_id: expect.any(Number),
+        roadmap_id: null,
+        roadmap_title: null,
+        module_id: null,
+        module_title: null,
+        quiz_scope: 'module',
+        score: 0,
+        max_score: 0,
+        percentage: 0,
+        submitted_at: '2026-10-20T10:00:00.000Z'
+      }])
+    })
+  })
+})

@@ -45,6 +45,7 @@ const handlers: Record<string, () => Promise<{ default: (req: any, res: any) => 
   '/api/portfolio': () => import('../pages/api/portfolio/index'),
   '/api/portfolio/export': () => import('../pages/api/portfolio/export'),
   '/api/progress/lessons/{id}': () => import('../pages/api/progress/lessons/[id]'),
+  '/api/progress/quiz-attempts/export': () => import('../pages/api/progress/quiz-attempts/export'),
   '/api/progress/roadmaps': () => import('../pages/api/progress/roadmaps'),
   '/api/quizzes/modules/{id}': () => import('../pages/api/quizzes/modules/[id]'),
   '/api/roadmaps': () => import('../pages/api/roadmaps/index'),
@@ -158,7 +159,10 @@ function arrangeServices() {
         updated: { ...fx.evidence, review_status: 'aprobado', admin_comment: 'Bien', reviewed_at: '2026-02-03T10:00:00.000Z', reviewed_by_user_id: 1 }
       })),
       getPortfolio: vi.fn(async () => fx.portfolio),
-      exportPortfolioMarkdown: vi.fn(() => '# Portfolio de Evidencias - Ana\n')
+      exportPortfolioMarkdown: vi.fn(() => '# Portfolio de Evidencias - Ana\n'),
+      exportQuizResults: vi.fn(async () => fx.quizResultsExport),
+      quizResultsToCsv: vi.fn(() => 'user_email\r\n'),
+      quizResultsFilename: vi.fn((_date: Date, format: string) => `quiz-results-2026-10-26.${format}`)
     },
     admin: {
       getDashboard: vi.fn(async () => fx.dashboard),
@@ -348,6 +352,9 @@ const calls: Array<[string, Call]> = [
   ['portfolio of a missing user', { operationId: 'getPortfolio', status: 404, role: 'user', arrange: () => { state.services.progress.getPortfolio = vi.fn(async () => null) } }],
   ['portfolio export', { operationId: 'exportPortfolio', status: 200, role: 'user' }],
   ['portfolio export of a missing user', { operationId: 'exportPortfolio', status: 404, role: 'user', arrange: () => { state.services.progress.getPortfolio = vi.fn(async () => null) } }],
+  ['quiz results export as JSON', { operationId: 'exportQuizAttempts', status: 200, role: 'user' }],
+  ['quiz results export invalid format', { operationId: 'exportQuizAttempts', status: 400, role: 'user', req: { query: { format: 'xml' } } }],
+  ['quiz results export for an anonymous visitor', { operationId: 'exportQuizAttempts', status: 401, role: null }],
 
   // Administration
   ['dashboard', { operationId: 'getAdminDashboard', status: 200 }],

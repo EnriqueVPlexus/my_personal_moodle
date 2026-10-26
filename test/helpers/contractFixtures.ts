@@ -277,3 +277,21 @@ export const auditEntry = {
   user_agent: null,
   created_at: '2026-02-02T10:00:00.000Z'
 }
+
+export const quizResultsExport = {
+  exported_at: '2026-10-26T08:00:00.000Z',
+  user: { email: 'ana@example.com', name: 'Ana' },
+  total_attempts: 1,
+  attempts: [{
+    attempt_id: 11,
+    roadmap_id: 1,
+    roadmap_title: 'DevOps',
+    module_id: 4,
+    module_title: 'Docker',
+    quiz_scope: 'module',
+    score: 2,
+    max_score: 4,
+    percentage: 50,
+    submitted_at: '2026-10-20T10:00:00.000Z'
+  }]
+}

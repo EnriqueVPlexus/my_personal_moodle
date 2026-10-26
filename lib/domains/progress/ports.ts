@@ -8,6 +8,7 @@ import type {
 import type { ModuleRecord, ModuleWithQuizBank, RoadmapWithCategory, TopicRecord } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType, ModuleEvidence } from './evidences'
 import type { PortfolioItem, UserPortfolio } from './portfolio'
+import type { QuizAttemptExportRow } from './quizExport'
 import type {
   LessonProgressUpdate,
   RoadmapDetailProgress,
@@ -56,6 +57,8 @@ export interface QuizAttemptRepository {
   ): Promise<QuizGrade & { submitted_at: string }>
   getSummary(userId: number, moduleId: number): Promise<ModuleQuizSummary>
   checkEligibility(userId: number, module: ModuleQuizSource): Promise<AttemptEligibility>
+  /** All attempts of that single user, oldest first, for the self-service export. */
+  listForUser(userId: number): Promise<QuizAttemptExportRow[]>
 }
 
 /** What the server served for one attempt. `questions` keeps the answers: never send it to a client. */

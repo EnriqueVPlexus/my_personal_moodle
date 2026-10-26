@@ -198,6 +198,7 @@ comprueba que esta tabla incluye todas las rutas. El detalle completo está en
 | Método y ruta | Acceso | Qué hace |
 | --- | --- | --- |
 | `GET /api/progress/roadmaps` | Sesión | Progreso del alumno en sus roadmaps |
+| `GET /api/progress/quiz-attempts/export` | Sesión | Exportar mis resultados de quizzes (JSON o CSV) |
 | `PUT /api/progress/lessons/{id}` | Sesión | Marcar una lección como completada o pendiente |
 | `GET /api/quizzes/modules/{id}` | Lectura | Cuestionario público de un módulo |
 | `POST /api/quizzes/modules/{id}` | Sesión | Enviar un intento de cuestionario |

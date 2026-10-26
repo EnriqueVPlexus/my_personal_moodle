@@ -11,6 +11,7 @@ import {
   lessonListQuerySchema,
   lessonProgressBodySchema,
   lessonProgressQuerySchema,
+  quizAttemptsExportQuerySchema,
   loginBodySchema,
   moduleIdQuerySchema,
   moduleListQuerySchema,
@@ -68,6 +69,7 @@ import {
   moduleEvidenceSchema,
   moduleQuizResponseSchema,
   portfolioResponseSchema,
+  quizResultsExportSchema,
   quizAttemptResponseSchema,
   roadmapDetailResponseSchema,
   userRoadmapProgressSchema
@@ -516,6 +518,24 @@ export const operations: ApiOperation[] = [
     summary: 'Progreso del alumno en sus roadmaps',
     auth: 'user',
     responses: { 200: json('Resumen de progreso por roadmap iniciado.', z.array(userRoadmapProgressSchema)) }
+  }),
+  operation({
+    operationId: 'exportQuizAttempts',
+    method: 'get',
+    path: '/api/progress/quiz-attempts/export',
+    tag: 'Progreso',
+    summary: 'Exportar mis resultados de quizzes',
+    description:
+      'Descarga los intentos de quiz **del usuario autenticado** (no acepta ningún id de usuario) para enviárselos al mentor. ' +
+      'Con `format=json` (por defecto) devuelve el documento descrito abajo; con `format=csv` devuelve un CSV UTF-8 con BOM, ' +
+      'una fila por intento y las columnas `user_email`, `user_name`, `attempt_id`, `roadmap_id`, `roadmap_title`, `module_id`, ' +
+      '`module_title`, `quiz_scope`, `score`, `max_score`, `percentage`, `submitted_at` (las celdas de texto que empiezan por ' +
+      '`=`, `+`, `-` o `@` llevan un `\'` delante para evitar inyección de fórmulas). No incluye las respuestas enviadas.',
+    auth: 'user',
+    request: { query: quizAttemptsExportQuerySchema },
+    responses: {
+      200: attachment('Fichero `quiz-results-<AAAA-MM-DD>.json` o `.csv`.', 'application/json', quizResultsExportSchema)
+    }
   }),
   operation({
     operationId: 'setLessonProgress',

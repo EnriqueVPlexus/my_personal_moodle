@@ -73,7 +73,7 @@ mantienen en los bloques tecnicos de abajo.
 Integracion (2026-10-17): los puntos 1 a 7 y las correcciones derivadas estan
 fusionados en `main` mediante la cadena de PRs #3 a #12 (sobre
 `chore/audit-fix-force`) y el PR #14 (`chore/audit-fix-force` -> `main`).
-Contrato API vigente: 3.4.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
+Contrato API vigente: 3.5.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
 hoja de ruta: 9, versionado completo de roadmaps.
 
 ## Estrategia de ramas
@@ -1495,7 +1495,7 @@ Notas de implementacion:
 
 #### [ ] Ficha individual de estudiante y exportacion de metricas
 
-Estado: pendiente.
+Estado: pendiente (con un avance parcial en la fase demo: autoexportacion del alumno, ver abajo).
 
 Valor: permite a los mentores/admins hacer un seguimiento individualizado de un alumno y exportar reportes de uso para informes de formacion.
 
@@ -1503,6 +1503,14 @@ Tareas:
 
 - Crear vista de detalle por usuario en el panel admin: roadmaps activos, porcentaje global, evidencias entregadas e historial de quizzes.
 - Anadir boton de exportacion de metricas generales y por usuario en CSV/JSON.
+
+Avance (fase demo, contrato 3.5.0): como cada alumno ejecuta su propia instancia
+Docker (ver "Preparacion para despliegue"), el mentor no ve sus datos. Se anadio
+la autoexportacion del alumno: `GET /api/progress/quiz-attempts/export?format=json|csv`
+y botones en `/portfolio` ("Exportar mis resultados de quizzes") con sus
+intentos de quiz (roadmap, modulo, nota, fecha) y su email, para enviarlos al
+mentor. Este item sigue abierto: la ficha individual y las metricas para
+mentores/admins sobre una base compartida no estan hechas.
 
 ### [ ] Guia de Google Skills badges
 

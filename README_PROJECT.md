@@ -387,7 +387,7 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.4.0).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.5.0).
 
 Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
 `DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
@@ -406,6 +406,16 @@ barajadas, y devuelve un `attempt_id`; el servidor guarda lo servido (`quiz_atte
 `POST` corrige contra eso, una sola vez (`409` si el intento ya se envió o caducó). Sin `attempt_id`
 (clientes antiguos) se corrige siempre el quiz determinista de siempre, sin tocar intentos. El `quiz`
 embebido en `GET /api/modules/{id}` queda como vista previa.
+
+La 3.5.0 añade `GET /api/progress/quiz-attempts/export?format=json|csv` (sesión, `json` por defecto):
+el alumno descarga **sus propios** intentos de quiz (id de intento, roadmap, módulo, `quiz_scope`, nota,
+`max_score`, porcentaje y fecha, más su email y nombre para que el mentor identifique el fichero; sin las
+respuestas enviadas). No acepta ningún id de usuario. El CSV va en UTF-8 con BOM, escapa comillas, comas y
+saltos de línea y antepone `'` a las celdas de texto que empiezan por `=`, `+`, `-` o `@`. Hexagonal:
+`QuizAttemptRepository.listForUser` (SQLite y Postgres en `quizRepository.ts`), `exportQuizResults` en el
+servicio de progreso y serialización pura en `lib/domains/progress/quizExport.ts`. En la UI está en
+`/portfolio` ("Exportar mis resultados de quizzes"). Pensado para la distribución demo con Docker, donde
+cada alumno tiene su propia base de datos (ver "Docker (distribución demo)").
 
 Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
 ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para

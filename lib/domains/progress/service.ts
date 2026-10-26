@@ -14,6 +14,7 @@ import type { ContentReadScope } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType } from './evidences'
 import { buildModuleProgress } from './moduleProgress'
 import { exportPortfolioAsMarkdown } from './portfolio'
+import { buildQuizResultsExport, quizResultsFilename, quizResultsToCsv } from './quizExport'
 import type {
   ContentReader,
   EvidenceListFilter,
@@ -329,6 +330,17 @@ export function makeProgressService(ports: ProgressPorts) {
       return portfolios.getForUser(userId)
     },
 
-    exportPortfolioMarkdown: exportPortfolioAsMarkdown
+    exportPortfolioMarkdown: exportPortfolioAsMarkdown,
+
+    // --- Student self-export ----------------------------------------------
+
+    /** The caller's own quiz attempts. Takes the authenticated user, never an id from the request. */
+    async exportQuizResults(user: { id: number; email: string; name?: string | null }) {
+      const attempts = await quizAttempts.listForUser(user.id)
+      return buildQuizResultsExport(user, attempts, clock())
+    },
+
+    quizResultsToCsv,
+    quizResultsFilename
   }
 }
