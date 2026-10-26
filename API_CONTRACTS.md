@@ -12,7 +12,7 @@ hace coherentes los errores y las respuestas de `DELETE` roadmap y `PATCH` usuar
 la 3.1.0 documenta por completo el documento de `POST /api/roadmaps/import`;
 la 3.2.0 hace que `POST /api/users` devuelva `roadmap_access_ids` y corrige el doble
 `401`+`404` de las evidencias; la 3.3.0 hace que todo fallo inesperado responda un
-`500` JSON `{ error }`; la 3.4.0 sirve los quizzes por intento, con `attempt_id` (ver el [Historial](#historial-del-contrato)).
+`500` JSON `{ error }`; la 3.4.0 sirve los quizzes por intento, con `attempt_id`; la 3.5.0 añade la exportación de los resultados de quiz del propio alumno (ver el [Historial](#historial-del-contrato)).
 
 Si solo quieres consumir la API, lee la sección `API` de `README.md`.
 
@@ -271,6 +271,21 @@ contratos).
 | 3.2.0 | 2026-10-16 | Aditivo: `POST /api/users` devuelve el mismo usuario que el listado y `PATCH` (con `roadmap_access_ids`). Corrección: `PUT`/`DELETE /api/evidences/modules/{id}` ya no escriben un `404` tras el `401`. Ver [3.2.0](#320-2026-10-16). |
 | 3.3.0 | 2026-10-17 | Aditivo: todas las rutas documentan el `500` JSON `{ error: "Error interno del servidor." }` para fallos inesperados (antes, el `500` por defecto de Next, sin JSON). Ver [3.3.0](#330-2026-10-17). |
 | 3.4.0 | 2026-10-21 | Aditivo: los quizzes se sirven por intento (selección aleatoria del banco y opciones barajadas). `GET /api/quizzes/modules/{id}` devuelve `attempt_id`, `POST` acepta `attempt_id` opcional, lo devuelve y documenta el `409`. Los ids de pregunta de los quizzes con banco cambian de valor (opacos: recarga el cuestionario). Ver [3.4.0](#340-2026-10-21). |
+| 3.5.0 | 2026-10-26 | Aditivo: nueva ruta `GET /api/progress/quiz-attempts/export` (`format=json\|csv`) con los intentos de quiz del usuario autenticado, para enviarlos al mentor. Ver [3.5.0](#350-2026-10-26). |
+
+### 3.5.0 (2026-10-26)
+
+Versión **MINOR**: solo añade una ruta; nada de lo existente cambia.
+
+- `GET /api/progress/quiz-attempts/export?format=json|csv` (sesión; `json` por defecto).
+  Devuelve solo los intentos del usuario de la sesión (no existe parámetro de usuario), del más
+  antiguo al más reciente: `attempt_id`, roadmap y módulo (id y título), `quiz_scope`, `score`,
+  `max_score`, `percentage`, `submitted_at`, más `user.email`/`user.name`, `exported_at` y
+  `total_attempts`. No incluye las respuestas enviadas.
+- Es una descarga: `Content-Disposition: attachment; filename="quiz-results-AAAA-MM-DD.json|csv"`.
+  El CSV es UTF-8 con BOM, CRLF, una fila por intento (con `user_email` y `user_name` en cada fila)
+  y neutraliza las fórmulas (celdas de texto que empiezan por `=`, `+`, `-` o `@` llevan un `'`).
+- Un `format` desconocido responde `400` `{ "error": "El formato debe ser «json» o «csv»." }`.
 
 ### 3.4.0 (2026-10-21)
 

@@ -553,3 +553,26 @@ describe('portfolio', () => {
     expect(service.exportPortfolioMarkdown(portfolio)).toContain('# Portfolio de Evidencias - Ana')
   })
 })
+
+describe('student quiz results export', () => {
+  it('exports only the given user attempts with a stamped date and csv/filename helpers', async () => {
+    const attempts = [{
+      attempt_id: 1, roadmap_id: 4, roadmap_title: 'Docker', module_id: 7, module_title: 'Imágenes',
+      quiz_scope: 'module', score: 1, max_score: 2, percentage: 50, submitted_at: '2026-10-20T10:00:00.000Z'
+    }]
+    const listForUser = vi.fn().mockResolvedValue(attempts)
+    const service = setup({ quizAttempts: { listForUser } }, { clock: () => new Date('2026-10-26T08:00:00.000Z') })
+
+    const data = await service.exportQuizResults({ id: 2, email: 'ana@example.com', name: 'Ana' })
+
+    expect(listForUser).toHaveBeenCalledExactlyOnceWith(2)
+    expect(data).toEqual({
+      exported_at: '2026-10-26T08:00:00.000Z',
+      user: { email: 'ana@example.com', name: 'Ana' },
+      total_attempts: 1,
+      attempts
+    })
+    expect(service.quizResultsToCsv(data)).toContain('ana@example.com,Ana,1,4,Docker,7,Imágenes,module,1,2,50')
+    expect(service.quizResultsFilename(new Date(data.exported_at), 'json')).toBe('quiz-results-2026-10-26.json')
+  })
+})

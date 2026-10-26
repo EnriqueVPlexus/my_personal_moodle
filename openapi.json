@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cantera Hub API",
-    "version": "3.4.0",
+    "version": "3.5.0",
     "description": "Contrato de la API HTTP de Cantera Hub. Generado desde `lib/contracts` (`npm run contracts:generate`); no editar a mano. Describe el comportamiento actual: los mensajes de error son texto en español salvo los de autenticación, origen y límite de intentos, que están en inglés. Reglas de versionado y compatibilidad: `API_CONTRACTS.md`."
   },
   "servers": [
@@ -2939,6 +2939,105 @@
                   "items": {
                     "$ref": "#/components/schemas/UserRoadmapProgress"
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No hay sesión válida (`Debes iniciar sesión.`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Método no admitido (`Método no permitido.`). Cuerpo JSON `{ error }`; la cabecera `Allow` lista los métodos válidos. En esta ruta: GET.",
+            "headers": {
+              "Allow": {
+                "description": "Métodos admitidos en esta ruta, separados por comas.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado (`Error interno del servidor.`). Cuerpo JSON `{ error }` con un texto genérico: el detalle solo se registra en el servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-auth": "user"
+      }
+    },
+    "/api/progress/quiz-attempts/export": {
+      "get": {
+        "operationId": "exportQuizAttempts",
+        "tags": [
+          "Progreso"
+        ],
+        "summary": "Exportar mis resultados de quizzes",
+        "description": "Descarga los intentos de quiz **del usuario autenticado** (no acepta ningún id de usuario) para enviárselos al mentor. Con `format=json` (por defecto) devuelve el documento descrito abajo; con `format=csv` devuelve un CSV UTF-8 con BOM, una fila por intento y las columnas `user_email`, `user_name`, `attempt_id`, `roadmap_id`, `roadmap_title`, `module_id`, `module_title`, `quiz_scope`, `score`, `max_score`, `percentage`, `submitted_at` (las celdas de texto que empiezan por `=`, `+`, `-` o `@` llevan un `'` delante para evitar inyección de fórmulas). No incluye las respuestas enviadas.\n\nRequiere sesión (cualquier usuario activo).",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "Formato del fichero. Por defecto `json`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fichero `quiz-results-<AAAA-MM-DD>.json` o `.csv`.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Descarga con `attachment; filename=\"...\"`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResultsExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada no válidos. `error` resume el problema y `issues` lista cada campo con su `path` y `message` (máximo 20).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -6667,6 +6766,123 @@
           "explanation"
         ],
         "description": "Pregunta pública: nunca incluye `correct_option_index`."
+      },
+      "QuizResultsExport": {
+        "type": "object",
+        "properties": {
+          "exported_at": {
+            "type": "string",
+            "description": "Fecha ISO 8601 de la exportación."
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "email",
+              "name"
+            ]
+          },
+          "total_attempts": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attempt_id": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "roadmap_id": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "roadmap_title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "module_id": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "module_title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "quiz_scope": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "max_score": {
+                  "type": "number"
+                },
+                "percentage": {
+                  "type": "number",
+                  "description": "Porcentaje entero redondeado; 0 si `max_score` no es positivo."
+                },
+                "submitted_at": {
+                  "type": "string",
+                  "description": "Fecha ISO 8601."
+                }
+              },
+              "required": [
+                "attempt_id",
+                "roadmap_id",
+                "roadmap_title",
+                "module_id",
+                "module_title",
+                "quiz_scope",
+                "score",
+                "max_score",
+                "percentage",
+                "submitted_at"
+              ]
+            },
+            "description": "Del más antiguo al más reciente. Sin las respuestas enviadas."
+          }
+        },
+        "required": [
+          "exported_at",
+          "user",
+          "total_attempts",
+          "attempts"
+        ]
       },
       "QuizSummary": {
         "type": "object",

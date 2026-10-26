@@ -14,6 +14,7 @@ import {
 import type { DatabaseClient } from '../persistence'
 import { openDb } from '../persistence'
 import { getHeaderValue } from './headers'
+import { assertNoPlaceholderSecrets } from '../domains/auth/secrets'
 
 export type { AuthRole, AuthUser, RoadmapReadScope }
 export { isReadAuthRequired, isValidRole, scopeAllowsRoadmap }
@@ -26,6 +27,9 @@ export { isReadAuthRequired, isValidRole, scopeAllowsRoadmap }
 const SESSION_COOKIE = 'moodle_session'
 
 function cookieSecureFlag() {
+  // COOKIE_SECURE=false lets a production build served over plain http (e.g.
+  // the local Docker demo on http://localhost) keep its session cookie.
+  if (process.env.COOKIE_SECURE?.trim().toLowerCase() === 'false') return ''
   return process.env.NODE_ENV === 'production' ? '; Secure' : ''
 }
 
@@ -176,5 +180,6 @@ export async function getRoadmapReadScope(
 }
 
 export function validateSetupToken(candidate: string | undefined) {
+  assertNoPlaceholderSecrets()
   return isSetupTokenValid(candidate, process.env.AUTH_SETUP_TOKEN, process.env.NODE_ENV === 'production')
 }

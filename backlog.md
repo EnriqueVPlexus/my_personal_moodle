@@ -76,7 +76,7 @@ mantienen en los bloques tecnicos de abajo.
 Integracion (2026-10-17): los puntos 1 a 7 y las correcciones derivadas estan
 fusionados en `main` mediante la cadena de PRs #3 a #12 (sobre
 `chore/audit-fix-force`) y el PR #14 (`chore/audit-fix-force` -> `main`).
-Contrato API vigente: 3.4.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
+Contrato API vigente: 3.5.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
 hoja de ruta: 9, versionado completo de roadmaps.
 
 ## Estrategia de ramas
@@ -1498,7 +1498,7 @@ Notas de implementacion:
 
 #### [ ] Ficha individual de estudiante y exportacion de metricas
 
-Estado: pendiente.
+Estado: pendiente (con un avance parcial en la fase demo: autoexportacion del alumno, ver abajo).
 
 Valor: permite a los mentores/admins hacer un seguimiento individualizado de un alumno y exportar reportes de uso para informes de formacion.
 
@@ -1506,6 +1506,14 @@ Tareas:
 
 - Crear vista de detalle por usuario en el panel admin: roadmaps activos, porcentaje global, evidencias entregadas e historial de quizzes.
 - Anadir boton de exportacion de metricas generales y por usuario en CSV/JSON.
+
+Avance (fase demo, contrato 3.5.0): como cada alumno ejecuta su propia instancia
+Docker (ver "Preparacion para despliegue"), el mentor no ve sus datos. Se anadio
+la autoexportacion del alumno: `GET /api/progress/quiz-attempts/export?format=json|csv`
+y botones en `/portfolio` ("Exportar mis resultados de quizzes") con sus
+intentos de quiz (roadmap, modulo, nota, fecha) y su email, para enviarlos al
+mentor. Este item sigue abierto: la ficha individual y las metricas para
+mentores/admins sobre una base compartida no estan hechas.
 
 ### [ ] Guia de Google Skills badges
 
@@ -1601,6 +1609,21 @@ detectar bloqueantes de publicar en un hosting real. Resultado y arreglos:
   `import('sqlite3')` sin cachear). Se corrigio cacheando la promesa de import
   en una unica variable de modulo; verificado estable en 5 ejecuciones
   repetidas del escenario que fallaba y 3 ejecuciones completas de la suite.
+
+Decision (fase demo): hasta decidir hosting, la app se distribuye como imagen
+Docker publicada en GHCR (`ghcr.io/enriquevplexus/cantera-hub`, workflow
+`docker-publish.yml` al etiquetar `vX.Y.Z`) que cada persona ejecuta con
+`docker compose` contra un PostgreSQL local. Cada instancia es independiente,
+asi que el alumno exporta sus resultados de quizzes y los envia al mentor. Se
+anadieron `DATABASE_SSL` (SSL explicito para app y `scripts/migrate.ts`) y
+`COOKIE_SECURE` (login por http://localhost en produccion). Una sola imagen
+sirve para `app` y `migrate`. Endurecimiento posterior: `latest` solo en tags
+sin `-` (los prerelease `vX.Y.Z-rc1` no la mueven); en produccion la app
+rechaza `AUTH_PASSWORD_PEPPER`/`AUTH_SETUP_TOKEN` con valor `change-me*`;
+`db` y `migrate` solo reciben sus variables (compose con
+`--env-file .env.docker`); y la deteccion SSL de `localhost`/`127.0.0.1`
+acepta URLs `postgres://` ademas de `postgresql://` (sin SSL). Guia en `README_PROJECT.md`, seccion "Docker
+(distribucion demo)". El hosting definitivo sigue pendiente.
 
 Alcance restante:
 

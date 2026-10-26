@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MAX_LESSON_TIME_INCREMENT_SECONDS } from '../domains/progress/constants'
+import { QUIZ_EXPORT_FORMATS, type QuizExportFormat } from '../domains/progress/quizExport'
 import { bodyObject, positiveInt, queryObject } from './primitives'
 
 export const lessonProgressQuerySchema = queryObject({ id: positiveInt('id') })
@@ -34,3 +35,18 @@ export const lessonProgressBodySchema = bodyObject({
 })
 
 export type LessonProgressBody = z.infer<typeof lessonProgressBodySchema>
+
+/** `GET /api/progress/quiz-attempts/export`: `format` defaults to `json`. */
+export const quizAttemptsExportQuerySchema = queryObject({
+  format: z
+    .unknown()
+    .transform((value, ctx) => {
+      const raw = Array.isArray(value) ? value[0] : value
+      if (raw === null || raw === '') return 'json' as QuizExportFormat
+      if ((QUIZ_EXPORT_FORMATS as readonly unknown[]).includes(raw)) return raw as QuizExportFormat
+      ctx.issues.push({ code: 'custom', message: 'El formato debe ser «json» o «csv».', input: value })
+      return z.NEVER
+    })
+    .meta({ type: 'string', enum: [...QUIZ_EXPORT_FORMATS], description: 'Formato del fichero. Por defecto `json`.' })
+    .optional()
+})

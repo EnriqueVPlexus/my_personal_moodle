@@ -301,6 +301,110 @@ También inserta o actualiza los roadmaps iniciales desde `lib/persistence/boots
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
 
+## Docker (distribución demo)
+
+Mientras no haya hosting, la app se distribuye como imagen Docker
+(`ghcr.io/enriquevplexus/cantera-hub`) que cada persona ejecuta en su máquina con
+`docker compose` contra un PostgreSQL **local** (un contenedor `db` con volumen
+propio). Cada instancia es independiente: no comparte datos con las demás.
+Para que el mentor vea resultados, el alumno exporta sus resultados de quizzes
+desde la app (ver `GET /api/progress/quiz-attempts/export`) y envía el fichero.
+
+Ficheros: `Dockerfile`, `docker-compose.yml`, `.env.docker.example`,
+`.github/workflows/docker-publish.yml`. `docker-compose.test.yml` es otra cosa
+(base de datos efímera para los tests de integración).
+
+### Qué hay en el compose
+
+- `db`: `postgres:16-alpine`, volumen `cantera_pgdata`, con healthcheck.
+- `migrate`: one-shot que ejecuta `scripts/migrate.ts up` (migraciones Kysely,
+  idempotente). Usa la **misma imagen** que `app` con otro `command`, así el
+  usuario solo descarga un tag. La imagen incluye `migrations/`, `tsx` y las
+  dependencias de producción (más pesada que un runner mínimo, pero un solo
+  artefacto que versionar).
+- `app`: servidor Next.js (`output: 'standalone'`) como usuario no root, en el
+  puerto `APP_PORT` (3000 por defecto). Arranca solo si `migrate` termina bien.
+
+La imagen no incluye `sqlite3` (módulo nativo opcional): solo funciona con
+PostgreSQL.
+
+### Primer arranque
+
+Requisitos: Docker con `docker compose` (v2).
+
+```bash
+cp .env.docker.example .env.docker
+# Genera dos secretos aleatorios y pégalos en .env.docker como
+# AUTH_PASSWORD_PEPPER y AUTH_SETUP_TOKEN (uno distinto para cada uno):
+openssl rand -hex 32
+openssl rand -hex 32
+# Cambia también POSTGRES_PASSWORD (y la misma contraseña en DATABASE_URL).
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+`--env-file .env.docker` es necesario: compose lo usa para interpolar las
+variables de `db` y `migrate` (que solo reciben `POSTGRES_*` y
+`DATABASE_URL`/`DATABASE_SSL`, no los secretos de auth) y para
+`CANTERA_VERSION`/`APP_PORT`. Se usa `.env.docker` y no `.env` porque Next.js
+también carga `.env` en desarrollo.
+
+En producción la app **se niega a funcionar** si `AUTH_PASSWORD_PEPPER` o
+`AUTH_SETUP_TOKEN` siguen con un valor `change-me*`: el login/setup responde
+`Error interno del servidor.` y el log del contenedor
+(`docker compose --env-file .env.docker logs app`) indica qué variable cambiar.
+`POSTGRES_PASSWORD` con valor de ejemplo es tolerable porque `db` no se publica
+fuera de la red de compose, pero cámbiala igualmente.
+
+Abre `http://localhost:3000`. Variables relevantes de `.env.docker`:
+
+- `DATABASE_URL` debe apuntar al host `db` y coincidir con `POSTGRES_*`.
+- `DATABASE_SSL=false`: el Postgres del compose no soporta SSL y su host (`db`)
+  no es `localhost`, así que hay que desactivarlo explícitamente. Sin esta
+  variable se mantiene el comportamiento anterior (SSL salvo en
+  `localhost`/`127.0.0.1`, tanto con `postgres://` como con `postgresql://`),
+  que es el que necesita Supabase. Admite
+  `false|disable|0|off|no` (sin SSL) y `true|require|1|on|yes` (SSL).
+- `COOKIE_SECURE=false`: en producción la cookie de sesión lleva `Secure` y el
+  navegador no la guarda sobre `http://localhost`, lo que rompería el login.
+  Déjalo en `false` en local; quítalo si pones la app detrás de HTTPS.
+- `NEXT_PUBLIC_*` (marca) se fijan en el **build** de la imagen (`--build-arg`),
+  no en runtime.
+
+### Crear el primer admin
+
+La app corre con `NODE_ENV=production`, así que `/setup` exige `AUTH_SETUP_TOKEN`:
+abre `http://localhost:3000/setup`, introduce email, contraseña (12+ caracteres)
+y el token definido en `.env.docker`. Alternativa sin pantalla: define
+`ADMIN_EMAIL` y `ADMIN_PASSWORD` y reinicia `app`; el admin se crea (o se
+promociona) al arrancar.
+
+### Actualizar a una versión nueva
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+`migrate` se vuelve a ejecutar y aplica solo las migraciones pendientes. Para
+fijar versión: `CANTERA_VERSION=1.2.3` en `.env.docker` (por defecto `latest`).
+
+### Publicar una versión nueva
+
+Con `main` actualizado y probado: `git tag vX.Y.Z && git push origin vX.Y.Z`. El
+workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hub`
+con los tags `X.Y.Z` y `latest`. Un tag con prerelease (`vX.Y.Z-rc1`, cualquier
+nombre con `-`) publica solo `X.Y.Z-rc1`, nunca `latest`. También puede lanzarse a mano
+(`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
+Si el paquete GHCR es privado, los alumnos necesitan `docker login ghcr.io`
+con un token con `read:packages`; hazlo público para evitarlo.
+
+### Persistencia y reset
+
+Los datos viven en el volumen `cantera-hub_cantera_pgdata`: sobreviven a
+`docker compose --env-file .env.docker down` y a las actualizaciones. Para
+borrarlo todo y empezar de cero: `docker compose --env-file .env.docker down -v`.
+
 ## Calidad Y Tests
 
 La semantica, los rangos y la decision de rendimiento del catalogo se documentan
@@ -339,7 +443,7 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.4.0).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.5.0).
 
 Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
 `DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
@@ -358,6 +462,16 @@ barajadas, y devuelve un `attempt_id`; el servidor guarda lo servido (`quiz_atte
 `POST` corrige contra eso, una sola vez (`409` si el intento ya se envió o caducó). Sin `attempt_id`
 (clientes antiguos) se corrige siempre el quiz determinista de siempre, sin tocar intentos. El `quiz`
 embebido en `GET /api/modules/{id}` queda como vista previa.
+
+La 3.5.0 añade `GET /api/progress/quiz-attempts/export?format=json|csv` (sesión, `json` por defecto):
+el alumno descarga **sus propios** intentos de quiz (id de intento, roadmap, módulo, `quiz_scope`, nota,
+`max_score`, porcentaje y fecha, más su email y nombre para que el mentor identifique el fichero; sin las
+respuestas enviadas). No acepta ningún id de usuario. El CSV va en UTF-8 con BOM, escapa comillas, comas y
+saltos de línea y antepone `'` a las celdas de texto que empiezan por `=`, `+`, `-` o `@`. Hexagonal:
+`QuizAttemptRepository.listForUser` (SQLite y Postgres en `quizRepository.ts`), `exportQuizResults` en el
+servicio de progreso y serialización pura en `lib/domains/progress/quizExport.ts`. En la UI está en
+`/portfolio` ("Exportar mis resultados de quizzes"). Pensado para la distribución demo con Docker, donde
+cada alumno tiene su propia base de datos (ver "Docker (distribución demo)").
 
 Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
 ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para
