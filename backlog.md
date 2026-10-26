@@ -76,7 +76,7 @@ mantienen en los bloques tecnicos de abajo.
 Integracion (2026-10-17): los puntos 1 a 7 y las correcciones derivadas estan
 fusionados en `main` mediante la cadena de PRs #3 a #12 (sobre
 `chore/audit-fix-force`) y el PR #14 (`chore/audit-fix-force` -> `main`).
-Contrato API vigente: 3.3.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
+Contrato API vigente: 3.4.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
 hoja de ruta: 9, versionado completo de roadmaps.
 
 ## Estrategia de ramas
@@ -1358,10 +1358,9 @@ Rama: `feature/ui-redesign` (mergeada a `chore/audit-fix-force`).
 
 ## Prioridad media
 
-### [ ] Quizzes reales por modulo
+### [x] Quizzes reales por modulo
 
-Estado: en curso. Fases 1 y 3 hechas; queda la fase 2 (banco y
-aleatorizacion). Los roadmaps iniciales cargan bancos explícitos por módulo,
+Estado: hecho (2026-10-21). Las tres fases estan hechas. Los roadmaps iniciales cargan bancos explícitos por módulo,
 con opciones, respuesta correcta, tipo y explicación. El importador JSON
 permite ampliar o sustituir el banco de cada módulo.
 
@@ -1378,15 +1377,50 @@ Tareas:
 - Incluir un campo `explicacion` o `feedback` que se muestre tras responder para argumentar por que la opcion elegida es correcta o incorrecta.
 - Tests de API y UI para la renderizacion y correccion de respuestas.
 
-#### [ ] Fase 2. Banco de preguntas y aleatorizacion
+#### [x] Fase 2. Banco de preguntas y aleatorizacion
 
-Estado: pendiente. Revisado (2026-10-21): estaba marcada como hecha por error;
-el codigo no selecciona preguntas al azar ni baraja opciones.
+Estado: hecho (2026-10-21). Cada intento recibe una seleccion aleatoria de
+hasta 5 preguntas del banco del modulo, con las opciones barajadas, y el
+servidor recuerda lo que sirvio para corregir con autoridad.
+
+- Tabla nueva `quiz_attempt_sessions` (migracion `0002_quiz_attempt_sessions`):
+  guarda una copia completa de las preguntas servidas (ids, opciones en el orden
+  servido, respuesta correcta y explicacion), de modo que editar o reimportar el
+  banco no rompe un intento abierto. Caduca a las 24 h (`QUIZ_SESSION_TTL_MS`).
+  Son filas efimeras: `scripts/migrate-sqlite-to-postgres.ts` no las copia.
+- `GET /api/quizzes/modules/{id}` con sesion devuelve el intento activo (recargar
+  no vuelve a sortear) o crea uno nuevo, y anade `attempt_id`. Sin sesion de
+  usuario devuelve la vista previa determinista de siempre (`attempt_id: null`).
+- `POST` acepta `attempt_id` (opcional) y responde `409` si el intento ya se
+  envio, caduco o no es del alumno o del modulo. El intento se cierra con un
+  `UPDATE ... WHERE submitted_at IS NULL` dentro de la misma transaccion que
+  guarda la nota, asi un doble envio solo guarda un intento. Sin `attempt_id`
+  (clientes antiguos) se corrige siempre el quiz determinista anterior, sin
+  consultar ni cerrar ningun intento (`attempt_id: null`). El `attempt_id` tambien se guarda en el JSON `answers`
+  del intento.
+- Los ids de pregunta pasan a ser `bank-<indice en el banco guardado>`
+  (antes, el indice tras barajar).
+- La UI del modulo responde el quiz del intento, envia `attempt_id`, ofrece
+  "Nuevo intento" tras la nota y muestra los intentos restantes o la espera.
+- Contrato 3.4.0 (MINOR). El `quiz` embebido en `GET /api/modules/{id}` se
+  mantiene como vista previa (quitarlo seria MAJOR).
+- Limitaciones conocidas: el numero de preguntas por intento es la constante
+  `QUIZ_QUESTIONS_PER_ATTEMPT = 5` (sin columna por modulo todavia); los seeds
+  actuales tienen una sola pregunta por modulo, asi que el efecto solo se ve con
+  bancos mas grandes (p. ej. importados con el JSON).
+
+Pendientes / mejoras (no hechas):
+
+- Purgar las `quiz_attempt_sessions` caducadas o sin enviar (la tabla crece sin limite).
+- Dos `GET` concurrentes pueden abrir dos sesiones activas (no hay guarda unica).
+- La elegibilidad se comprueba fuera de la transaccion, asi que envios concurrentes pueden superar `quiz_max_attempts` (ya ocurria antes).
+- El quiz publico expone `explanation` antes de responder (ya ocurria antes; quitarlo seria un cambio MAJOR del contrato).
+- Ajuste por modulo del numero de preguntas por intento (hoy la constante 5).
 
 Tareas:
 
-- Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
-- Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
+- [x] Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
+- [x] Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
 
 #### [x] Fase 3. Nota minima exigible y modo evaluativo
 

@@ -135,6 +135,18 @@ export interface UserQuizAttemptsTable {
   updated_at: OptionalOnInsert<Date | string>
 }
 
+export interface QuizAttemptSessionsTable {
+  /** Random UUID handed to the client as `attempt_id`. */
+  id: string
+  user_id: number
+  module_id: number
+  /** JSON snapshot of the served questions, answers included. Never sent to clients. */
+  questions: string
+  created_at: Date | string
+  expires_at: Date | string
+  submitted_at: Date | string | null
+}
+
 export interface UserModuleEvidencesTable {
   id: Generated<number>
   user_id: number
@@ -162,6 +174,7 @@ export interface Database {
   user_lesson_progress: UserLessonProgressTable
   user_roadmap_progress: UserRoadmapProgressTable
   user_quiz_attempts: UserQuizAttemptsTable
+  quiz_attempt_sessions: QuizAttemptSessionsTable
   user_module_evidences: UserModuleEvidencesTable
 }
 

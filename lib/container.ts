@@ -17,6 +17,7 @@ import { createLearnerViewRepository } from './domains/progress/repositories/lea
 import { createPortfolioRepository } from './domains/progress/repositories/portfolioRepository'
 import { createProgressRepository } from './domains/progress/repositories/progressRepository'
 import { createQuizAttemptRepository } from './domains/progress/repositories/quizRepository'
+import { createQuizSessionRepository } from './domains/progress/repositories/quizSessionRepository'
 
 /**
  * Composition root: builds every domain service from a DatabaseClient.
@@ -56,6 +57,7 @@ export function createServices(db: DatabaseClient) {
     progress,
     learnerViews: createLearnerViewRepository(db),
     quizAttempts: createQuizAttemptRepository(db),
+    quizSessions: createQuizSessionRepository(db),
     evidences: createEvidenceRepository(db),
     portfolios: createPortfolioRepository(db),
     content: {
@@ -68,6 +70,7 @@ export function createServices(db: DatabaseClient) {
       run: work => db.transaction(tx => work({
         progress: createProgressRepository(tx),
         quizAttempts: createQuizAttemptRepository(tx),
+        quizSessions: createQuizSessionRepository(tx),
         evidences: createEvidenceRepository(tx)
       }))
     }

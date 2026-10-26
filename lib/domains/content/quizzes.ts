@@ -80,6 +80,12 @@ export type AttemptEligibility = {
 
 const PASSING_PERCENTAGE = 70
 
+/** How many questions one attempt shows, drawn from the module's bank. */
+export const QUIZ_QUESTIONS_PER_ATTEMPT = 5
+
+/** Source of randomness in [0, 1). Injectable so tests are deterministic. */
+export type RandomSource = () => number
+
 const DISTRACTORS = [
   'Configurar un proceso administrativo ajeno al roadmap',
   'Publicar una campana de marketing',
@@ -189,38 +195,40 @@ type BankEntry = {
   type?: QuestionType
 }
 
-/**
- * Construye preguntas de opción múltiple a partir del banco persitido.
- * Usa un seed derivado de module_id para selección reproducible.
- */
-export function buildQuizFromBank(
-  bank: BankEntry[],
-  moduleId: number,
-  maxQuestions = 5
-): ModuleQuizQuestion[] {
-  if (!bank.length) return []
-  const seed = hashSeed(`bank-${moduleId}`)
-  const shuffled = seededShuffle(bank, seed)
-  const selected = shuffled.slice(0, maxQuestions)
+/** Shuffles `items` for the question at `position` of the selection. */
+type OptionShuffler = <T>(items: T[], position: number) => T[]
 
-  return selected.map((entry, index) => {
+/**
+ * Builds the questions for the bank entries at `selection` (indexes into the
+ * stored bank). Ids are `bank-<index in the stored bank>`, so they do not depend
+ * on the order the selection was drawn in.
+ */
+function buildBankQuestions(
+  bank: BankEntry[],
+  selection: number[],
+  shuffleOptions: OptionShuffler,
+  seedFor: (position: number) => number
+): ModuleQuizQuestion[] {
+  const selected = selection.map(bankIndex => bank[bankIndex])
+
+  return selected.map((entry, position) => {
     const correct = shortText(entry.answer)
     const explicitOptions = Array.isArray(entry.options) && entry.options.length >= 2
       ? unique(entry.options.map(shortText))
       : []
     const shuffledOptions = explicitOptions.length >= 2
-      ? seededShuffle(explicitOptions, seed + index)
+      ? shuffleOptions(explicitOptions, position)
       : []
     const correctIndex = shuffledOptions.findIndex(option => option.toLowerCase() === correct.toLowerCase())
     const candidates = selected
-      .filter((_e, i) => i !== index)
+      .filter((_e, i) => i !== position)
       .map(e => shortText(e.answer))
     const qType: QuestionType = entry.type ?? 'multiple_choice'
     const opts = correctIndex >= 0
       ? { options: shuffledOptions, correctIndex }
-      : buildOptions(correct, candidates, seed + index)
+      : buildOptions(correct, candidates, seedFor(position))
     return {
-      id: `bank-${index}`,
+      id: `bank-${selection[position]}`,
       type: qType,
       prompt: cleanText(entry.question),
       options: opts.options,
@@ -232,25 +240,98 @@ export function buildQuizFromBank(
   })
 }
 
+/**
+ * Deterministic selection and shuffle seeded by `module_id`. Used for the
+ * anonymous preview, the module-detail embed and the legacy submit path, so
+ * all of them show the same quiz on every call.
+ */
+export function buildQuizFromBank(
+  bank: BankEntry[],
+  moduleId: number,
+  maxQuestions = QUIZ_QUESTIONS_PER_ATTEMPT
+): ModuleQuizQuestion[] {
+  if (!bank.length) return []
+  const seed = hashSeed(`bank-${moduleId}`)
+  const selection = seededShuffle(bank.map((_entry, index) => index), seed).slice(0, maxQuestions)
+
+  return buildBankQuestions(
+    bank,
+    selection,
+    (items, position) => seededShuffle(items, seed + position),
+    position => seed + position
+  )
+}
+
+/** Fisher-Yates shuffle driven by an injectable random source. */
+function randomShuffle<T>(arr: T[], random: RandomSource): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+/**
+ * Per-attempt build: a random subset of up to `maxQuestions` bank entries,
+ * each with its options shuffled. Pure given `random`.
+ */
+export function buildRandomQuizFromBank(
+  bank: BankEntry[],
+  random: RandomSource,
+  maxQuestions = QUIZ_QUESTIONS_PER_ATTEMPT
+): ModuleQuizQuestion[] {
+  if (!bank.length) return []
+  const selection = randomShuffle(bank.map((_entry, index) => index), random).slice(0, maxQuestions)
+
+  return buildBankQuestions(
+    bank,
+    selection,
+    items => randomShuffle(items, random),
+    () => Math.floor(random() * 0x7fffffff)
+  )
+}
+
+function parseQuizBank(module: ModuleQuizSource): BankEntry[] | null {
+  if (!module.quiz_bank) return null
+  try {
+    const bank: BankEntry[] = JSON.parse(module.quiz_bank)
+    return Array.isArray(bank) && bank.length > 0 ? bank : null
+  } catch {
+    // banco inválido: continuar con generación dinámica
+    return null
+  }
+}
+
+function quizShell(module: ModuleQuizSource, questions: ModuleQuizQuestion[]): ModuleQuiz {
+  return {
+    scope: 'module',
+    module_id: module.id,
+    roadmap_id: module.roadmap_id,
+    title: cleanText(module.title),
+    questions
+  }
+}
+
+/** Wraps a stored snapshot of questions into the module's quiz shape. */
+export function quizFromQuestions(module: ModuleQuizSource, questions: ModuleQuizQuestion[]): ModuleQuiz {
+  return quizShell(module, questions)
+}
+
+/**
+ * Quiz for one attempt: random selection and option order when the module has
+ * a bank. Modules without a bank use the generated (deterministic) quiz.
+ */
+export function buildAttemptQuiz(module: ModuleQuizSource, random: RandomSource = Math.random): ModuleQuiz {
+  const bank = parseQuizBank(module)
+  if (bank) return quizShell(module, buildRandomQuizFromBank(bank, random))
+  return buildModuleQuiz(module)
+}
+
 export function buildModuleQuiz(module: ModuleQuizSource): ModuleQuiz {
   // Fase 2: si el módulo tiene banco de preguntas, usarlo en lugar de la generación dinámica
-  if (module.quiz_bank) {
-    try {
-      const bank: BankEntry[] = JSON.parse(module.quiz_bank)
-      if (Array.isArray(bank) && bank.length > 0) {
-        const questions = buildQuizFromBank(bank, module.id)
-        return {
-          scope: 'module',
-          module_id: module.id,
-          roadmap_id: module.roadmap_id,
-          title: cleanText(module.title),
-          questions
-        }
-      }
-    } catch {
-      // banco inválido: continuar con generación dinámica
-    }
-  }
+  const bank = parseQuizBank(module)
+  if (bank) return quizShell(module, buildQuizFromBank(bank, module.id))
 
   const title = cleanText(module.title)
   const contents = unique(asTextList(module.contents).map(shortText))
@@ -333,7 +414,7 @@ export function buildModuleQuiz(module: ModuleQuizSource): ModuleQuiz {
     module_id: module.id,
     roadmap_id: module.roadmap_id,
     title,
-    questions: questions.slice(0, 5)
+    questions: questions.slice(0, QUIZ_QUESTIONS_PER_ATTEMPT)
   }
 }
 
@@ -349,15 +430,15 @@ function percentage(score: number, maxScore: number) {
   return Math.round((score / maxScore) * 100)
 }
 
-export function gradeModuleQuiz(
-  module: ModuleQuizSource,
+/** Grades `answers` against an explicit list of questions (e.g. a stored session snapshot). */
+export function gradeQuizQuestions(
+  questions: ModuleQuizQuestion[],
   answers: Record<string, unknown>,
-  passingPercentage?: number
+  passingPercentage?: number | null
 ): QuizGrade {
-  const quiz = buildModuleQuiz(module)
-  const effectivePassing = passingPercentage ?? module.quiz_pass_percentage ?? PASSING_PERCENTAGE
+  const effectivePassing = passingPercentage ?? PASSING_PERCENTAGE
   let score = 0
-  const feedback = quiz.questions.map(question => {
+  const feedback = questions.map(question => {
     const rawAnswer = answers[question.id]
     const parsedAnswer = rawAnswer === null || rawAnswer === undefined ? null : Number(rawAnswer)
     const selectedOptionIndex = Number.isInteger(parsedAnswer) ? parsedAnswer : null
@@ -376,7 +457,7 @@ export function gradeModuleQuiz(
       explanation: question.explanation
     }
   })
-  const maxScore = quiz.questions.length
+  const maxScore = questions.length
   const scorePercentage = percentage(score, maxScore)
 
   return {
@@ -386,4 +467,16 @@ export function gradeModuleQuiz(
     passed: scorePercentage >= effectivePassing,
     feedback
   }
+}
+
+export function gradeModuleQuiz(
+  module: ModuleQuizSource,
+  answers: Record<string, unknown>,
+  passingPercentage?: number
+): QuizGrade {
+  return gradeQuizQuestions(
+    buildModuleQuiz(module).questions,
+    answers,
+    passingPercentage ?? module.quiz_pass_percentage
+  )
 }

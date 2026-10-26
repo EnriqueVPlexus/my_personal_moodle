@@ -136,7 +136,7 @@ describeIfPostgres('SQLite to Postgres migration (real postgres)', () => {
       audit_logs: 1
     })
     expect(result.unmapped).toEqual({})
-    expect(result.skipped).toEqual(['sessions', 'rate_limits'])
+    expect(result.skipped).toEqual(['sessions', 'rate_limits', 'quiz_attempt_sessions'])
     expect(result.applied).toBe(false)
 
     const untouched = await target!.get(

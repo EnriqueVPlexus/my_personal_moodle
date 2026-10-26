@@ -291,6 +291,7 @@ Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
 - `user_lesson_progress`
 - `user_roadmap_progress`
 - `user_quiz_attempts`
+- `quiz_attempt_sessions` (preguntas servidas a cada alumno; caducan a las 24 h y no se migran entre bases)
 - `roadmap_categories`
 - `topics`
 - `roadmap_topics`
@@ -338,7 +339,7 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.3.0).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.4.0).
 
 Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
 `DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
@@ -351,7 +352,12 @@ campo que ve el administrador. La 3.2.0 hace que `POST /api/users` devuelva tamb
 el importador, los roadmaps y el seed. La 3.3.0 envuelve todos los handlers de
 `pages/api` con `withApiErrors` (`lib/http/errors.ts`): un fallo inesperado responde
 el `500` JSON `{ error: 'Error interno del servidor.' }` en lugar del `500` no JSON de
-Next, y el detalle solo se registra en el servidor.
+Next, y el detalle solo se registra en el servidor. La 3.4.0 añade los intentos de quiz: con sesión,
+`GET /api/quizzes/modules/{id}` sirve hasta 5 preguntas del banco elegidas al azar, con las opciones
+barajadas, y devuelve un `attempt_id`; el servidor guarda lo servido (`quiz_attempt_sessions`) y
+`POST` corrige contra eso, una sola vez (`409` si el intento ya se envió o caducó). Sin `attempt_id`
+(clientes antiguos) se corrige siempre el quiz determinista de siempre, sin tocar intentos. El `quiz`
+embebido en `GET /api/modules/{id}` queda como vista previa.
 
 Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
 ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para

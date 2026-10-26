@@ -16,7 +16,8 @@ type MigrationResult = {
   applied: boolean
 }
 
-const SKIPPED_TABLES = ['sessions', 'rate_limits']
+// Ephemeral rows: login sessions, rate limits and quiz attempt sessions (24 h TTL) are not copied.
+const SKIPPED_TABLES = ['sessions', 'rate_limits', 'quiz_attempt_sessions']
 const IMPORT_TABLES = [
   'roadmap_categories', 'topics', 'roadmaps', 'modules', 'lessons',
   'roadmap_topics', 'users', 'user_roadmap_access', 'user_lesson_progress',

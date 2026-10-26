@@ -93,7 +93,9 @@ lib/domains/<dominio>/
   roadmap y de módulo para el alumno, flujo del intento de quiz, evidencias,
   portfolio), `moduleProgress.ts` (cálculo del progreso de un módulo) y
   `rules.ts` (estado del roadmap, porcentajes) son puros. Repositorios:
-  progreso, intentos de quiz, evidencias, portfolio y vistas del alumno.
+  progreso, intentos de quiz, sesiones de intento de quiz (`quiz_attempt_sessions`: lo que el
+  servidor sirvió a cada alumno, para corregir con autoridad), evidencias, portfolio y vistas del
+  alumno.
 - **admin**: `service.ts` con las reglas de usuarios (no puedes desactivarte a ti
   mismo, no se desactiva al último admin activo, los admin tienen siempre acceso
   total, los accesos deben apuntar a roadmaps existentes). Repositorios:
@@ -232,7 +234,7 @@ los dominios siguen sin importar `lib/persistence` ni `next`.
 | admin | Desactivar usuario / resetear contraseña | actualizar usuario + revocar sesiones |
 | content | Crear / actualizar roadmap | fila del roadmap + categoría y temas |
 | content | Importar roadmap (`persistRoadmapImport`) | roadmap + metadatos + módulos |
-| progress | Intento de quiz, evidencia de módulo, progreso de lección | registro + `touchRoadmapProgress` / progreso del roadmap |
+| progress | Intento de quiz, evidencia de módulo, progreso de lección | registro + `touchRoadmapProgress` / progreso del roadmap (el intento de quiz además cierra su sesión con un `UPDATE ... WHERE submitted_at IS NULL`, que evita el doble envío) |
 
 Se dejaron fuera a propósito: `createFirstAdmin` (un solo `INSERT`; abrir sesión
 después es independiente y un fallo solo obliga a iniciar sesión), `startSession`
@@ -266,7 +268,7 @@ sentencias que deban ir dentro: en Postgres irían a otra conexión.
 
 | Capa | Dónde | Cómo |
 | --- | --- | --- |
-| Servicios | `test/domains/*.test.ts` | Repositorios falsos en memoria. Sin Next, sin base de datos. Cubren reglas de negocio y flujos (p. ej. cálculo de progreso de módulo, agregación de metadatos del catálogo, reglas de administración de usuarios, flujo del intento de quiz: 429, 422 y rango de respuestas). |
+| Servicios | `test/domains/*.test.ts` | Repositorios falsos en memoria. Sin Next, sin base de datos. Cubren reglas de negocio y flujos (p. ej. cálculo de progreso de módulo, agregación de metadatos del catálogo, reglas de administración de usuarios, flujo del intento de quiz: 429, 409, 422, rango de respuestas y reutilización de sesiones). |
 | Repositorios | `test/*Repository*.test.ts`, `test/*.postgres.test.ts` | SQLite real en un directorio temporal; y variantes con `pg` simulado para el SQL de Postgres. |
 | Handlers | `test/api-*.test.ts` y similares | `vi.doMock` de `lib/persistence`, `lib/http/auth` y `lib/http/audit`; comprueban estados, cuerpos y orden de llamadas. |
 | Contratos | `test/contracts-openapi.test.ts`, `test/api-contracts.test.ts` | Cobertura del registro frente a `pages/api`, `openapi.json` al día y cada handler (servicios simulados; auth, origen y límite reales) contra el esquema de cada estado. Ver `API_CONTRACTS.md`. |
