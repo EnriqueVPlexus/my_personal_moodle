@@ -280,6 +280,16 @@ Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
 `.ifNotExists()` y la prueba de bootstrap desde cero en
 `backlog.md` ("Migraciones formales de PostgreSQL").
 
+La migración `0003_dedupe_seeded_catalog` limpia el daño de la carrera de siembra
+del primer arranque (v0.1.0/0.1.1): borra roadmaps duplicados exactos (mismo
+título y contenido idéntico, módulos y temas incluidos), módulos duplicados
+dentro de un roadmap (mismo `roadmap_id`, `position` y contenido) y el roadmap
+legado `IA para DevOps` (sustituido por «Roadmap IA para SRE/DevOps - Versión
+2.0»). Conserva siempre el id más bajo y no borra nada que tenga datos de
+usuario (intentos, progreso, accesos, evidencias, sesiones de quiz) o lecciones:
+esos casos se dejan y se avisan con `console.warn`. Es idempotente y su `down`
+es un no-op (el borrado no es reversible).
+
 `lib/persistence/sqliteSchema.ts` (SQLite) y `PostgresDb.migrate()`/`migrations/` (PostgreSQL) crean y migran estas tablas:
 
 - `roadmaps`
@@ -296,7 +306,9 @@ Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
 - `topics`
 - `roadmap_topics`
 
-También inserta o actualiza los roadmaps iniciales desde `lib/persistence/bootstrap/seeds/` (lógica en `lib/persistence/bootstrap/`).
+También siembra el catálogo inicial (3 roadmaps: AWS, IA para SRE/DevOps v2.0 y DevOps Junior) desde `lib/persistence/bootstrap/seeds/` (lógica en `lib/persistence/bootstrap/`), solo si la tabla `roadmaps` está vacía.
+
+El arranque (`openDb()`) memoiza una única inicialización en vuelo por proceso, y `seedRoadmaps`/`seedInitialAdmin` se ejecutan en una transacción bajo un advisory lock de PostgreSQL (`pg_advisory_xact_lock`, `lib/persistence/bootstrap/bootstrapLock.ts`), comprobando «tabla vacía» después de obtener el lock. Así varias peticiones o procesos en el primer arranque no siembran el catálogo varias veces. En SQLite, `BEGIN IMMEDIATE` ya serializa las escrituras.
 
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.

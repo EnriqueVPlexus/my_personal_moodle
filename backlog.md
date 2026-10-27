@@ -21,7 +21,7 @@ del producto poco a poco.
 - [x] Gestion admin de usuarios.
 - [x] Auditoria de acciones sensibles.
 - [x] Seed inicial de roadmaps segmentados.
-- [x] Roadmap `IA para DevOps`.
+- [x] Roadmap `Roadmap IA para SRE/DevOps - Versión 2.0` (sustituye al antiguo `IA para DevOps`, retirado en 0.1.2).
 - [x] Suite de tests con cobertura automatizada.
 - [x] Progreso por usuario para roadmaps y lecciones: modelo, APIs,
   vista `Mis roadmaps`, porcentaje y tiempo aproximado.
@@ -1524,9 +1524,9 @@ Valor: aprovecha el contenido ya preparado en el roadmap de IA y da mas profundi
 Tareas:
 
 - Crear vista dedicada `/skills-badges` con listado de insignias oficiales de Google Cloud Skills Boost vinculadas a DevOps e IA.
-- Mapear cada badge con sus modulos correspondientes dentro del roadmap `IA para DevOps`.
+- Mapear cada badge con sus modulos correspondientes dentro del roadmap `Roadmap IA para SRE/DevOps - Versión 2.0`.
 - Permitir a los usuarios marcar badges como completadas o adjuntar el enlace a su perfil publico de Credly / Google Cloud Skills Boost.
-- Incluir acceso directo desde la cabecera y desde el detalle del roadmap `IA para DevOps`.
+- Incluir acceso directo desde la cabecera y desde el detalle del roadmap `Roadmap IA para SRE/DevOps - Versión 2.0`.
 
 ## Ideas a revisar mas adelante
 
@@ -1609,6 +1609,26 @@ detectar bloqueantes de publicar en un hosting real. Resultado y arreglos:
   `import('sqlite3')` sin cachear). Se corrigio cacheando la promesa de import
   en una unica variable de modulo; verificado estable en 5 ejecuciones
   repetidas del escenario que fallaba y 3 ejecuciones completas de la suite.
+- [x] Siembra del catalogo duplicada en el primer arranque (v0.1.0/0.1.1,
+  corregido en 0.1.2): en una instalacion nueva aparecian 7 roadmaps en vez
+  de 4 (3 duplicados exactos con sus modulos) y los 11 modulos de otro roadmap
+  duplicados dentro de el. Causa: `openDb()` marcaba `initialized` solo al
+  terminar `migrate + seedRoadmaps + seedInitialAdmin`, asi que las primeras
+  peticiones concurrentes ejecutaban todas el bootstrap, y `seedRoadmaps`
+  comprobaba `COUNT(*)` y sembraba sin transaccion ni bloqueo. Arreglo:
+  `openDb()` memoiza una unica promesa de inicializacion por proceso (se
+  reinicia si falla), y `seedRoadmaps`/`seedInitialAdmin` corren en una
+  transaccion bajo `pg_advisory_xact_lock` re-comprobando la condicion tras
+  obtener el lock (seguro entre procesos); en SQLite el `BEGIN IMMEDIATE` ya
+  serializa y la migracion de esquema SQLite se serializa por proceso. Se
+  retiro el roadmap legado `IA para DevOps` (lo sustituye «Roadmap IA para
+  SRE/DevOps - Versión 2.0»), de modo que el catalogo sembrado son 3
+  roadmaps. Migracion `0003_dedupe_seeded_catalog`: elimina duplicados
+  exactos (conserva el id mas bajo) y el roadmap legado solo si no tienen
+  datos de usuario ni lecciones; si los tienen, los conserva y avisa con
+  `console.warn`; idempotente, `down` no-op. Tests: carrera concurrente en
+  SQLite (`test/db.test.ts`) y en Postgres (`seed-race`, `dedupe-seeded-catalog`
+  en `test/postgres-integration/`).
 
 Decision (fase demo): hasta decidir hosting, la app se distribuye como imagen
 Docker publicada en GHCR (`ghcr.io/enriquevplexus/cantera-hub`, workflow
