@@ -10,7 +10,26 @@ import { seedInitialAdmin } from './bootstrap/adminSeed'
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'dev.db')
-let initialized = false
+// Single in-flight bootstrap (migrate + seeds) per process. Concurrent first
+// requests all await the same promise instead of each running the bootstrap
+// (the old `initialized` flag was only set AFTER it finished, so every request
+// arriving meanwhile seeded again). Cleared on failure so a later call retries.
+// Cross-process safety is handled by the advisory lock in bootstrapLock.ts.
+let initPromise: Promise<void> | null = null
+
+function ensureInitialized(db: DatabaseClient): Promise<void> {
+  if (!initPromise) {
+    initPromise = (async () => {
+      if (db instanceof PostgresDb) await db.migrate()
+      await seedRoadmaps(db)
+      await seedInitialAdmin(db)
+    })().catch((error) => {
+      initPromise = null
+      throw error
+    })
+  }
+  return initPromise
+}
 
 // Imported lazily and cached in a single module-level promise: sqlite3 is an
 // optionalDependency (native binding, only needed for local/dev SQLite) so a
@@ -30,6 +49,8 @@ function loadSqlite3() {
   return sqlite3ModulePromise
 }
 
+const runSchemaMigration = createMutex()
+
 export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> {
   const directory = path.dirname(filename)
   if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true })
@@ -45,7 +66,9 @@ export async function openSqliteDb(filename = DB_FILE): Promise<DatabaseClient> 
   // deliberately not enabled: it would add -wal/-shm files and change the
   // on-disk behaviour of the existing local/temp-dir setup.
   await db.exec('PRAGMA busy_timeout = 5000')
-  await migrateSqliteSchema(db)
+  // Concurrent first openSqliteDb() calls would otherwise run the (check-then-
+  // ALTER) schema migration in parallel and fail with "duplicate column".
+  await runSchemaMigration(() => migrateSqliteSchema(db))
   return withSqliteTransactions(db)
 }
 
@@ -118,24 +141,10 @@ function getPostgresDb(connectionString: string): PostgresDb {
 }
 
 export async function openDb(): Promise<DatabaseClient> {
-  if (process.env.DATABASE_URL) {
-    const db = getPostgresDb(process.env.DATABASE_URL)
-    if (!initialized) {
-      await db.migrate()
-      await seedRoadmaps(db)
-      await seedInitialAdmin(db)
-      initialized = true
-    }
-    return db
-  }
+  const db = process.env.DATABASE_URL
+    ? getPostgresDb(process.env.DATABASE_URL)
+    : await openSqliteDb()
 
-  const db = await openSqliteDb()
-
-  if (!initialized) {
-    await seedRoadmaps(db)
-    await seedInitialAdmin(db)
-    initialized = true
-  }
-
+  await ensureInitialized(db)
   return db
 }

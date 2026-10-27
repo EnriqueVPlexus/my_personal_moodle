@@ -4,7 +4,7 @@
 
 CanteraHub es una aplicación web para gestionar una cantera interna de aprendizaje técnico. Permite publicar roadmaps formativos, organizar módulos, enlazar recursos oficiales, definir prácticas con evidencia entregable y gobernar el acceso mediante roles.
 
-La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**. El entorno local usa PostgreSQL persistente en Docker como base real; SQLite sigue disponible para pruebas y como origen de la migración.
+La app incluye de serie tres roadmaps: el **Roadmap AWS gratuito para cantera junior DevOps**, el **Roadmap IA para SRE/DevOps - Versión 2.0** y el **Roadmap desde 0 a DevOps Junior**. El entorno local usa PostgreSQL persistente en Docker como base real; SQLite sigue disponible para pruebas y como origen de la migración.
 
 ## Funcionalidad
 
