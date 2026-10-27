@@ -303,6 +303,14 @@ roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso tota
 
 ## Docker (distribución demo)
 
+> **¿Eres alumno? Sigue [GUIA_ALUMNO.md](GUIA_ALUMNO.md); lo que sigue es documentación técnica.**
+>
+> Los alumnos instalan con un solo comando (`scripts/install/instalar.sh` en
+> macOS/Linux, `scripts/install/instalar.ps1` en Windows). El script genera
+> `.env.docker` con secretos aleatorios la primera vez y **nunca lo regenera**
+> al volver a ejecutarlo (actualiza imagen y compose); elige el primer puerto
+> libre entre 3000 y 3010.
+
 Mientras no haya hosting, la app se distribuye como imagen Docker
 (`ghcr.io/enriquevplexus/cantera-hub`) que cada persona ejecuta en su máquina con
 `docker compose` contra un PostgreSQL **local** (un contenedor `db` con volumen
@@ -414,10 +422,17 @@ con los tags `X.Y.Z` y `latest`. Un tag con prerelease (`vX.Y.Z-rc1`, cualquier
 nombre con `-`) publica solo `X.Y.Z-rc1`, nunca `latest`. También puede lanzarse a mano
 (`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
 
-Tras la primera publicación el paquete GHCR es privado por defecto: hazlo
-público en GitHub (Packages > `cantera-hub` > Package settings > Change
-visibility > Public) para que los alumnos no necesiten `docker login ghcr.io`
-(si sigue privado, necesitan un token con `read:packages`).
+El paquete GHCR de este repositorio es **público**: la v0.1.0 se verificó con
+un `docker pull` anónimo. En un fork el paquete nace privado: hazlo público en
+GitHub (Packages > `cantera-hub` > Package settings > Change visibility >
+Public) o los alumnos necesitarán `docker login ghcr.io` con un token
+`read:packages`.
+
+Los scripts de instalación descargan `docker-compose.yml` y
+`.env.docker.example` desde la rama `main` (`raw.githubusercontent.com`), así
+que **`main` solo debe moverse en una release**: cualquier cambio fusionado ahí
+llega a los alumnos en su siguiente ejecución del instalador. Para probar con
+la copia local: `CANTERA_DIR=<dir> CANTERA_RAW_BASE=file://$PWD bash scripts/install/instalar.sh`.
 
 ### Persistencia y reset
 
