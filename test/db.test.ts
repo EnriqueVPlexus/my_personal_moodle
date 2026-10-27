@@ -65,7 +65,7 @@ describe('SQLite database bootstrap', () => {
 
     const awsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS gratuito para cantera junior DevOps'])
     const aiRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap IA para SRE/DevOps - Versión 2.0'])
-    const iaRoadmap = await db.get('SELECT title, duration FROM roadmaps WHERE title = ?', ['IA para DevOps'])
+    const roadmapTotal = await db.get('SELECT COUNT(*) AS count FROM roadmaps')
     const devopsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap desde 0 a DevOps Junior'])
     const moduleCounts = await db.all(`
       SELECT roadmaps.title, COUNT(modules.id) AS count
@@ -106,11 +106,11 @@ describe('SQLite database bootstrap', () => {
 
     expect(awsRoadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
     expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
-    expect(iaRoadmap.duration).toBe('6 meses (5-8 h/semana)')
+    expect(roadmapTotal.count).toBe(3)
+    expect(await db.get('SELECT id FROM roadmaps WHERE title = ?', ['IA para DevOps'])).toBeUndefined()
     expect(devopsRoadmap.title).toBe('Roadmap desde 0 a DevOps Junior')
     expect(modulesByRoadmap['Roadmap AWS gratuito para cantera junior DevOps']).toBe(11)
     expect(modulesByRoadmap['Roadmap IA para SRE/DevOps - Versión 2.0']).toBe(11)
-    expect(modulesByRoadmap['IA para DevOps']).toBe(11)
     expect(modulesByRoadmap['Roadmap desde 0 a DevOps Junior']).toBe(12)
     expect(admin.role).toBe('admin')
     expect(admin.is_active).toBe(1)
@@ -170,6 +170,33 @@ describe('SQLite database bootstrap', () => {
     await db.close()
   })
 
+  it('seeds the catalog exactly once when many first requests call openDb() concurrently', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-race-'))
+    process.chdir(tmp)
+    process.env.ADMIN_EMAIL = 'admin@example.com'
+    process.env.ADMIN_PASSWORD = 'ValidAdminPass123!'
+
+    const { openDb } = await import('../lib/persistence')
+    const dbs = await Promise.all(Array.from({ length: 12 }, () => openDb()))
+
+    const db = dbs[0]
+    const roadmaps = await db.get('SELECT COUNT(*) AS count FROM roadmaps')
+    const duplicateRoadmaps = await db.all('SELECT title FROM roadmaps GROUP BY title HAVING COUNT(*) > 1')
+    const duplicateModules = await db.all(
+      'SELECT roadmap_id, position FROM modules GROUP BY roadmap_id, position HAVING COUNT(*) > 1'
+    )
+    const admins = await db.get('SELECT COUNT(*) AS count FROM users WHERE email = ?', ['admin@example.com'])
+    const modules = await db.get('SELECT COUNT(*) AS count FROM modules')
+
+    expect(roadmaps.count).toBe(3)
+    expect(duplicateRoadmaps).toEqual([])
+    expect(duplicateModules).toEqual([])
+    expect(modules.count).toBe(34)
+    expect(admins.count).toBe(1)
+
+    await Promise.all(dbs.map(client => client.close()))
+  })
+
   it('updates existing seed rows idempotently and ignores weak env admin passwords', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'moodle-db-'))
     process.chdir(tmp)
@@ -194,10 +221,6 @@ describe('SQLite database bootstrap', () => {
       'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
       ['Roadmap IA para SRE/DevOps - Versión 2.0']
     )
-    const iaRoadmapCount = await secondDb.get(
-      'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
-      ['IA para DevOps']
-    )
     const devopsRoadmapCount = await secondDb.get(
       'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
       ['Roadmap desde 0 a DevOps Junior']
@@ -219,9 +242,8 @@ describe('SQLite database bootstrap', () => {
 
     expect(roadmapCount.count).toBe(1)
     expect(aiRoadmapCount.count).toBe(1)
-    expect(iaRoadmapCount.count).toBe(1)
     expect(devopsRoadmapCount.count).toBe(1)
-    expect(moduleCount.count).toBe(45)
+    expect(moduleCount.count).toBe(34)
     expect(adminCount.count).toBe(1)
     expect(roadmapProgressTable.name).toBe('user_roadmap_progress')
     expect(lessonProgressIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
@@ -246,7 +268,7 @@ describe('SQLite database bootstrap', () => {
       'idx_user_module_evidences_updated_at'
     ]))
     expect(moduleIndexes.map((index: any) => index.name)).toContain('idx_modules_roadmap_id')
-    expect(roadmapTopicCount.count).toBe(26)
+    expect(roadmapTopicCount.count).toBe(20)
     expect(duplicateTopics).toEqual([])
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ADMIN_PASSWORD ignored'))
 

@@ -19,13 +19,6 @@ const seedCases = [
     title: 'Roadmap AWS gratuito para cantera junior DevOps',
     moduleCount: 11,
     weights: ['20%', '40%', '20%', '20%']
-  },
-  {
-    file: '../lib/persistence/bootstrap/seeds/iaDevopsRoadmapSeed.json',
-    title: 'IA para DevOps',
-    moduleCount: 11,
-    duration: '6 meses (5-8 h/semana)',
-    weights: ['30%', '35%', '15%', '20%']
   }
 ]
 

@@ -1,10 +1,10 @@
 import aiRoadmapSeed from './seeds/aiRoadmapSeed.json'
 import awsRoadmapSeed from './seeds/awsRoadmapSeed.json'
-import iaDevopsRoadmapSeed from './seeds/iaDevopsRoadmapSeed.json'
 import devopsRoadmapSeed from './seeds/devopsRoadmapSeed.json'
 import { getSeedQuizForModule } from './seeds/quizBanks'
 import { DEFAULT_ROADMAP_VERSION, normalizePublishedAt, normalizeRoadmapVersion } from '../../domains/content/version'
 import { normalizeModuleLevel, parseDurationWeeks } from '../../domains/content/metadata'
+import { CATALOG_SEED_LOCK, withBootstrapLock } from './bootstrapLock'
 import { saveRoadmapMetadata } from '../../domains/content/repositories/metadataRepository'
 
 type LearningResource = {
@@ -93,7 +93,7 @@ type RoadmapSeed = {
   }>
 }
 
-const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, iaDevopsRoadmapSeed, devopsRoadmapSeed]
+const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, devopsRoadmapSeed]
 
 const seedMetadata: Record<string, { category: string; topics: string[] }> = {
   'Roadmap AWS gratuito para cantera junior DevOps': {
@@ -103,10 +103,6 @@ const seedMetadata: Record<string, { category: string; topics: string[] }> = {
   'Roadmap IA para SRE/DevOps - Versión 2.0': {
     category: 'Inteligencia artificial',
     topics: ['IA generativa', 'SRE', 'DevOps', 'MLOps', 'LLMOps', 'Cloud']
-  },
-  'IA para DevOps': {
-    category: 'Inteligencia artificial',
-    topics: ['IA generativa', 'DevOps', 'RAG', 'Agentes', 'MLOps', 'Cloud']
   },
   'Roadmap desde 0 a DevOps Junior': {
     category: 'Cloud y DevOps',
@@ -125,7 +121,6 @@ const seedModuleLevels: Record<string, string[]> = {
     'beginner', 'intermediate', 'intermediate', 'intermediate', 'capstone'
   ],
   'Roadmap IA para SRE/DevOps - Versión 2.0': iaModuleLevels,
-  'IA para DevOps': iaModuleLevels,
   'Roadmap desde 0 a DevOps Junior': [
     'beginner', 'beginner', 'beginner', 'beginner',
     'intermediate', 'intermediate', 'intermediate', 'intermediate',
@@ -138,12 +133,20 @@ export async function seedRoadmaps(db: any) {
   // roadmap exists (seeded or admin-created), never touch it again on
   // startup: otherwise every process restart/cold start would overwrite
   // fields an admin edited through the UI, reverting their changes.
-  const { count } = await db.get('SELECT COUNT(*) AS count FROM roadmaps')
-  if (Number(count) > 0) return
+  //
+  // The check and the inserts run in ONE transaction under a catalog-wide
+  // lock, and the emptiness check happens AFTER the lock is held: several
+  // processes (or concurrent first requests) starting on an empty database
+  // would otherwise all see an empty table and seed the catalog in parallel,
+  // duplicating roadmaps and modules.
+  await withBootstrapLock(db, CATALOG_SEED_LOCK, async (tx) => {
+    const { count } = await tx.get('SELECT COUNT(*) AS count FROM roadmaps')
+    if (Number(count) > 0) return
 
-  for (const seed of roadmapSeeds) {
-    await seedRoadmap(db, seed)
-  }
+    for (const seed of roadmapSeeds) {
+      await seedRoadmap(tx, seed)
+    }
+  })
 }
 
 async function seedRoadmap(db: any, seed: RoadmapSeed) {
