@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { loadEnvConfig } from '@next/env'
-import { openSqliteDb } from '../lib/persistence'
+import { openSqliteDbReadOnly } from '../lib/persistence'
+import type { DatabaseClient } from '../lib/persistence/database'
 import { PostgresDb } from '../lib/persistence/postgresDb'
 
 type Row = Record<string, any>
@@ -10,11 +11,19 @@ type MigrationResult = {
   created: Record<string, number>
   preserved: Record<string, number>
   migrated: Record<string, number>
+  unmapped: Record<string, number>
   skipped: string[]
   applied: boolean
 }
 
-const SKIPPED_TABLES = ['sessions']
+// Ephemeral rows: login sessions, rate limits and quiz attempt sessions (24 h TTL) are not copied.
+const SKIPPED_TABLES = ['sessions', 'rate_limits', 'quiz_attempt_sessions']
+const IMPORT_TABLES = [
+  'roadmap_categories', 'topics', 'roadmaps', 'modules', 'lessons',
+  'roadmap_topics', 'users', 'user_roadmap_access', 'user_lesson_progress',
+  'user_roadmap_progress', 'user_quiz_attempts', 'user_module_evidences',
+  'audit_logs'
+]
 
 function quoteIdentifier(value: string) {
   return `"${value.replace(/"/g, '""')}"`
@@ -26,6 +35,29 @@ function normalized(value: unknown) {
 
 function addCount(target: Record<string, number>, key: string) {
   target[key] = (target[key] || 0) + 1
+}
+
+function mapCreatedId(
+  sourceId: number,
+  ids: Map<number, number>,
+  result: MigrationResult,
+  table: string,
+  targetId?: number
+) {
+  addCount(result.created, table)
+  ids.set(sourceId, targetId ?? -Math.abs(sourceId))
+}
+
+async function assertImportSchema(target: PostgresDb) {
+  const schema = await target.get(
+    `SELECT ${IMPORT_TABLES.map(table => `to_regclass('${table}') AS "${table}"`).join(', ')}`
+  )
+  const missing = IMPORT_TABLES.filter(table => !schema[table])
+  if (missing.length > 0) {
+    throw new Error(
+      `El esquema PostgreSQL destino no está preparado (faltan: ${missing.join(', ')}). Ejecuta npm run migrate:up antes de simular.`
+    )
+  }
 }
 
 function parseOptions(): MigrationOptions {
@@ -43,7 +75,7 @@ async function rows(source: any, table: string) {
   return source.all(`SELECT * FROM ${quoteIdentifier(table)}`) as Promise<Row[]>
 }
 
-async function copyContent(source: any, target: PostgresDb, result: MigrationResult) {
+async function copyContent(source: any, target: DatabaseClient, result: MigrationResult) {
   const categoryIds = new Map<number, number>()
   for (const row of await rows(source, 'roadmap_categories')) {
     const existing = await target.get('SELECT id FROM roadmap_categories WHERE key = ?', [row.key])
@@ -52,8 +84,9 @@ async function copyContent(source: any, target: PostgresDb, result: MigrationRes
       addCount(result.preserved, 'roadmap_categories')
     } else if (result.applied) {
       const created = await target.run('INSERT INTO roadmap_categories (key, label) VALUES (?, ?)', [row.key, row.label])
-      categoryIds.set(Number(row.id), Number(created.lastID))
-      addCount(result.created, 'roadmap_categories')
+      mapCreatedId(Number(row.id), categoryIds, result, 'roadmap_categories', Number(created.lastID))
+    } else {
+      mapCreatedId(Number(row.id), categoryIds, result, 'roadmap_categories')
     }
   }
 
@@ -65,13 +98,16 @@ async function copyContent(source: any, target: PostgresDb, result: MigrationRes
       addCount(result.preserved, 'topics')
     } else if (result.applied) {
       const created = await target.run('INSERT INTO topics (key, label) VALUES (?, ?)', [row.key, row.label])
-      topicIds.set(Number(row.id), Number(created.lastID))
-      addCount(result.created, 'topics')
+      mapCreatedId(Number(row.id), topicIds, result, 'topics', Number(created.lastID))
+    } else {
+      mapCreatedId(Number(row.id), topicIds, result, 'topics')
     }
   }
 
   const roadmapIds = new Map<number, number>()
   for (const row of await rows(source, 'roadmaps')) {
+    const categoryId = row.category_id ? categoryIds.get(Number(row.category_id)) : null
+    if (row.category_id && !categoryId) addCount(result.unmapped, 'roadmaps.category_id')
     const existing = await target.get(
       'SELECT id FROM roadmaps WHERE lower(trim(title)) = lower(trim(?))',
       [row.title]
@@ -86,19 +122,23 @@ async function copyContent(source: any, target: PostgresDb, result: MigrationRes
           category_id, duration_weeks_min, duration_weeks_max, version, published_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [row.title, row.description, row.duration, row.objectives, row.methodology,
-          row.evaluation_weights, categoryIds.get(Number(row.category_id)) || null,
+          row.evaluation_weights, categoryId || null,
           row.duration_weeks_min, row.duration_weeks_max, row.version || 'v1.0.0',
           row.published_at || new Date().toISOString()]
       )
-      roadmapIds.set(Number(row.id), Number(created.lastID))
-      addCount(result.created, 'roadmaps')
+      mapCreatedId(Number(row.id), roadmapIds, result, 'roadmaps', Number(created.lastID))
+    } else {
+      mapCreatedId(Number(row.id), roadmapIds, result, 'roadmaps')
     }
   }
 
   const moduleIds = new Map<number, number>()
   for (const row of await rows(source, 'modules')) {
     const roadmapId = roadmapIds.get(Number(row.roadmap_id))
-    if (!roadmapId) continue
+    if (!roadmapId) {
+      addCount(result.unmapped, 'modules')
+      continue
+    }
     const existing = await target.get(
       `SELECT id FROM modules WHERE roadmap_id = ? AND (
         (position IS NOT NULL AND position = ?) OR lower(trim(title)) = lower(trim(?)))`,
@@ -121,15 +161,19 @@ async function copyContent(source: any, target: PostgresDb, result: MigrationRes
           row.deliverable_evidence, row.evaluation, row.quiz_bank,
           row.quiz_pass_percentage, row.quiz_max_attempts, row.quiz_cooldown_minutes]
       )
-      moduleIds.set(Number(row.id), Number(created.lastID))
-      addCount(result.created, 'modules')
+      mapCreatedId(Number(row.id), moduleIds, result, 'modules', Number(created.lastID))
+    } else {
+      mapCreatedId(Number(row.id), moduleIds, result, 'modules')
     }
   }
 
   const lessonIds = new Map<number, number>()
   for (const row of await rows(source, 'lessons')) {
     const moduleId = moduleIds.get(Number(row.module_id))
-    if (!moduleId) continue
+    if (!moduleId) {
+      addCount(result.unmapped, 'lessons')
+      continue
+    }
     const existing = await target.get(
       'SELECT id FROM lessons WHERE module_id = ? AND lower(trim(title)) = lower(trim(?))',
       [moduleId, row.title]
@@ -142,28 +186,32 @@ async function copyContent(source: any, target: PostgresDb, result: MigrationRes
         'INSERT INTO lessons (module_id, title, completed) VALUES (?, ?, ?)',
         [moduleId, row.title, row.completed || 0]
       )
-      lessonIds.set(Number(row.id), Number(created.lastID))
-      addCount(result.created, 'lessons')
+      mapCreatedId(Number(row.id), lessonIds, result, 'lessons', Number(created.lastID))
+    } else {
+      mapCreatedId(Number(row.id), lessonIds, result, 'lessons')
     }
   }
 
-  if (result.applied) {
-    for (const row of await rows(source, 'roadmap_topics')) {
-      const roadmapId = roadmapIds.get(Number(row.roadmap_id))
-      const topicId = topicIds.get(Number(row.topic_id))
-      if (roadmapId && topicId) {
+  for (const row of await rows(source, 'roadmap_topics')) {
+    const roadmapId = roadmapIds.get(Number(row.roadmap_id))
+    const topicId = topicIds.get(Number(row.topic_id))
+    if (roadmapId && topicId) {
+      if (result.applied) {
         await target.run(
           'INSERT INTO roadmap_topics (roadmap_id, topic_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
           [roadmapId, topicId]
         )
       }
+      addCount(result.migrated, 'roadmap_topics')
+    } else {
+      addCount(result.unmapped, 'roadmap_topics')
     }
   }
 
   return { roadmapIds, moduleIds, lessonIds }
 }
 
-async function copyUsers(source: any, target: PostgresDb, result: MigrationResult) {
+async function copyUsers(source: any, target: DatabaseClient, result: MigrationResult) {
   const userIds = new Map<number, number>()
   for (const row of await rows(source, 'users')) {
     if (typeof row.email !== 'string' || !row.email.trim() ||
@@ -183,47 +231,56 @@ async function copyUsers(source: any, target: PostgresDb, result: MigrationResul
         [email, row.name, row.role, row.password_hash, row.can_view_all_roadmaps ?? 1,
           row.is_active ?? 1, row.created_at, row.updated_at]
       )
-      userIds.set(Number(row.id), Number(created.lastID))
-      addCount(result.created, 'users')
+      mapCreatedId(Number(row.id), userIds, result, 'users', Number(created.lastID))
+    } else {
+      mapCreatedId(Number(row.id), userIds, result, 'users')
     }
   }
   return userIds
 }
 
-async function copyUserData(source: any, target: PostgresDb, result: MigrationResult, ids: any) {
+async function copyUserData(source: any, target: DatabaseClient, result: MigrationResult, ids: any) {
   const { userIds, roadmapIds, moduleIds, lessonIds } = ids
   for (const row of await rows(source, 'user_roadmap_access')) {
     const userId = userIds.get(Number(row.user_id))
     const roadmapId = roadmapIds.get(Number(row.roadmap_id))
-    if (result.applied && userId && roadmapId) {
-      await target.run(
-        'INSERT INTO user_roadmap_access (user_id, roadmap_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
-        [userId, roadmapId, row.created_at]
-      )
+    if (userId && roadmapId) {
+      if (result.applied) {
+        await target.run(
+          'INSERT INTO user_roadmap_access (user_id, roadmap_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+          [userId, roadmapId, row.created_at]
+        )
+      }
+      addCount(result.migrated, 'user_roadmap_access')
+    } else {
+      addCount(result.unmapped, 'user_roadmap_access')
     }
-    addCount(result.migrated, 'user_roadmap_access')
   }
 
   for (const row of await rows(source, 'user_lesson_progress')) {
     const userId = userIds.get(Number(row.user_id))
     const lessonId = lessonIds.get(Number(row.lesson_id))
-    if (result.applied && userId && lessonId) {
-      await target.run(
-        `INSERT INTO user_lesson_progress (
-          user_id, lesson_id, started_at, last_activity_at, completed_at,
-          time_spent_seconds, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (user_id, lesson_id) DO UPDATE SET
-          started_at = COALESCE(user_lesson_progress.started_at, EXCLUDED.started_at),
-          last_activity_at = GREATEST(user_lesson_progress.last_activity_at, EXCLUDED.last_activity_at),
-          completed_at = COALESCE(user_lesson_progress.completed_at, EXCLUDED.completed_at),
-          time_spent_seconds = GREATEST(user_lesson_progress.time_spent_seconds, EXCLUDED.time_spent_seconds),
-          updated_at = GREATEST(user_lesson_progress.updated_at, EXCLUDED.updated_at)`,
-        [userId, lessonId, row.started_at, row.last_activity_at, row.completed_at,
-          row.time_spent_seconds, row.created_at, row.updated_at]
-      )
+    if (userId && lessonId) {
+      if (result.applied) {
+        await target.run(
+          `INSERT INTO user_lesson_progress (
+            user_id, lesson_id, started_at, last_activity_at, completed_at,
+            time_spent_seconds, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (user_id, lesson_id) DO UPDATE SET
+            started_at = COALESCE(user_lesson_progress.started_at, EXCLUDED.started_at),
+            last_activity_at = GREATEST(user_lesson_progress.last_activity_at, EXCLUDED.last_activity_at),
+            completed_at = COALESCE(user_lesson_progress.completed_at, EXCLUDED.completed_at),
+            time_spent_seconds = GREATEST(user_lesson_progress.time_spent_seconds, EXCLUDED.time_spent_seconds),
+            updated_at = GREATEST(user_lesson_progress.updated_at, EXCLUDED.updated_at)`,
+          [userId, lessonId, row.started_at, row.last_activity_at, row.completed_at,
+            row.time_spent_seconds, row.created_at, row.updated_at]
+        )
+      }
+      addCount(result.migrated, 'user_lesson_progress')
+    } else {
+      addCount(result.unmapped, 'user_lesson_progress')
     }
-    addCount(result.migrated, 'user_lesson_progress')
   }
 
   for (const row of await rows(source, 'user_roadmap_progress')) {
@@ -231,8 +288,10 @@ async function copyUserData(source: any, target: PostgresDb, result: MigrationRe
     const roadmapId = roadmapIds.get(Number(row.roadmap_id))
     const moduleId = row.current_module_id ? moduleIds.get(Number(row.current_module_id)) : null
     const lessonId = row.current_lesson_id ? lessonIds.get(Number(row.current_lesson_id)) : null
-    if (result.applied && userId && roadmapId) {
-      await target.run(
+    const hasMappedProgress = userId && roadmapId &&
+      (!row.current_module_id || moduleId) && (!row.current_lesson_id || lessonId)
+    if (hasMappedProgress) {
+      if (result.applied) await target.run(
         `INSERT INTO user_roadmap_progress (
           user_id, roadmap_id, current_module_id, current_lesson_id, started_at,
           last_activity_at, completed_at, completed_lessons_count, time_spent_seconds,
@@ -249,40 +308,49 @@ async function copyUserData(source: any, target: PostgresDb, result: MigrationRe
           row.completed_at, row.completed_lessons_count, row.time_spent_seconds,
           row.created_at, row.updated_at]
       )
+      addCount(result.migrated, 'user_roadmap_progress')
+    } else {
+      addCount(result.unmapped, 'user_roadmap_progress')
     }
-    addCount(result.migrated, 'user_roadmap_progress')
   }
 
   for (const row of await rows(source, 'user_quiz_attempts')) {
     const userId = userIds.get(Number(row.user_id))
     const roadmapId = row.roadmap_id ? roadmapIds.get(Number(row.roadmap_id)) : null
     const moduleId = row.module_id ? moduleIds.get(Number(row.module_id)) : null
-    if (result.applied && userId && (!row.roadmap_id || roadmapId) && (!row.module_id || moduleId)) {
-      const existing = await target.get(
-        `SELECT id FROM user_quiz_attempts
-         WHERE user_id = ? AND module_id IS NOT DISTINCT FROM ?
-           AND submitted_at = ? AND score IS NOT DISTINCT FROM ?`,
-        [userId, moduleId, row.submitted_at, row.score]
-      )
-      if (!existing) {
-        await target.run(
-          `INSERT INTO user_quiz_attempts (
-            user_id, roadmap_id, module_id, quiz_scope, score, max_score, answers,
-            submitted_at, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [userId, roadmapId, moduleId, row.quiz_scope, row.score, row.max_score,
-            row.answers, row.submitted_at, row.created_at, row.updated_at]
+    const hasMappedQuiz = userId && (!row.roadmap_id || roadmapId) && (!row.module_id || moduleId)
+    if (hasMappedQuiz) {
+      if (result.applied) {
+        const existing = await target.get(
+          `SELECT id FROM user_quiz_attempts
+           WHERE user_id = ? AND module_id IS NOT DISTINCT FROM ?
+             AND submitted_at = ? AND score IS NOT DISTINCT FROM ?`,
+          [userId, moduleId, row.submitted_at, row.score]
         )
+        if (!existing) {
+          await target.run(
+            `INSERT INTO user_quiz_attempts (
+              user_id, roadmap_id, module_id, quiz_scope, score, max_score, answers,
+              submitted_at, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, roadmapId, moduleId, row.quiz_scope, row.score, row.max_score,
+              row.answers, row.submitted_at, row.created_at, row.updated_at]
+          )
+        }
       }
+      addCount(result.migrated, 'user_quiz_attempts')
+    } else {
+      addCount(result.unmapped, 'user_quiz_attempts')
     }
-    addCount(result.migrated, 'user_quiz_attempts')
   }
 
   for (const row of await rows(source, 'user_module_evidences')) {
     const userId = userIds.get(Number(row.user_id))
     const moduleId = moduleIds.get(Number(row.module_id))
-    if (result.applied && userId && moduleId) {
-      await target.run(
+    if (userId && moduleId) {
+      const reviewerId = row.reviewed_by_user_id ? userIds.get(Number(row.reviewed_by_user_id)) : null
+      if (row.reviewed_by_user_id && !reviewerId) addCount(result.unmapped, 'user_module_evidences.reviewer')
+      if (result.applied) await target.run(
         `INSERT INTO user_module_evidences (
           user_id, module_id, evidence_type, url, note, review_status, admin_comment,
           reviewed_at, reviewed_by_user_id, created_at, updated_at
@@ -293,17 +361,19 @@ async function copyUserData(source: any, target: PostgresDb, result: MigrationRe
           reviewed_at = EXCLUDED.reviewed_at, reviewed_by_user_id = EXCLUDED.reviewed_by_user_id,
           updated_at = EXCLUDED.updated_at`,
         [userId, moduleId, row.evidence_type, row.url, row.note, row.review_status,
-          row.admin_comment, row.reviewed_at,
-          row.reviewed_by_user_id ? userIds.get(Number(row.reviewed_by_user_id)) : null,
-          row.created_at, row.updated_at]
+          row.admin_comment, row.reviewed_at, reviewerId, row.created_at, row.updated_at]
       )
+      addCount(result.migrated, 'user_module_evidences')
+    } else {
+      addCount(result.unmapped, 'user_module_evidences')
     }
-    addCount(result.migrated, 'user_module_evidences')
   }
 }
 
-async function copyAudit(source: any, target: PostgresDb, result: MigrationResult, userIds: Map<number, number>) {
+async function copyAudit(source: any, target: DatabaseClient, result: MigrationResult, userIds: Map<number, number>) {
   for (const row of await rows(source, 'audit_logs')) {
+    const actorUserId = row.actor_user_id ? userIds.get(Number(row.actor_user_id)) : null
+    if (row.actor_user_id && !actorUserId) addCount(result.unmapped, 'audit_logs.actor_user_id')
     if (result.applied) {
       const existing = await target.get(
         `SELECT id FROM audit_logs WHERE action = ? AND entity_type = ?
@@ -316,7 +386,7 @@ async function copyAudit(source: any, target: PostgresDb, result: MigrationResul
             actor_user_id, actor_email, action, entity_type, entity_id, details,
             ip_address, user_agent, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [row.actor_user_id ? userIds.get(Number(row.actor_user_id)) : null, row.actor_email,
+          [actorUserId, row.actor_email,
             row.action, row.entity_type, row.entity_id, row.details, row.ip_address,
             row.user_agent, row.created_at]
         )
@@ -327,15 +397,30 @@ async function copyAudit(source: any, target: PostgresDb, result: MigrationResul
 }
 
 export async function migrateSqliteToPostgres(options: MigrationOptions) {
-  const source = await openSqliteDb(options.source)
+  const source = await openSqliteDbReadOnly(options.source)
   const target = new PostgresDb(options.databaseUrl)
-  const result: MigrationResult = { created: {}, preserved: {}, migrated: {}, skipped: SKIPPED_TABLES, applied: options.apply }
+  const result: MigrationResult = {
+    created: {},
+    preserved: {},
+    migrated: {},
+    unmapped: {},
+    skipped: SKIPPED_TABLES,
+    applied: options.apply
+  }
   try {
-    await target.migrate()
-    const content = await copyContent(source, target, result)
-    const userIds = await copyUsers(source, target, result)
-    await copyUserData(source, target, result, { userIds, ...content })
-    await copyAudit(source, target, result, userIds)
+    const copyData = async (database: DatabaseClient) => {
+      const content = await copyContent(source, database, result)
+      const userIds = await copyUsers(source, database, result)
+      await copyUserData(source, database, result, { userIds, ...content })
+      await copyAudit(source, database, result, userIds)
+    }
+    if (options.apply) {
+      await target.migrate()
+      await target.transaction(copyData)
+    } else {
+      await assertImportSchema(target)
+      await copyData(target)
+    }
     return result
   } finally {
     await source.close()
@@ -355,6 +440,7 @@ async function main() {
   console.log(`Creados: ${JSON.stringify(result.created)}`)
   console.log(`Conservados en remoto: ${JSON.stringify(result.preserved)}`)
   console.log(`Datos de usuario preparados: ${JSON.stringify(result.migrated)}`)
+  console.log(`Filas sin relaciones mapeadas: ${JSON.stringify(result.unmapped)}`)
   console.log(`Sesiones omitidas: ${result.skipped.join(', ')}`)
   if (!result.applied) console.log('Para aplicar: npm run migrate:postgres -- --apply')
 }

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PostgresDb } from '../../lib/persistence/postgresDb'
-import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility } from '../../lib/domains/progress/repositories/quizRepository'
+import { saveModuleQuizAttempt, getModuleQuizSummary, checkAttemptEligibility, listUserQuizAttempts } from '../../lib/domains/progress/repositories/quizRepository'
 import { buildModuleQuiz, type ModuleQuizSource } from '../../lib/domains/content/quizzes'
 
 /**
@@ -121,5 +121,18 @@ describeIfPostgres('quizRepository (real postgres)', () => {
     expect(eligibility.allowed).toBe(false)
     expect(eligibility.cooldown_ends_at).toBeTruthy()
     expect(new Date(eligibility.cooldown_ends_at as string).getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('listUserQuizAttempts returns only this user attempts, oldest first, with titles', async () => {
+    const rows = await listUserQuizAttempts(db, userId)
+    expect(rows.length).toBeGreaterThanOrEqual(3)
+    expect(rows.every(row => row.roadmap_id === roadmapId)).toBe(true)
+    expect(rows[0].roadmap_title).toBe(`${marker}-roadmap`)
+    expect(rows[0].module_title).toBe(`${marker}-module`)
+    expect(typeof rows[0].submitted_at).toBe('string')
+    expect(Number.isNaN(Date.parse(rows[0].submitted_at))).toBe(false)
+    const times = rows.map(row => Date.parse(row.submitted_at))
+    expect([...times].sort((a, b) => a - b)).toEqual(times)
+    expect(await listUserQuizAttempts(db, 2147483000)).toEqual([])
   })
 })

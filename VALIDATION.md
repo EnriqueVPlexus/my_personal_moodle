@@ -28,8 +28,8 @@ común; los handlers importan directamente el archivo que necesitan.
 | `roadmaps.ts` | Alta/edición de roadmaps e `id` de ruta. |
 | `modules.ts` | Alta/edición de módulos y filtro `roadmap_id`. |
 | `lessons.ts` | Alta/edición de lecciones y filtro `module_id`. |
-| `progress.ts` | Progreso de lecciones (`completed`, `time_spent_seconds`). |
-| `quizzes.ts` | Forma del intento de quiz (`answers`). |
+| `progress.ts` | Progreso de lecciones (`completed`, `time_spent_seconds`) y `format` (`json`/`csv`) de la exportación de quizzes. |
+| `quizzes.ts` | Forma del intento de quiz (`answers` y, opcional, `attempt_id`). |
 | `evidences.ts` | Evidencias del usuario, revisión admin y filtros del listado. |
 | `catalog.ts` | Query del catálogo de roadmaps (`q`, filtros, `sort`). |
 | `import.ts` | Sobre de la importación (`action`, `strategy`, `roadmap`) y su variante de contrato, que describe el documento completo. |
@@ -75,7 +75,7 @@ orden real depende del tipo de ruta:
   sin permisos no puede sondear los esquemas.
 - **Rutas públicas o con alcance de lectura** (`roadmaps` GET, `modules`, `lessons`,
   `roadmaps/[id]`, `roadmaps/[id]/export`, `evidences/modules/[id]`,
-  `quizzes/modules/[id]`, `progress/lessons/[id]`): método (`405`) → id/query
+  `quizzes/modules/[id]`, `progress/lessons/[id]`, `progress/quiz-attempts/export`): método (`405`) → id/query
   (`400`, no requiere sesión) → autenticación/alcance (`getRoadmapReadScope`,
   `requireUser`) → cuerpo → lógica de negocio.
 - **`POST /api/auth/login` y `POST /api/auth/setup`**: rate limit,

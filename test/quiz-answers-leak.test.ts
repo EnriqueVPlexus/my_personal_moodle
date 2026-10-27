@@ -124,6 +124,51 @@ describe.each<[string, Role]>([
   })
 })
 
+describe('quiz attempt sessions never leak the stored snapshot', () => {
+  beforeEach(() => { role = 'user' })
+
+  it('GET /api/quizzes/modules/{id} returns an attempt_id and no answers, while the snapshot stays server side', async () => {
+    const res = await call('../pages/api/quizzes/modules/[id]', { method: 'GET', query: { id: '3' } })
+
+    expectNoAnswers(res, 200)
+    expect(res.body.attempt_id).toEqual(expect.any(String))
+    const session = await db.get('SELECT questions FROM quiz_attempt_sessions WHERE id = ?', [res.body.attempt_id])
+    expect(session.questions).toContain('correct_option_index')
+  })
+
+  it('an anonymous reader gets no attempt_id and creates no session', async () => {
+    role = null
+    const res = await call('../pages/api/quizzes/modules/[id]', { method: 'GET', query: { id: '3' } })
+
+    expectNoAnswers(res, 200)
+    expect(res.body.attempt_id).toBeNull()
+    expect((await db.get('SELECT COUNT(*) AS n FROM quiz_attempt_sessions')).n).toBe(0)
+  })
+
+  it('grades against the served session once, then answers 409 without leaking answers', async () => {
+    const served = await call('../pages/api/quizzes/modules/[id]', { method: 'GET', query: { id: '3' } })
+    const snapshot = JSON.parse((await db.get('SELECT questions FROM quiz_attempt_sessions WHERE id = ?', [served.body.attempt_id])).questions)
+    const answers = Object.fromEntries(snapshot.map((q: any) => [q.id, q.correct_option_index]))
+    const body = { attempt_id: served.body.attempt_id, answers }
+
+    const graded = await call('../pages/api/quizzes/modules/[id]', { method: 'POST', query: { id: '3' }, body })
+    expect(graded.statusCode).toBe(201)
+    expect(graded.body).toMatchObject({ score: 2, max_score: 2, attempt_id: served.body.attempt_id })
+    const stored = await db.get('SELECT answers FROM user_quiz_attempts WHERE user_id = 2')
+    expect(JSON.parse(stored.answers)).toMatchObject({ attempt_id: served.body.attempt_id, answers })
+
+    const again = await call('../pages/api/quizzes/modules/[id]', { method: 'POST', query: { id: '3' }, body })
+    expectNoAnswers(again, 409)
+    expect(again.body.error).toBe('El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.')
+    expect((await db.get('SELECT COUNT(*) AS n FROM user_quiz_attempts')).n).toBe(1)
+
+    // The next GET starts a new attempt.
+    const next = await call('../pages/api/quizzes/modules/[id]', { method: 'GET', query: { id: '3' } })
+    expectNoAnswers(next, 200)
+    expect(next.body.attempt_id).not.toBe(served.body.attempt_id)
+  })
+})
+
 describe('quiz answers on admin writes', () => {
   beforeEach(() => { role = 'admin' })
 

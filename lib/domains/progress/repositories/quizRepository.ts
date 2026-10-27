@@ -10,6 +10,7 @@ import {
   type ModuleQuizSummary
 } from '../../content/quizzes'
 import type { QuizAttemptRepository } from '../ports'
+import { quizPercentage, type QuizAttemptExportRow } from '../quizExport'
 
 const PASSING_PERCENTAGE = 70
 
@@ -27,7 +28,8 @@ export async function insertModuleQuizAttempt(
   userId: number,
   module: ModuleQuizSource,
   answers: Record<string, unknown>,
-  grade: QuizGrade
+  grade: QuizGrade,
+  attemptId: string | null = null
 ) {
   const submittedAt = new Date().toISOString()
 
@@ -44,7 +46,7 @@ export async function insertModuleQuizAttempt(
         'module',
         grade.score,
         grade.max_score,
-        JSON.stringify({ answers, feedback: grade.feedback }),
+        JSON.stringify({ attempt_id: attemptId, answers, feedback: grade.feedback }),
         submittedAt,
         submittedAt,
         submittedAt
@@ -60,7 +62,7 @@ export async function insertModuleQuizAttempt(
         quiz_scope: 'module',
         score: grade.score,
         max_score: grade.max_score,
-        answers: JSON.stringify({ answers, feedback: grade.feedback }),
+        answers: JSON.stringify({ attempt_id: attemptId, answers, feedback: grade.feedback }),
         submitted_at: submittedAt,
         created_at: submittedAt,
         updated_at: submittedAt
@@ -242,10 +244,73 @@ export async function checkAttemptEligibility(
   }
 }
 
+type AttemptExportDbRow = {
+  id: number
+  roadmap_id: number | null
+  roadmap_title: string | null
+  module_id: number | null
+  module_title: string | null
+  quiz_scope: string | null
+  score: number | string | null
+  max_score: number | string | null
+  submitted_at: Date | string
+}
+
+function toExportRow(row: AttemptExportDbRow): QuizAttemptExportRow {
+  const score = Number(row.score || 0)
+  const maxScore = Number(row.max_score || 0)
+  return {
+    attempt_id: Number(row.id),
+    roadmap_id: row.roadmap_id ?? null,
+    roadmap_title: row.roadmap_title ?? null,
+    module_id: row.module_id ?? null,
+    module_title: row.module_title ?? null,
+    quiz_scope: row.quiz_scope || 'module',
+    score,
+    max_score: maxScore,
+    percentage: quizPercentage(score, maxScore),
+    submitted_at: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at)
+  }
+}
+
+/** Every attempt of ONE user (oldest first) with the roadmap/module titles. Never takes more than a user id. */
+export async function listUserQuizAttempts(db: DatabaseClient, userId: number): Promise<QuizAttemptExportRow[]> {
+  if (db.backend !== 'postgres') {
+    const rows = await db.all<AttemptExportDbRow>(
+      `SELECT a.id, a.roadmap_id, r.title AS roadmap_title, a.module_id, m.title AS module_title,
+              a.quiz_scope, a.score, a.max_score, a.submitted_at
+       FROM user_quiz_attempts a
+       LEFT JOIN roadmaps r ON r.id = a.roadmap_id
+       LEFT JOIN modules m ON m.id = a.module_id
+       WHERE a.user_id = ?
+       ORDER BY datetime(a.submitted_at) ASC, a.id ASC`,
+      [userId]
+    )
+    return rows.map(toExportRow)
+  }
+
+  const rows = await getQueryDatabase(pool(db))
+    .selectFrom('user_quiz_attempts as a')
+    .leftJoin('roadmaps as r', 'r.id', 'a.roadmap_id')
+    .leftJoin('modules as m', 'm.id', 'a.module_id')
+    .select([
+      'a.id as id', 'a.roadmap_id as roadmap_id', 'r.title as roadmap_title',
+      'a.module_id as module_id', 'm.title as module_title',
+      'a.quiz_scope as quiz_scope', 'a.score as score', 'a.max_score as max_score',
+      'a.submitted_at as submitted_at'
+    ])
+    .where('a.user_id', '=', userId)
+    .orderBy('a.submitted_at', 'asc')
+    .orderBy('a.id', 'asc')
+    .execute()
+  return (rows as unknown as AttemptExportDbRow[]).map(toExportRow)
+}
+
 export function createQuizAttemptRepository(db: DatabaseClient): QuizAttemptRepository {
   return {
-    save: (userId, module, answers, grade) => insertModuleQuizAttempt(db, userId, module, answers, grade),
+    save: (userId, module, answers, grade, attemptId) => insertModuleQuizAttempt(db, userId, module, answers, grade, attemptId),
     getSummary: (userId, moduleId) => getModuleQuizSummary(db, userId, moduleId),
-    checkEligibility: (userId, module) => checkAttemptEligibility(db, userId, module)
+    checkEligibility: (userId, module) => checkAttemptEligibility(db, userId, module),
+    listForUser: userId => listUserQuizAttempts(db, userId)
   }
 }

@@ -51,7 +51,8 @@ del producto poco a poco.
 
 La base funcional principal ya esta implementada. Los siguientes pasos se
 centran en convertir la aplicacion en una plataforma web multiusuario con
-PostgreSQL central, manteniendo SQLite para desarrollo y tests.
+PostgreSQL central, conservando compatibilidad con SQLite para desarrollo y
+tests.
 
 1. [x] Capa de acceso SQL estructurada.
 2. [x] Validacion de entradas y contratos con `zod`.
@@ -64,8 +65,10 @@ PostgreSQL central, manteniendo SQLite para desarrollo y tests.
 8. [ ] Observabilidad, backups y recuperacion (pausado hasta decidir hosting).
 9. Versionado completo de roadmaps.
 10. PWA con manifest y service worker.
+11. [x] PostgreSQL local persistente con Docker para desarrollo.
+12. [x] Validar la migracion de datos desde SQLite a PostgreSQL.
 
-Cada punto debe mantener compatibilidad con SQLite local salvo que el propio
+Cada punto debe mantener compatibilidad con SQLite salvo que el propio
 objetivo requiera PostgreSQL. La migracion `feature/migration_2_postgresql`
 ya esta integrada en `main`; los detalles pendientes de esa integracion se
 mantienen en los bloques tecnicos de abajo.
@@ -73,7 +76,7 @@ mantienen en los bloques tecnicos de abajo.
 Integracion (2026-10-17): los puntos 1 a 7 y las correcciones derivadas estan
 fusionados en `main` mediante la cadena de PRs #3 a #12 (sobre
 `chore/audit-fix-force`) y el PR #14 (`chore/audit-fix-force` -> `main`).
-Contrato API vigente: 3.3.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
+Contrato API vigente: 3.5.0 (ver `API_CONTRACTS.md`). Siguiente punto de la
 hoja de ruta: 9, versionado completo de roadmaps.
 
 ## Estrategia de ramas
@@ -81,6 +84,8 @@ hoja de ruta: 9, versionado completo de roadmaps.
 - Usar una rama tematica por cambio con impacto funcional o de infraestructura.
 - Nombrar las ramas como `feature/<tema>` o `chore/<tema>` cuando no haya
   comportamiento de usuario.
+- Integrar en `develop` (rama por defecto) y llevar `develop` a `main` solo
+  cuando lo integrado este probado (ver `WORKFLOW.md`).
 - Mantener `main` siempre integrable y fusionar solo despues de tests, lint y
   build.
 - Agrupar en una misma rama las tareas pequeñas que forman una sola unidad
@@ -1355,7 +1360,7 @@ Rama: `feature/ui-redesign` (mergeada a `chore/audit-fix-force`).
 
 ### [x] Quizzes reales por modulo
 
-Estado: hecho. Los roadmaps iniciales cargan bancos explícitos por módulo,
+Estado: hecho (2026-10-21). Las tres fases estan hechas. Los roadmaps iniciales cargan bancos explícitos por módulo,
 con opciones, respuesta correcta, tipo y explicación. El importador JSON
 permite ampliar o sustituir el banco de cada módulo.
 
@@ -1363,7 +1368,8 @@ Valor: reutiliza los datos ya presentes en los roadmaps y aporta evaluacion lige
 
 #### [x] Fase 1. Tipos de pregunta enriquecidos y feedback explicativo
 
-Estado: pendiente.
+Estado: hecho. Las preguntas tienen `type` (incluido `code_snippet`) y
+`explanation`, que el detalle del modulo muestra tras responder.
 
 Tareas:
 
@@ -1373,16 +1379,53 @@ Tareas:
 
 #### [x] Fase 2. Banco de preguntas y aleatorizacion
 
-Estado: pendiente.
+Estado: hecho (2026-10-21). Cada intento recibe una seleccion aleatoria de
+hasta 5 preguntas del banco del modulo, con las opciones barajadas, y el
+servidor recuerda lo que sirvio para corregir con autoridad.
+
+- Tabla nueva `quiz_attempt_sessions` (migracion `0002_quiz_attempt_sessions`):
+  guarda una copia completa de las preguntas servidas (ids, opciones en el orden
+  servido, respuesta correcta y explicacion), de modo que editar o reimportar el
+  banco no rompe un intento abierto. Caduca a las 24 h (`QUIZ_SESSION_TTL_MS`).
+  Son filas efimeras: `scripts/migrate-sqlite-to-postgres.ts` no las copia.
+- `GET /api/quizzes/modules/{id}` con sesion devuelve el intento activo (recargar
+  no vuelve a sortear) o crea uno nuevo, y anade `attempt_id`. Sin sesion de
+  usuario devuelve la vista previa determinista de siempre (`attempt_id: null`).
+- `POST` acepta `attempt_id` (opcional) y responde `409` si el intento ya se
+  envio, caduco o no es del alumno o del modulo. El intento se cierra con un
+  `UPDATE ... WHERE submitted_at IS NULL` dentro de la misma transaccion que
+  guarda la nota, asi un doble envio solo guarda un intento. Sin `attempt_id`
+  (clientes antiguos) se corrige siempre el quiz determinista anterior, sin
+  consultar ni cerrar ningun intento (`attempt_id: null`). El `attempt_id` tambien se guarda en el JSON `answers`
+  del intento.
+- Los ids de pregunta pasan a ser `bank-<indice en el banco guardado>`
+  (antes, el indice tras barajar).
+- La UI del modulo responde el quiz del intento, envia `attempt_id`, ofrece
+  "Nuevo intento" tras la nota y muestra los intentos restantes o la espera.
+- Contrato 3.4.0 (MINOR). El `quiz` embebido en `GET /api/modules/{id}` se
+  mantiene como vista previa (quitarlo seria MAJOR).
+- Limitaciones conocidas: el numero de preguntas por intento es la constante
+  `QUIZ_QUESTIONS_PER_ATTEMPT = 5` (sin columna por modulo todavia); los seeds
+  actuales tienen una sola pregunta por modulo, asi que el efecto solo se ve con
+  bancos mas grandes (p. ej. importados con el JSON).
+
+Pendientes / mejoras (no hechas):
+
+- Purgar las `quiz_attempt_sessions` caducadas o sin enviar (la tabla crece sin limite).
+- Dos `GET` concurrentes pueden abrir dos sesiones activas (no hay guarda unica).
+- La elegibilidad se comprueba fuera de la transaccion, asi que envios concurrentes pueden superar `quiz_max_attempts` (ya ocurria antes).
+- El quiz publico expone `explanation` antes de responder (ya ocurria antes; quitarlo seria un cambio MAJOR del contrato).
+- Ajuste por modulo del numero de preguntas por intento (hoy la constante 5).
 
 Tareas:
 
-- Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
-- Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
+- [x] Permitir definir mas preguntas en el JSON/roadmap de las que se presentan en un intento (ej. seleccionar 5 preguntas al azar de un banco de 10).
+- [x] Aleatorizar el orden de las opciones de respuesta en cada intento para evitar la memorizacion mecanica.
 
 #### [x] Fase 3. Nota minima exigible y modo evaluativo
 
-Estado: pendiente.
+Estado: hecho. Cada modulo admite `quiz_pass_percentage`, `quiz_max_attempts`
+y `quiz_cooldown_minutes`; la API rechaza intentos fuera de limite.
 
 Tareas:
 
@@ -1455,7 +1498,7 @@ Notas de implementacion:
 
 #### [ ] Ficha individual de estudiante y exportacion de metricas
 
-Estado: pendiente.
+Estado: pendiente (con un avance parcial en la fase demo: autoexportacion del alumno, ver abajo).
 
 Valor: permite a los mentores/admins hacer un seguimiento individualizado de un alumno y exportar reportes de uso para informes de formacion.
 
@@ -1463,6 +1506,14 @@ Tareas:
 
 - Crear vista de detalle por usuario en el panel admin: roadmaps activos, porcentaje global, evidencias entregadas e historial de quizzes.
 - Anadir boton de exportacion de metricas generales y por usuario en CSV/JSON.
+
+Avance (fase demo, contrato 3.5.0): como cada alumno ejecuta su propia instancia
+Docker (ver "Preparacion para despliegue"), el mentor no ve sus datos. Se anadio
+la autoexportacion del alumno: `GET /api/progress/quiz-attempts/export?format=json|csv`
+y botones en `/portfolio` ("Exportar mis resultados de quizzes") con sus
+intentos de quiz (roadmap, modulo, nota, fecha) y su email, para enviarlos al
+mentor. Este item sigue abierto: la ficha individual y las metricas para
+mentores/admins sobre una base compartida no estan hechas.
 
 ### [ ] Guia de Google Skills badges
 
@@ -1484,10 +1535,6 @@ Tareas:
 Estado: idea.
 
 Valor: permitiria uso mas cercano a formacion interna o mentoring donde un tutor asigna itinerarios especificos a cada integrante del equipo.
-
-### [ ] Feedback y revision de evidencias por el admin (Mentoria)
-
-Estado: en planificacion (ver subtarea en Evidencias y Portfolio).
 
 ### [ ] Notificaciones o recordatorios
 
@@ -1518,9 +1565,9 @@ Valor: cachear contenidos y lecciones mediante un Service Worker para poder cons
 
 ### [ ] Preparacion para despliegue
 
-Estado: en curso. La aplicacion ya puede usar PostgreSQL de Supabase y mantiene
-SQLite para desarrollo; faltan despliegue reproducible, secretos, backups y
-pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
+Estado: en curso. La aplicacion ya puede usar PostgreSQL local en Docker o
+PostgreSQL de Supabase, y conserva SQLite como alternativa; faltan despliegue
+reproducible, secretos, backups y pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
 alojamiento interno de la empresa o uno externo gratuito/bajo coste).
 
 Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
@@ -1563,12 +1610,32 @@ detectar bloqueantes de publicar en un hosting real. Resultado y arreglos:
   en una unica variable de modulo; verificado estable en 5 ejecuciones
   repetidas del escenario que fallaba y 3 ejecuciones completas de la suite.
 
+Decision (fase demo): hasta decidir hosting, la app se distribuye como imagen
+Docker publicada en GHCR (`ghcr.io/enriquevplexus/cantera-hub`, workflow
+`docker-publish.yml` al etiquetar `vX.Y.Z`) que cada persona ejecuta con
+`docker compose` contra un PostgreSQL local. Cada instancia es independiente,
+asi que el alumno exporta sus resultados de quizzes y los envia al mentor. Se
+anadieron `DATABASE_SSL` (SSL explicito para app y `scripts/migrate.ts`) y
+`COOKIE_SECURE` (login por http://localhost en produccion). Una sola imagen
+sirve para `app` y `migrate`. Endurecimiento posterior: `latest` solo en tags
+sin `-` (los prerelease `vX.Y.Z-rc1` no la mueven); en produccion la app
+rechaza `AUTH_PASSWORD_PEPPER`/`AUTH_SETUP_TOKEN` con valor `change-me*`;
+`db` y `migrate` solo reciben sus variables (compose con
+`--env-file .env.docker`); y la deteccion SSL de `localhost`/`127.0.0.1`
+acepta URLs `postgres://` ademas de `postgresql://` (sin SSL). Flujo de
+release documentado (probar en local con tag `local`, develop -> main, tag
+`vX.Y.Z` o `npm version` + `git push --follow-tags`): `package.json` es la
+fuente unica de la version, el workflow falla si el tag no coincide con ella y
+la version se muestra en el pie de la app. Pendiente de accion manual: hacer
+publico el paquete GHCR tras la primera publicacion. Guia en `README_PROJECT.md`, seccion "Docker
+(distribucion demo)". El hosting definitivo sigue pendiente.
+
 Alcance restante:
 
 - Decidir hosting definitivo y adaptar esta lista a sus particularidades
   (variables de entorno, procesos persistentes vs serverless, etc.).
 - Endurecer credenciales y configuracion de produccion.
-- Documentar deploy automatizado con GitHub.
+- Documentar deploy automatizado con GitHub (hecho para la imagen Docker: ver flujo de release en `README_PROJECT.md`).
 - Configurar health checks, backups y recuperacion.
 
 Hecho cuando:
@@ -1577,10 +1644,40 @@ Hecho cuando:
 - Existe una guia de despliegue reproducible.
 - La contraseña admin por defecto deja de ser un riesgo.
 
+### [x] Validar la migración de datos desde SQLite a PostgreSQL
+
+Estado: completado (2026-10-17). Los datos de `data/dev.db` se copiaron a
+`app_dev`, la PostgreSQL local persistente que queda como base real de
+desarrollo. La simulación fue ejecutada primero; después la importación se
+aplicó en una transacción. Recuento confirmado en ambas bases: 3 roadmaps,
+34 módulos, 3 usuarios, 1 registro de progreso de roadmap y 6 registros de
+auditoría; las demás tablas de contenido/progreso tenían 0 filas. No hubo
+relaciones sin mapear ni huérfanas. Se omitió 1 sesión activa deliberadamente
+(requerirá iniciar sesión de nuevo); `rate_limits` tenía 0 filas y se excluyó
+por ser estado transitorio. SQLite quedó intacta y se conserva como copia
+histórica, sin sincronización automática. Una segunda simulación detectó el
+contenido ya existente y no prevé altas duplicadas.
+
+Tareas:
+
+- [x] Mejorar la simulación para mostrar qué filas se crearían y validar las
+  relaciones que se importarían, incluso con un destino vacío.
+- [x] Probar la aplicación completa contra una PostgreSQL Docker desechable y
+  verificar recuentos, relaciones e idempotencia antes de tocar la base
+  persistente.
+- [x] Aplicar la migración a la base local de desarrollo tras revisar los
+  recuentos y confirmar que es el origen/destino esperado.
+
+Hecho cuando:
+
+- [x] Los datos relevantes y sus relaciones se importan sin pérdida.
+- [x] La simulación predice y la verificación posterior confirma los recuentos.
+- [x] La importación no modifica el origen SQLite y es segura frente a duplicados.
+
 ## Notas de producto
 
 - Stack objetivo: React + Next.js + TypeScript, API Node/Next.js,
-  PostgreSQL, SQLite para desarrollo/tests, PWA y Capacitor como posible
+  PostgreSQL y Docker para desarrollo, SQLite para tests/alternativa, PWA y Capacitor como posible
   cliente movil futuro.
 - La app esta evolucionando desde un catalogo de roadmaps hacia una
   herramienta de seguimiento formativo.

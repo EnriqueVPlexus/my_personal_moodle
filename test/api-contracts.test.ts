@@ -45,6 +45,7 @@ const handlers: Record<string, () => Promise<{ default: (req: any, res: any) => 
   '/api/portfolio': () => import('../pages/api/portfolio/index'),
   '/api/portfolio/export': () => import('../pages/api/portfolio/export'),
   '/api/progress/lessons/{id}': () => import('../pages/api/progress/lessons/[id]'),
+  '/api/progress/quiz-attempts/export': () => import('../pages/api/progress/quiz-attempts/export'),
   '/api/progress/roadmaps': () => import('../pages/api/progress/roadmaps'),
   '/api/quizzes/modules/{id}': () => import('../pages/api/quizzes/modules/[id]'),
   '/api/roadmaps': () => import('../pages/api/roadmaps/index'),
@@ -137,6 +138,7 @@ function arrangeServices() {
       getRoadmapDetail: vi.fn(async () => fx.roadmapDetail),
       getModuleDetail: vi.fn(async () => fx.moduleDetail),
       getModuleQuiz: vi.fn(async (userId: number | null) => ({
+        attempt_id: userId === null ? null : '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90',
         quiz: fx.publicQuiz,
         summary: userId === null ? null : fx.quizSummary,
         eligibility: userId === null ? null : fx.eligibility
@@ -144,6 +146,7 @@ function arrangeServices() {
       submitQuizAttempt: vi.fn(async () => ({
         status: 'ok',
         attempt: fx.gradedAttempt,
+        attemptId: '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90',
         summary: fx.quizSummary,
         eligibility: fx.eligibility
       })),
@@ -156,7 +159,10 @@ function arrangeServices() {
         updated: { ...fx.evidence, review_status: 'aprobado', admin_comment: 'Bien', reviewed_at: '2026-02-03T10:00:00.000Z', reviewed_by_user_id: 1 }
       })),
       getPortfolio: vi.fn(async () => fx.portfolio),
-      exportPortfolioMarkdown: vi.fn(() => '# Portfolio de Evidencias - Ana\n')
+      exportPortfolioMarkdown: vi.fn(() => '# Portfolio de Evidencias - Ana\n'),
+      exportQuizResults: vi.fn(async () => fx.quizResultsExport),
+      quizResultsToCsv: vi.fn(() => 'user_email\r\n'),
+      quizResultsFilename: vi.fn((_date: Date, format: string) => `quiz-results-2026-10-26.${format}`)
     },
     admin: {
       getDashboard: vi.fn(async () => fx.dashboard),
@@ -317,6 +323,10 @@ const calls: Array<[string, Call]> = [
   ['quiz missing', { operationId: 'getModuleQuiz', status: 404, role: 'user', arrange: () => { state.services.progress.getModuleQuiz = vi.fn(async () => null) } }],
   ['quiz needs a session when reads are protected', { operationId: 'getModuleQuiz', status: 401, role: null, session: { readRequired: true }, arrange: () => { vi.stubEnv('REQUIRE_AUTH_FOR_READS', 'true') } }],
   ['quiz attempt', { operationId: 'submitQuizAttempt', status: 201, role: 'user', req: { body: { answers: fx.quizAnswers() } } }],
+  ['quiz attempt with attempt_id', { operationId: 'submitQuizAttempt', status: 201, role: 'user', req: { body: { attempt_id: '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90', answers: fx.quizAnswers() } } }],
+  ['quiz attempt without attempt_id (legacy client)', { operationId: 'submitQuizAttempt', status: 201, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'ok', attempt: fx.gradedAttempt, attemptId: null, summary: fx.quizSummary, eligibility: fx.eligibility })) }, req: { body: { answers: fx.quizAnswers() } } }],
+  ['quiz attempt with an invalid attempt_id', { operationId: 'submitQuizAttempt', status: 400, role: 'user', req: { body: { attempt_id: 'x'.repeat(65), answers: fx.quizAnswers() } } }],
+  ['quiz attempt already submitted or expired', { operationId: 'submitQuizAttempt', status: 409, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'session_unavailable' })) }, req: { body: { attempt_id: '3f2b8c1e-9d4a-4c55-8a3e-0d7f6b2a1c90', answers: fx.quizAnswers() } } }],
   ['quiz attempt invalid body', { operationId: 'submitQuizAttempt', status: 400, role: 'user', req: { body: {} } }],
   ['quiz attempt with incomplete answers', { operationId: 'submitQuizAttempt', status: 400, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'invalid_answers' })) }, req: { body: { answers: {} } } }],
   ['quiz attempt missing module', { operationId: 'submitQuizAttempt', status: 404, role: 'user', arrange: () => { state.services.progress.submitQuizAttempt = vi.fn(async () => ({ status: 'not_found' })) }, req: { body: { answers: {} } } }],
@@ -342,6 +352,9 @@ const calls: Array<[string, Call]> = [
   ['portfolio of a missing user', { operationId: 'getPortfolio', status: 404, role: 'user', arrange: () => { state.services.progress.getPortfolio = vi.fn(async () => null) } }],
   ['portfolio export', { operationId: 'exportPortfolio', status: 200, role: 'user' }],
   ['portfolio export of a missing user', { operationId: 'exportPortfolio', status: 404, role: 'user', arrange: () => { state.services.progress.getPortfolio = vi.fn(async () => null) } }],
+  ['quiz results export as JSON', { operationId: 'exportQuizAttempts', status: 200, role: 'user' }],
+  ['quiz results export invalid format', { operationId: 'exportQuizAttempts', status: 400, role: 'user', req: { query: { format: 'xml' } } }],
+  ['quiz results export for an anonymous visitor', { operationId: 'exportQuizAttempts', status: 401, role: null }],
 
   // Administration
   ['dashboard', { operationId: 'getAdminDashboard', status: 200 }],

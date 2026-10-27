@@ -178,6 +178,28 @@ describe('portfolio page', () => {
     expect(screen.queryByText('Exportar en Markdown (.md)')).not.toBeInTheDocument()
   })
 
+  it('offers the quiz results export (JSON and CSV) even with no evidences', async () => {
+    mockAuth({ user: normalUser })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({
+      user: { id: 5, name: null, email: 'user@example.com' },
+      total_evidences: 0,
+      approved_evidences: 0,
+      roadmaps: []
+    }))
+    const PortfolioPage = (await import('../pages/portfolio')).default
+    render(<PortfolioPage />)
+
+    expect(await screen.findByText('Exportar mis resultados de quizzes')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Exportar resultados (JSON)' })).toHaveAttribute(
+      'href',
+      '/api/progress/quiz-attempts/export?format=json'
+    )
+    expect(screen.getByRole('link', { name: 'Exportar resultados (CSV)' })).toHaveAttribute(
+      'href',
+      '/api/progress/quiz-attempts/export?format=csv'
+    )
+  })
+
   it('renders roadmaps with evidences, review badges, feedback and the export link', async () => {
     mockAuth({ user: normalUser })
     vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(basePortfolio))

@@ -11,6 +11,7 @@ import {
   lessonListQuerySchema,
   lessonProgressBodySchema,
   lessonProgressQuerySchema,
+  quizAttemptsExportQuerySchema,
   loginBodySchema,
   moduleIdQuerySchema,
   moduleListQuerySchema,
@@ -68,6 +69,7 @@ import {
   moduleEvidenceSchema,
   moduleQuizResponseSchema,
   portfolioResponseSchema,
+  quizResultsExportSchema,
   quizAttemptResponseSchema,
   roadmapDetailResponseSchema,
   userRoadmapProgressSchema
@@ -407,7 +409,9 @@ export const operations: ApiOperation[] = [
     path: '/api/modules/{id}',
     tag: 'Catálogo',
     summary: 'Detalle de un módulo con lecciones, progreso y cuestionario',
-    description: 'El cuestionario es público: nunca incluye las respuestas correctas. Con sesión, registra la visita.',
+    description:
+      '`quiz` es una vista previa estable y pública (nunca incluye las respuestas correctas); para responder hay que usar `GET /api/quizzes/modules/{id}`. ' +
+      'Con sesión, registra la visita.',
     auth: 'read',
     request: { params: moduleIdQuerySchema },
     responses: {
@@ -516,6 +520,24 @@ export const operations: ApiOperation[] = [
     responses: { 200: json('Resumen de progreso por roadmap iniciado.', z.array(userRoadmapProgressSchema)) }
   }),
   operation({
+    operationId: 'exportQuizAttempts',
+    method: 'get',
+    path: '/api/progress/quiz-attempts/export',
+    tag: 'Progreso',
+    summary: 'Exportar mis resultados de quizzes',
+    description:
+      'Descarga los intentos de quiz **del usuario autenticado** (no acepta ningún id de usuario) para enviárselos al mentor. ' +
+      'Con `format=json` (por defecto) devuelve el documento descrito abajo; con `format=csv` devuelve un CSV UTF-8 con BOM, ' +
+      'una fila por intento y las columnas `user_email`, `user_name`, `attempt_id`, `roadmap_id`, `roadmap_title`, `module_id`, ' +
+      '`module_title`, `quiz_scope`, `score`, `max_score`, `percentage`, `submitted_at` (las celdas de texto que empiezan por ' +
+      '`=`, `+`, `-` o `@` llevan un `\'` delante para evitar inyección de fórmulas). No incluye las respuestas enviadas.',
+    auth: 'user',
+    request: { query: quizAttemptsExportQuerySchema },
+    responses: {
+      200: attachment('Fichero `quiz-results-<AAAA-MM-DD>.json` o `.csv`.', 'application/json', quizResultsExportSchema)
+    }
+  }),
+  operation({
     operationId: 'setLessonProgress',
     method: 'put',
     path: '/api/progress/lessons/{id}',
@@ -537,7 +559,10 @@ export const operations: ApiOperation[] = [
     path: '/api/quizzes/modules/{id}',
     tag: 'Progreso',
     summary: 'Cuestionario público de un módulo',
-    description: '`summary` y `eligibility` solo se rellenan con sesión. El cuestionario nunca incluye las respuestas correctas.',
+    description:
+      '`summary`, `eligibility` y `attempt_id` solo se rellenan con sesión; sin ella se devuelve una vista previa estable. ' +
+      'Con sesión, el servidor elige hasta 5 preguntas del banco al azar (con las opciones mezcladas) y guarda lo servido en un intento ' +
+      'válido 24 horas: recargar devuelve el mismo intento hasta enviarlo o caducar. El cuestionario nunca incluye las respuestas correctas.',
     auth: 'read',
     request: { params: quizModuleQuerySchema },
     responses: {
@@ -552,7 +577,9 @@ export const operations: ApiOperation[] = [
     tag: 'Progreso',
     summary: 'Enviar un intento de cuestionario',
     description:
-      '`answers` asocia cada `question.id` con el índice de la opción elegida. Hay que responder todas las preguntas. ' +
+      '`answers` asocia cada `question.id` con el índice de la opción elegida. Hay que responder todas las preguntas del intento. ' +
+      '`attempt_id` (opcional) es el intento devuelto por `GET`; se corrige contra lo que se sirvió y solo se puede enviar una vez. ' +
+      'Sin `attempt_id` (clientes antiguos) se corrige el cuestionario determinista de siempre, exactamente como antes de la 3.4.0, sin tocar ningún intento. ' +
       'Los parámetros se validan antes de comprobar la sesión.',
     auth: 'user',
     request: { params: quizModuleQuerySchema, body: quizAttemptBodySchema },
@@ -562,6 +589,7 @@ export const operations: ApiOperation[] = [
         'Cuerpo no válido (`issues`) o respuestas incompletas/inválidas (`Responde a todas las preguntas del cuestionario con una opción válida.`, sin `issues`).'
       ),
       404: notFound('No encontrado.'),
+      409: error('El `attempt_id` no existe, es de otro alumno o módulo, ya se envió o ha caducado (`El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.`).'),
       422: error('El módulo no tiene preguntas de cuestionario (`El módulo no tiene preguntas de cuestionario.`).'),
       429: {
         description: 'Límite de intentos alcanzado o periodo de espera activo. `eligibility` detalla cuándo se puede reintentar.',

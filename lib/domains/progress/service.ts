@@ -1,11 +1,20 @@
 import { scopeAllowsRoadmap } from '../auth/policy'
 import type { UnitOfWork } from '../shared/unitOfWork'
 import { toPublicModule } from '../content/publicModule'
-import { buildModuleQuiz, gradeModuleQuiz, toPublicModuleQuiz } from '../content/quizzes'
+import {
+  buildAttemptQuiz,
+  buildModuleQuiz,
+  gradeQuizQuestions,
+  quizFromQuestions,
+  toPublicModuleQuiz,
+  type ModuleQuizQuestion,
+  type RandomSource
+} from '../content/quizzes'
 import type { ContentReadScope } from '../content/types'
 import type { EvidenceReviewStatus, EvidenceType } from './evidences'
 import { buildModuleProgress } from './moduleProgress'
 import { exportPortfolioAsMarkdown } from './portfolio'
+import { buildQuizResultsExport, quizResultsFilename, quizResultsToCsv } from './quizExport'
 import type {
   ContentReader,
   EvidenceListFilter,
@@ -13,13 +22,16 @@ import type {
   LearnerViewRepository,
   PortfolioRepository,
   ProgressRepository,
-  QuizAttemptRepository
+  QuizAttemptRepository,
+  QuizAttemptSession,
+  QuizSessionRepository
 } from './ports'
 
 export type ProgressPorts = {
   progress: ProgressRepository
   learnerViews: LearnerViewRepository
   quizAttempts: QuizAttemptRepository
+  quizSessions: QuizSessionRepository
   evidences: EvidenceRepository
   portfolios: PortfolioRepository
   content: ContentReader
@@ -27,9 +39,17 @@ export type ProgressPorts = {
   unitOfWork: UnitOfWork<{
     progress: ProgressRepository
     quizAttempts: QuizAttemptRepository
+    quizSessions: QuizSessionRepository
     evidences: EvidenceRepository
   }>
+  /** Test seams; production uses the defaults. */
+  clock?: () => Date
+  newId?: () => string
+  random?: RandomSource
 }
+
+/** How long a served quiz can still be submitted. */
+export const QUIZ_SESSION_TTL_MS = 24 * 60 * 60 * 1000
 
 /** Loads the caller's read scope on demand (it may be unavailable). */
 export type ScopeLoader = () => Promise<ContentReadScope | null>
@@ -41,9 +61,13 @@ export type QuizAttemptOutcome =
   | { status: 'not_eligible'; eligibility: Awaited<ReturnType<QuizAttemptRepository['checkEligibility']>> }
   | { status: 'no_questions' }
   | { status: 'invalid_answers' }
+  /** The `attempt_id` is unknown, foreign, for another module, already submitted or expired. */
+  | { status: 'session_unavailable' }
   | {
       status: 'ok'
       attempt: Awaited<ReturnType<QuizAttemptRepository['save']>>
+    /** Session the attempt was graded against; null on the legacy path. */
+    attemptId: string | null
       summary: Awaited<ReturnType<QuizAttemptRepository['getSummary']>>
       eligibility: Awaited<ReturnType<QuizAttemptRepository['checkEligibility']>>
     }
@@ -51,7 +75,10 @@ export type QuizAttemptOutcome =
 export type ProgressService = ReturnType<typeof makeProgressService>
 
 export function makeProgressService(ports: ProgressPorts) {
-  const { progress, learnerViews, quizAttempts, evidences, portfolios, content, unitOfWork } = ports
+  const { progress, learnerViews, quizAttempts, quizSessions, evidences, portfolios, content, unitOfWork } = ports
+  const clock = ports.clock ?? (() => new Date())
+  const newId = ports.newId ?? (() => globalThis.crypto.randomUUID())
+  const random = ports.random ?? Math.random
 
   return {
     // --- Learner progress -------------------------------------------------
@@ -129,30 +156,80 @@ export function makeProgressService(ports: ProgressPorts) {
 
     // --- Quizzes ----------------------------------------------------------
 
-    /** `userId` is null for anonymous readers, who only see the public quiz. */
+    /**
+     * `userId` is null for anonymous readers, who only see the deterministic
+     * preview (`attempt_id: null`). A learner gets the quiz of their active
+     * session (reloading does not re-roll the questions) or a new session with a
+     * random selection. A session is created even when the learner is not
+     * eligible: the submit still answers 429 first.
+     */
     async getModuleQuiz(userId: number | null, moduleId: number) {
       const moduleRow = await content.findModuleWithQuizBank(moduleId)
       if (!moduleRow) return null
 
-      const quiz = buildModuleQuiz(moduleRow)
-      const summary = userId !== null ? await quizAttempts.getSummary(userId, moduleId) : null
-      const eligibility = userId !== null ? await quizAttempts.checkEligibility(userId, moduleRow) : null
+      if (userId === null) {
+        return { attempt_id: null, quiz: toPublicModuleQuiz(buildModuleQuiz(moduleRow)), summary: null, eligibility: null }
+      }
 
-      return { quiz: toPublicModuleQuiz(quiz), summary, eligibility }
+      const now = clock()
+      let session = await quizSessions.findActive(userId, moduleId, now.toISOString())
+      if (!session) {
+        const fresh = buildAttemptQuiz(moduleRow, random)
+        // Nothing to serve (no bank and nothing to generate): no session either.
+        if (fresh.questions.length > 0) {
+          session = await quizSessions.create({
+            id: newId(),
+            userId,
+            moduleId,
+            questions: fresh.questions,
+            createdAt: now.toISOString(),
+            expiresAt: new Date(now.getTime() + QUIZ_SESSION_TTL_MS).toISOString()
+          })
+        }
+      }
+
+      const quiz = session ? quizFromQuestions(moduleRow, session.questions) : buildModuleQuiz(moduleRow)
+      const summary = await quizAttempts.getSummary(userId, moduleId)
+      const eligibility = await quizAttempts.checkEligibility(userId, moduleRow)
+
+      return { attempt_id: session ? session.id : null, quiz: toPublicModuleQuiz(quiz), summary, eligibility }
     },
 
-    async submitQuizAttempt(userId: number, moduleId: number, answers: Record<string, unknown>): Promise<QuizAttemptOutcome> {
+    /**
+     * Grades against the session snapshot, never against the live bank.
+     * With `attemptId` the session must belong to the user and module and be
+     * open. Without it (legacy clients) the deterministic quiz is graded exactly
+     * as before 3.4.0: no session is looked up, closed or recorded.
+     */
+    async submitQuizAttempt(
+      userId: number,
+      moduleId: number,
+      answers: Record<string, unknown>,
+      attemptId?: string
+    ): Promise<QuizAttemptOutcome> {
       const moduleRow = await content.findModuleWithQuizBank(moduleId)
       if (!moduleRow) return { status: 'not_found' }
 
       const eligibility = await quizAttempts.checkEligibility(userId, moduleRow)
       if (!eligibility.allowed) return { status: 'not_eligible', eligibility }
 
-      const quiz = buildModuleQuiz(moduleRow)
-      if (quiz.questions.length === 0) return { status: 'no_questions' }
+      const now = clock()
+      let session: QuizAttemptSession | null = null
+      if (attemptId !== undefined) {
+        session = await quizSessions.findById(attemptId)
+        const usable = session !== null
+          && session.user_id === userId
+          && session.module_id === moduleId
+          && session.submitted_at === null
+          && new Date(session.expires_at) > now
+        if (!usable) return { status: 'session_unavailable' }
+      }
+
+      const questions: ModuleQuizQuestion[] = session ? session.questions : buildModuleQuiz(moduleRow).questions
+      if (questions.length === 0) return { status: 'no_questions' }
 
       const normalizedAnswers: Record<string, number> = {}
-      const hasInvalidAnswer = quiz.questions.some(question => {
+      const hasInvalidAnswer = questions.some(question => {
         const rawAnswer = answers[question.id]
         if (typeof rawAnswer !== 'number') return true
         if (!Number.isInteger(rawAnswer) || rawAnswer < 0 || rawAnswer >= question.options.length) return true
@@ -161,10 +238,13 @@ export function makeProgressService(ports: ProgressPorts) {
       })
       if (hasInvalidAnswer) return { status: 'invalid_answers' }
 
-      const grade = gradeModuleQuiz(moduleRow, normalizedAnswers)
-      // The attempt and the roadmap progress touch are saved together.
-      const attempt = await unitOfWork.run(async ({ quizAttempts: txAttempts, progress: txProgress }) => {
-        const saved = await txAttempts.save(userId, moduleRow, normalizedAnswers, grade)
+      const grade = gradeQuizQuestions(questions, normalizedAnswers, moduleRow.quiz_pass_percentage)
+      const sessionId = session ? session.id : null
+      // The session is closed, the attempt saved and the roadmap progress touched together.
+      // The conditional close makes a concurrent double submit save only one attempt.
+      const attempt = await unitOfWork.run(async ({ quizAttempts: txAttempts, quizSessions: txSessions, progress: txProgress }) => {
+        if (sessionId && !(await txSessions.markSubmitted(sessionId, now.toISOString()))) return null
+        const saved = await txAttempts.save(userId, moduleRow, normalizedAnswers, grade, sessionId)
         await txProgress.touchRoadmapProgress({
           userId,
           roadmapId: moduleRow.roadmap_id,
@@ -172,10 +252,12 @@ export function makeProgressService(ports: ProgressPorts) {
         })
         return saved
       })
+      if (!attempt) return { status: 'session_unavailable' }
+
       const summary = await quizAttempts.getSummary(userId, moduleId)
       const updatedEligibility = await quizAttempts.checkEligibility(userId, moduleRow)
 
-      return { status: 'ok', attempt, summary, eligibility: updatedEligibility }
+      return { status: 'ok', attempt, attemptId: sessionId, summary, eligibility: updatedEligibility }
     },
 
     // --- Evidences --------------------------------------------------------
@@ -248,6 +330,17 @@ export function makeProgressService(ports: ProgressPorts) {
       return portfolios.getForUser(userId)
     },
 
-    exportPortfolioMarkdown: exportPortfolioAsMarkdown
+    exportPortfolioMarkdown: exportPortfolioAsMarkdown,
+
+    // --- Student self-export ----------------------------------------------
+
+    /** The caller's own quiz attempts. Takes the authenticated user, never an id from the request. */
+    async exportQuizResults(user: { id: number; email: string; name?: string | null }) {
+      const attempts = await quizAttempts.listForUser(user.id)
+      return buildQuizResultsExport(user, attempts, clock())
+    },
+
+    quizResultsToCsv,
+    quizResultsFilename
   }
 }

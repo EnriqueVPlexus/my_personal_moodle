@@ -2,7 +2,7 @@
 
 CanteraHub es una aplicación web para gestionar una cantera interna de aprendizaje técnico. Permite publicar roadmaps formativos, organizar módulos, enlazar recursos oficiales, definir prácticas con evidencia entregable y gobernar el acceso mediante roles.
 
-La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**, además de una base SQLite local que se migra y se alimenta automáticamente al arrancar.
+La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y el **Roadmap desde 0 a DevOps Junior**. El entorno local usa PostgreSQL persistente en Docker como base real; SQLite sigue disponible para pruebas y como origen de la migración.
 
 ## Funcionalidad
 
@@ -26,7 +26,7 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 - Next.js 15 con Pages Router.
 - React 18 y TypeScript.
 - Tailwind CSS.
-- SQLite local con `sqlite` y `sqlite3`.
+- PostgreSQL local en Docker y SQLite como alternativa.
 - API Routes de Next.js.
 - Vitest, Testing Library y cobertura V8.
 - ESLint con configuración de Next.js.
@@ -41,12 +41,13 @@ La app incluye de serie el **Roadmap AWS gratuito para cantera junior DevOps** y
 ```bash
 npm install
 cp .env.example .env.local
+npm run db:dev:up
 npm run dev
 ```
 
 La aplicación se abre normalmente en `http://localhost:3000`. Si el puerto está ocupado, Next.js usará otro disponible.
 
-La base de datos local se crea en `data/dev.db`. Al abrir la app por primera vez se ejecutan migraciones, se siembran los roadmaps incluidos y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial.
+Por defecto, `.env.example` configura PostgreSQL local en Docker. `npm run db:dev:up` levanta el contenedor persistente y aplica las migraciones; al abrir la app por primera vez se siembran los roadmaps incluidos si la base está vacía y, si existen `ADMIN_EMAIL` y `ADMIN_PASSWORD`, se crea o actualiza una cuenta admin inicial. Los datos existentes de `data/dev.db` ya se copiaron a esta PostgreSQL local. Desde ahora, los cambios se guardan en PostgreSQL; SQLite no se sincroniza automáticamente. Las sesiones activas no se copian, así que hay que iniciar sesión de nuevo. Para usar SQLite de forma aislada, deja `DATABASE_URL` vacía en `.env.local`.
 
 ## Setup Inicial
 
@@ -198,6 +199,7 @@ comprueba que esta tabla incluye todas las rutas. El detalle completo está en
 | Método y ruta | Acceso | Qué hace |
 | --- | --- | --- |
 | `GET /api/progress/roadmaps` | Sesión | Progreso del alumno en sus roadmaps |
+| `GET /api/progress/quiz-attempts/export` | Sesión | Exportar mis resultados de quizzes (JSON o CSV) |
 | `PUT /api/progress/lessons/{id}` | Sesión | Marcar una lección como completada o pendiente |
 | `GET /api/quizzes/modules/{id}` | Lectura | Cuestionario público de un módulo |
 | `POST /api/quizzes/modules/{id}` | Sesión | Enviar un intento de cuestionario |
@@ -275,7 +277,7 @@ pages/             Pages Router, pantallas y API routes.
 public/brand/      Logo por defecto.
 styles/            Tailwind y estilos globales.
 test/              Tests, helpers y guías curl.
-data/dev.db        SQLite local generado en desarrollo.
+data/dev.db        SQLite legacy conservada como origen de la migración.
 ```
 
 ## Auditoría De Dependencias

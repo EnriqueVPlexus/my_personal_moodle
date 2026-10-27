@@ -20,7 +20,7 @@ import {
  */
 
 /** Bump on every contract change (semver). See API_CONTRACTS.md, "Versionado". */
-export const API_CONTRACT_VERSION = '3.3.0'
+export const API_CONTRACT_VERSION = '3.5.0'
 
 const JSON_SCHEMA_OPTIONS = {
   target: 'draft-2020-12',

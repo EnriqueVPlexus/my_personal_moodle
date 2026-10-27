@@ -20,6 +20,19 @@ npm install
 cp .env.example .env.local
 ```
 
+1. Arranca PostgreSQL local y aplica las migraciones:
+
+```bash
+npm run db:dev:up
+```
+
+La base de desarrollo usa un volumen Docker persistente independiente de la
+base efímera de tests. Para detener el contenedor sin borrar los datos:
+
+```bash
+npm run db:dev:down
+```
+
 1. Arranca el servidor:
 
 ```bash
@@ -28,16 +41,21 @@ npm run dev
 
 1. Abre `http://localhost:3000`.
 
-Sin `DATABASE_URL`, la base local se crea automáticamente en `data/dev.db`.
-Si `DATABASE_URL` está definida, la aplicación usa PostgreSQL, por ejemplo
-el proyecto de Supabase configurado en `.env.local`.
+Por defecto, `.env.example` configura PostgreSQL local en Docker. La aplicación
+elige SQLite (`data/dev.db`) si `DATABASE_URL` está vacía; si apunta a una
+instancia PostgreSQL, usa esa base. En este entorno, la base Docker persistente
+es la base real de desarrollo. Los datos de `data/dev.db` se copiaron a ella;
+SQLite se conserva como origen histórico y no se sincroniza automáticamente.
+Las sesiones y los límites de tasa no se copian. No uses las credenciales
+locales del compose en producción.
 
 El código está organizado por dominios con servicios, puertos y repositorios;
 ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 La capa SQL estructurada usa Kysely para las nuevas consultas tipadas.
 **Todos los dominios ya están migrados** por repositorios tipados
-(`lib/domains/<dominio>/repositories/`), manteniendo SQLite local y PostgreSQL remoto:
+(`lib/domains/<dominio>/repositories/`), manteniendo compatibilidad entre
+SQLite y PostgreSQL:
 roadmaps, módulos, lecciones, auditoría, usuarios, progreso
 (`lib/domains/progress/repositories/progressRepository.ts`, incluyendo el CTE con función ventana de
 `listUserRoadmapProgress` y los upsert `ON CONFLICT` de progreso de
@@ -192,12 +210,17 @@ openapi.json                Contrato OpenAPI 3.1 generado (npm run contracts:gen
 
 `lib/persistence/` crea y migra estas tablas. El backend se selecciona así:
 
-- Desarrollo y tests: SQLite local cuando `DATABASE_URL` no existe.
+- Desarrollo: PostgreSQL local persistente en Docker cuando `DATABASE_URL`
+  apunta a `localhost:55433`; SQLite local cuando `DATABASE_URL` está vacía.
+- Tests de integración: PostgreSQL efímero separado en Docker (`55432`).
 - Supabase/producción: PostgreSQL cuando `DATABASE_URL` existe.
 
 No se deben configurar ambos backends para compartir datos automáticamente:
-SQLite es una base local independiente y PostgreSQL es la fuente central del
-entorno remoto.
+SQLite, PostgreSQL local y PostgreSQL remoto son bases independientes.
+
+Para usar SQLite en desarrollo, deja `DATABASE_URL` vacía en `.env.local`.
+Para reiniciar completamente la base PostgreSQL local y borrar sus datos,
+ejecuta `docker compose -f docker-compose.dev.yml down -v` de forma explícita.
 
 Variables mínimas para PostgreSQL:
 
@@ -210,15 +233,18 @@ SUPABASE_PROJECT_REF=PROJECT_REF
 La contraseña de la base de datos y cualquier clave privada deben permanecer
 en `.env.local` o en los secretos del proveedor de despliegue.
 
-Para copiar datos de una SQLite existente a PostgreSQL, usa primero la
-simulación:
+Para copiar datos de una SQLite existente a PostgreSQL, aplica antes el
+esquema formal en el destino (`npm run migrate:up`) y usa primero la simulación.
+La simulación abre SQLite en modo solo lectura y no escribe en PostgreSQL;
+informa de registros nuevos, conservados, preparados para copiar y relaciones
+sin mapear:
 
 ```bash
 npm run migrate:postgres
 ```
 
-El comando no modifica PostgreSQL y omite las sesiones activas. Revisa los
-recuentos antes de aplicar la copia con:
+El comando omite las sesiones activas. Revisa todos los recuentos y resuelve
+cualquier relación sin mapear antes de aplicar la copia con:
 
 ```bash
 npm run migrate:postgres -- --apply
@@ -226,6 +252,15 @@ npm run migrate:postgres -- --apply
 
 No ejecutes `--apply` sobre un proyecto Supabase que ya tenga contenido sin
 comparar antes los IDs y recuentos de ambas bases.
+
+Migración local realizada el 2026-10-17 desde `data/dev.db` hacia `app_dev`:
+3 roadmaps, 34 módulos, 3 usuarios, 1 registro de progreso de roadmap y 6
+registros de auditoría. No había categorías, temas, lecciones, evidencias,
+intentos de quiz, accesos ni progreso de lección. La simulación no detectó
+relaciones sin mapear; los recuentos PostgreSQL se verificaron después y
+coinciden con el origen. Se omitió 1 sesión para forzar un nuevo inicio de
+sesión; `rate_limits` tenía 0 filas y tampoco se importa. La copia se ejecuta
+dentro de una transacción y SQLite queda sin modificar.
 
 ### Migraciones formales de PostgreSQL
 
@@ -256,6 +291,7 @@ Requiere `DATABASE_URL` (nunca cae a SQLite). En producción, ejecuta siempre
 - `user_lesson_progress`
 - `user_roadmap_progress`
 - `user_quiz_attempts`
+- `quiz_attempt_sessions` (preguntas servidas a cada alumno; caducan a las 24 h y no se migran entre bases)
 - `roadmap_categories`
 - `topics`
 - `roadmap_topics`
@@ -264,6 +300,130 @@ También inserta o actualiza los roadmaps iniciales desde `lib/persistence/boots
 
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
+
+## Docker (distribución demo)
+
+Mientras no haya hosting, la app se distribuye como imagen Docker
+(`ghcr.io/enriquevplexus/cantera-hub`) que cada persona ejecuta en su máquina con
+`docker compose` contra un PostgreSQL **local** (un contenedor `db` con volumen
+propio). Cada instancia es independiente: no comparte datos con las demás.
+Para que el mentor vea resultados, el alumno exporta sus resultados de quizzes
+desde la app (ver `GET /api/progress/quiz-attempts/export`) y envía el fichero.
+
+Ficheros: `Dockerfile`, `docker-compose.yml`, `.env.docker.example`,
+`.github/workflows/docker-publish.yml`. `docker-compose.test.yml` es otra cosa
+(base de datos efímera para los tests de integración).
+
+### Qué hay en el compose
+
+- `db`: `postgres:16-alpine`, volumen `cantera_pgdata`, con healthcheck.
+- `migrate`: one-shot que ejecuta `scripts/migrate.ts up` (migraciones Kysely,
+  idempotente). Usa la **misma imagen** que `app` con otro `command`, así el
+  usuario solo descarga un tag. La imagen incluye `migrations/`, `tsx` y las
+  dependencias de producción (más pesada que un runner mínimo, pero un solo
+  artefacto que versionar).
+- `app`: servidor Next.js (`output: 'standalone'`) como usuario no root, en el
+  puerto `APP_PORT` (3000 por defecto). Arranca solo si `migrate` termina bien.
+
+La imagen no incluye `sqlite3` (módulo nativo opcional): solo funciona con
+PostgreSQL.
+
+### Primer arranque
+
+Requisitos: Docker con `docker compose` (v2).
+
+```bash
+cp .env.docker.example .env.docker
+# Genera dos secretos aleatorios y pégalos en .env.docker como
+# AUTH_PASSWORD_PEPPER y AUTH_SETUP_TOKEN (uno distinto para cada uno):
+openssl rand -hex 32
+openssl rand -hex 32
+# Cambia también POSTGRES_PASSWORD (y la misma contraseña en DATABASE_URL).
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+`--env-file .env.docker` es necesario: compose lo usa para interpolar las
+variables de `db` y `migrate` (que solo reciben `POSTGRES_*` y
+`DATABASE_URL`/`DATABASE_SSL`, no los secretos de auth) y para
+`CANTERA_VERSION`/`APP_PORT`. Se usa `.env.docker` y no `.env` porque Next.js
+también carga `.env` en desarrollo.
+
+En producción la app **se niega a funcionar** si `AUTH_PASSWORD_PEPPER` o
+`AUTH_SETUP_TOKEN` siguen con un valor `change-me*`: el login/setup responde
+`Error interno del servidor.` y el log del contenedor
+(`docker compose --env-file .env.docker logs app`) indica qué variable cambiar.
+`POSTGRES_PASSWORD` con valor de ejemplo es tolerable porque `db` no se publica
+fuera de la red de compose, pero cámbiala igualmente.
+
+Abre `http://localhost:3000`. Variables relevantes de `.env.docker`:
+
+- `DATABASE_URL` debe apuntar al host `db` y coincidir con `POSTGRES_*`.
+- `DATABASE_SSL=false`: el Postgres del compose no soporta SSL y su host (`db`)
+  no es `localhost`, así que hay que desactivarlo explícitamente. Sin esta
+  variable se mantiene el comportamiento anterior (SSL salvo en
+  `localhost`/`127.0.0.1`, tanto con `postgres://` como con `postgresql://`),
+  que es el que necesita Supabase. Admite
+  `false|disable|0|off|no` (sin SSL) y `true|require|1|on|yes` (SSL).
+- `COOKIE_SECURE=false`: en producción la cookie de sesión lleva `Secure` y el
+  navegador no la guarda sobre `http://localhost`, lo que rompería el login.
+  Déjalo en `false` en local; quítalo si pones la app detrás de HTTPS.
+- `NEXT_PUBLIC_*` (marca) se fijan en el **build** de la imagen (`--build-arg`),
+  no en runtime.
+
+### Crear el primer admin
+
+La app corre con `NODE_ENV=production`, así que `/setup` exige `AUTH_SETUP_TOKEN`:
+abre `http://localhost:3000/setup`, introduce email, contraseña (12+ caracteres)
+y el token definido en `.env.docker`. Alternativa sin pantalla: define
+`ADMIN_EMAIL` y `ADMIN_PASSWORD` y reinicia `app`; el admin se crea (o se
+promociona) al arrancar.
+
+### Actualizar a una versión nueva
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+`migrate` se vuelve a ejecutar y aplica solo las migraciones pendientes. Para
+fijar versión: `CANTERA_VERSION=1.2.3` en `.env.docker` (por defecto `latest`).
+
+### Publicar una versión nueva
+
+La versión vive en `package.json` (fuente única) y se muestra discretamente en el
+pie de la app (`vX.Y.Z`). El workflow **falla** si el tag `vX.Y.Z` no coincide
+exactamente con `version` de `package.json` (también para prerelease:
+`v1.0.0-rc.1` exige `"version": "1.0.0-rc.1"`); no se comprueba en lanzamientos
+manuales.
+
+1. Probar en local desde `develop`: construir la imagen con tag `local`
+   (`docker build -t cantera-hub:local .`), poner `CANTERA_VERSION=local` en
+   `.env.docker` y levantar con `docker compose --env-file .env.docker up -d`.
+2. Fusionar `develop` en `main` (con `main` actualizado y probado).
+3. Primera release (la versión actual de `package.json` ya es `0.1.0`):
+   `git tag v0.1.0 && git push origin v0.1.0`.
+4. Releases siguientes: en `main`, `npm version patch|minor|major` (sube
+   `package.json`, hace commit y crea el tag `vX.Y.Z`) y
+   `git push --follow-tags`. Alternativa: `npm version ... --no-git-tag-version`
+   en `develop` (solo sube la versión), fusionar a `main` y crear el tag allí con
+   `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+El workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hub`
+con los tags `X.Y.Z` y `latest`. Un tag con prerelease (`vX.Y.Z-rc1`, cualquier
+nombre con `-`) publica solo `X.Y.Z-rc1`, nunca `latest`. También puede lanzarse a mano
+(`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
+
+Tras la primera publicación el paquete GHCR es privado por defecto: hazlo
+público en GitHub (Packages > `cantera-hub` > Package settings > Change
+visibility > Public) para que los alumnos no necesiten `docker login ghcr.io`
+(si sigue privado, necesitan un token con `read:packages`).
+
+### Persistencia y reset
+
+Los datos viven en el volumen `cantera-hub_cantera_pgdata`: sobreviven a
+`docker compose --env-file .env.docker down` y a las actualizaciones. Para
+borrarlo todo y empezar de cero: `docker compose --env-file .env.docker down -v`.
 
 ## Calidad Y Tests
 
@@ -303,7 +463,7 @@ dominio) y los errores siguen un contrato único: `400` con
 
 Arquitectura, orden de validación, cómo añadir un esquema y decisiones en
 `VALIDATION.md`. Los esquemas de respuesta y el contrato de la API están en
-`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.3.0).
+`lib/contracts` (`API_CONTRACTS.md`, versión actual 3.5.0).
 
 Desde la 3.0.0 todos los errores de la API están en español, el `405` es JSON,
 `DELETE /api/roadmaps/{id}` es idempotente (`204`/`200`) y `PATCH /api/users/{id}`
@@ -316,7 +476,22 @@ campo que ve el administrador. La 3.2.0 hace que `POST /api/users` devuelva tamb
 el importador, los roadmaps y el seed. La 3.3.0 envuelve todos los handlers de
 `pages/api` con `withApiErrors` (`lib/http/errors.ts`): un fallo inesperado responde
 el `500` JSON `{ error: 'Error interno del servidor.' }` en lugar del `500` no JSON de
-Next, y el detalle solo se registra en el servidor.
+Next, y el detalle solo se registra en el servidor. La 3.4.0 añade los intentos de quiz: con sesión,
+`GET /api/quizzes/modules/{id}` sirve hasta 5 preguntas del banco elegidas al azar, con las opciones
+barajadas, y devuelve un `attempt_id`; el servidor guarda lo servido (`quiz_attempt_sessions`) y
+`POST` corrige contra eso, una sola vez (`409` si el intento ya se envió o caducó). Sin `attempt_id`
+(clientes antiguos) se corrige siempre el quiz determinista de siempre, sin tocar intentos. El `quiz`
+embebido en `GET /api/modules/{id}` queda como vista previa.
+
+La 3.5.0 añade `GET /api/progress/quiz-attempts/export?format=json|csv` (sesión, `json` por defecto):
+el alumno descarga **sus propios** intentos de quiz (id de intento, roadmap, módulo, `quiz_scope`, nota,
+`max_score`, porcentaje y fecha, más su email y nombre para que el mentor identifique el fichero; sin las
+respuestas enviadas). No acepta ningún id de usuario. El CSV va en UTF-8 con BOM, escapa comillas, comas y
+saltos de línea y antepone `'` a las celdas de texto que empiezan por `=`, `+`, `-` o `@`. Hexagonal:
+`QuizAttemptRepository.listForUser` (SQLite y Postgres en `quizRepository.ts`), `exportQuizResults` en el
+servicio de progreso y serialización pura en `lib/domains/progress/quizExport.ts`. En la UI está en
+`/portfolio` ("Exportar mis resultados de quizzes"). Pensado para la distribución demo con Docker, donde
+cada alumno tiene su propia base de datos (ver "Docker (distribución demo)").
 
 Desde la 2.0.0, `quiz_bank` (respuestas de los cuestionarios) no se expone en
 ninguna respuesta de la API, `GET /api/roadmaps/{id}/export` es solo para

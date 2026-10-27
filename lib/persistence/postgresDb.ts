@@ -1,5 +1,6 @@
 import { Pool, PoolClient, QueryResult } from 'pg'
 import type { DatabaseClient, DatabaseRunResult } from './database'
+import { resolvePgSsl } from './pgSsl'
 import { NestedTransactionError, TransactionClosedError, runInTransaction } from './transaction'
 
 const ID_TABLES = new Set([
@@ -159,6 +160,16 @@ CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_user_id ON user_quiz_attempts(
 CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_roadmap_id ON user_quiz_attempts(roadmap_id);
 CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_module_id ON user_quiz_attempts(module_id);
 CREATE INDEX IF NOT EXISTS idx_user_quiz_attempts_submitted_at ON user_quiz_attempts(submitted_at);
+CREATE TABLE IF NOT EXISTS quiz_attempt_sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_id INTEGER NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  questions TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  submitted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempt_sessions_user_module ON quiz_attempt_sessions(user_id, module_id);
 CREATE TABLE IF NOT EXISTS user_module_evidences (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -320,12 +331,8 @@ export class PostgresDb implements DatabaseClient {
   private readonly pool: Pool
 
   constructor(connectionString: string) {
-    // Supabase requires SSL; a local Postgres (e.g. the isolated Docker test
-    // database from docker-compose.test.yml, see
-    // test/postgres-integration/README.md) does not support it at all, so
-    // detect a local host and skip SSL only in that case.
-    const isLocalHost = /^postgresql:\/\/[^/]*@?(localhost|127\.0\.0\.1)[:/]/.test(connectionString)
-
+    // SSL decision (Supabase needs it; local/Docker Postgres may not): see
+    // resolvePgSsl() and the DATABASE_SSL env override.
     this.pool = new Pool({
       connectionString,
       max: 5,
@@ -334,7 +341,7 @@ export class PostgresDb implements DatabaseClient {
       // pg default of hanging forever) when the pool is saturated.
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
-      ssl: isLocalHost ? false : { rejectUnauthorized: false }
+      ssl: resolvePgSsl(connectionString)
     })
     // node-postgres requires listening for 'error' on the pool: an idle
     // client can emit it (e.g. the server terminating the connection), and

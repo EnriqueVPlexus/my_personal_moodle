@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { Pool } from 'pg'
+import { resolvePgSsl } from '../lib/persistence/pgSsl'
 import { Kysely, PostgresDialect } from 'kysely'
 import { FileMigrationProvider, Migrator } from 'kysely/migration'
 
@@ -32,15 +33,12 @@ function createMigrator(): { db: Kysely<any>; migrator: Migrator } {
     process.exit(1)
   }
 
-  // Supabase requires SSL; a local Postgres (e.g. docker-compose.test.yml,
-  // used for the isolated test database) does not support it at all, so
-  // detect a local host and skip SSL only in that case.
-  const isLocalHost = /^postgresql:\/\/[^/]*@?(localhost|127\.0\.0\.1)[:/]/.test(connectionString)
-
+  // SSL decision (Supabase needs it; local/Docker Postgres may not): see
+  // resolvePgSsl() and the DATABASE_SSL env override.
   const pool = new Pool({
     connectionString,
     max: 5,
-    ssl: isLocalHost ? false : { rejectUnauthorized: false }
+    ssl: resolvePgSsl(connectionString)
   })
 
   const db = new Kysely<any>({

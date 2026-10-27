@@ -12,6 +12,9 @@ export default function Layout({ children }: Props) {
       <div className="flex-1">
         {children}
       </div>
+      <footer className="px-4 py-3 text-center text-xs text-slate-400">
+        v{process.env.NEXT_PUBLIC_APP_VERSION}
+      </footer>
     </div>
   )
 }

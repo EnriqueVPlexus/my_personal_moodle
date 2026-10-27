@@ -123,8 +123,12 @@ export const quizFeedbackItemSchema = z.object({
   explanation: z.string()
 })
 
-/** `GET /api/quizzes/modules/{id}`; `summary` and `eligibility` are `null` for anonymous readers. */
+/**
+ * `GET /api/quizzes/modules/{id}`; `summary`, `eligibility` and `attempt_id` are `null` for anonymous readers.
+ * A learner gets a quiz bound to an attempt session (random selection and option order).
+ */
 export const moduleQuizResponseSchema = z.object({
+  attempt_id: z.string().nullable().meta({ description: 'Intento al que pertenece el cuestionario; envíalo en `POST`. `null` para lectores anónimos (vista previa) o si el módulo no tiene preguntas.' }),
   quiz: moduleQuizSchema,
   summary: quizSummarySchema.nullable(),
   eligibility: attemptEligibilitySchema.nullable()
@@ -138,6 +142,7 @@ export const quizAttemptResponseSchema = z.object({
   passed: z.boolean(),
   feedback: z.array(quizFeedbackItemSchema),
   submitted_at: z.string(),
+  attempt_id: z.string().nullable().meta({ description: 'Intento corregido; `null` si se corrigió sin `attempt_id` (clientes antiguos).' }),
   summary: quizSummarySchema,
   eligibility: attemptEligibilitySchema
 })
@@ -165,7 +170,7 @@ export const moduleProgressSchema = z.object({
 export const moduleDetailResponseSchema = moduleRecordSchema.extend({
   lessons: z.array(moduleLessonSchema),
   progress: moduleProgressSchema.nullable(),
-  quiz: moduleQuizSchema,
+  quiz: moduleQuizSchema.meta({ description: 'Vista previa determinista del cuestionario. Para responder usa `GET /api/quizzes/modules/{id}`, que devuelve el intento con su `attempt_id`.' }),
   quiz_summary: quizSummarySchema.nullable()
 })
 
@@ -248,6 +253,28 @@ export const portfolioResponseSchema = z.object({
   }))
 })
 
+// --- Student quiz results export ---------------------------------------------
+
+export const quizAttemptExportRowSchema = z.object({
+  attempt_id: z.number().int(),
+  roadmap_id: z.number().int().nullable(),
+  roadmap_title: z.string().nullable(),
+  module_id: z.number().int().nullable(),
+  module_title: z.string().nullable(),
+  quiz_scope: z.string(),
+  score: z.number(),
+  max_score: z.number(),
+  percentage: z.number().meta({ description: 'Porcentaje entero redondeado; 0 si `max_score` no es positivo.' }),
+  submitted_at: z.string().meta({ description: 'Fecha ISO 8601.' })
+})
+
+export const quizResultsExportSchema = z.object({
+  exported_at: z.string().meta({ description: 'Fecha ISO 8601 de la exportación.' }),
+  user: z.object({ email: z.string(), name: z.string().nullable() }),
+  total_attempts: z.number().int(),
+  attempts: z.array(quizAttemptExportRowSchema).meta({ description: 'Del más antiguo al más reciente. Sin las respuestas enviadas.' })
+})
+
 export type UserRoadmapProgress = z.infer<typeof userRoadmapProgressSchema>
 export type RoadmapDetailProgress = z.infer<typeof roadmapDetailProgressSchema>
 export type RoadmapDetailModule = z.infer<typeof roadmapDetailModuleSchema>
@@ -265,4 +292,5 @@ export type LessonProgressResponse = z.infer<typeof lessonProgressResponseSchema
 export type ModuleEvidence = z.infer<typeof moduleEvidenceSchema>
 export type ModuleEvidenceResponse = z.infer<typeof moduleEvidenceResponseSchema>
 export type EvidenceListItem = z.infer<typeof evidenceListItemSchema>
+export type QuizResultsExport = z.infer<typeof quizResultsExportSchema>
 export type PortfolioResponse = z.infer<typeof portfolioResponseSchema>

@@ -277,6 +277,24 @@ describe('auth helper', () => {
     else process.env.NODE_ENV = previousNodeEnv
   })
 
+  it('omits the Secure flag in production when COOKIE_SECURE=false', async () => {
+    const previousNodeEnv = process.env.NODE_ENV
+    const previousSecure = process.env.COOKIE_SECURE
+    process.env.NODE_ENV = 'production'
+    process.env.COOKIE_SECURE = 'false'
+    try {
+      const { createSession } = await import('../lib/http/auth')
+      const res = createResponse()
+      await createSession(res, 1, { run: vi.fn(), get: vi.fn() })
+      expect(String(res.headers['Set-Cookie'])).not.toContain('Secure')
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = previousNodeEnv
+      if (previousSecure === undefined) delete process.env.COOKIE_SECURE
+      else process.env.COOKIE_SECURE = previousSecure
+    }
+  })
+
   it('rejects unknown session users and non-admin roles', async () => {
     const { getUserFromRequest, requireAdmin } = await import('../lib/http/auth')
     const inactiveDb = {

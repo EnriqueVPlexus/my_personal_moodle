@@ -254,8 +254,25 @@ describe('Next pages', () => {
       ]
     }
 
+    const sessionQuiz = (attemptId: string, options: string[]) => ({
+      attempt_id: attemptId,
+      quiz: {
+        scope: 'module',
+        module_id: 4,
+        title: 'EC2',
+        questions: [{ id: 'bank-3', type: 'multiple_choice', prompt: 'Que tema aparece en EC2?', options, explanation: 'Sale del contenido.' }]
+      },
+      summary: null,
+      eligibility: { allowed: true, remaining_attempts: 2, cooldown_ends_at: null, pass_percentage: 70 }
+    })
+    let quizFetches = 0
+
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/progress/lessons/9' && init?.method === 'PUT') return jsonResponse({ ok: true })
+      if (url === '/api/quizzes/modules/4' && !init?.method) {
+        quizFetches += 1
+        return jsonResponse(quizFetches === 1 ? sessionQuiz('attempt-1', ['S3', 'AMI']) : sessionQuiz('attempt-2', ['AMI', 'S3']))
+      }
       if (url === '/api/quizzes/modules/4' && init?.method === 'POST') {
         return jsonResponse({
           score: 1,
@@ -290,13 +307,26 @@ describe('Next pages', () => {
     expect(screen.getByText('Progreso del módulo')).toBeInTheDocument()
     expect(screen.getByText('1/2 lecciones')).toBeInTheDocument()
     expect(screen.getByText('15 min acumulado en este módulo.')).toBeInTheDocument()
-    expect(screen.getByText('Quiz del módulo')).toBeInTheDocument()
+    expect(await screen.findByText('Quiz del módulo')).toBeInTheDocument()
+    // The learner answers the quiz of the attempt session, not the module-detail preview.
+    expect(await screen.findByText('Te quedan 2 intentos.')).toBeInTheDocument()
+    expect(screen.getAllByRole('radio').map(radio => (radio as HTMLInputElement).labels?.[0]?.textContent)).toEqual(['S3', 'AMI'])
     fireEvent.click(screen.getByLabelText('AMI'))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar quiz' }))
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/quizzes/modules/4', expect.objectContaining({ method: 'POST' }))
     })
+    const submit = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST' && String(init?.body).includes('attempt_id'))
+    expect(JSON.parse(String(submit?.[1]?.body))).toEqual({ attempt_id: 'attempt-1', answers: { 'bank-3': 1 } })
     expect(await screen.findByText('1/1 respuestas correctas')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enviar quiz' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo intento' }))
+    await waitFor(() => {
+      expect(screen.getAllByRole('radio').map(radio => (radio as HTMLInputElement).labels?.[0]?.textContent)).toEqual(['AMI', 'S3'])
+    })
+    expect(screen.queryByText('1/1 respuestas correctas')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Responde todas las preguntas' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Marcar completada' }))
     await waitFor(() => {
@@ -343,6 +373,87 @@ describe('Next pages', () => {
     await waitFor(() => {
       expect(nextRouterMock.push).toHaveBeenCalledWith('/login?next=%2Fmodules%2F4')
     })
+  })
+
+  it('shows the server error and loads a fresh attempt when the attempt was already sent or expired', async () => {
+    setRouter('/modules/4', { id: '4' })
+    mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' } })
+    const quiz = (attemptId: string) => ({
+      attempt_id: attemptId,
+      quiz: {
+        scope: 'module', module_id: 4, title: 'EC2',
+        questions: [{ id: 'bank-0', type: 'multiple_choice', prompt: 'Pregunta?', options: ['Si', 'No'], explanation: 'e' }]
+      },
+      summary: null,
+      eligibility: null
+    })
+    let quizFetches = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/quizzes/modules/4' && init?.method === 'POST') {
+        return jsonResponse({ error: 'El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.' }, 409)
+      }
+      if (url === '/api/quizzes/modules/4') return jsonResponse(quiz(`attempt-${++quizFetches}`))
+      if (String(url).startsWith('/api/evidences/')) return jsonResponse({ evidence: null })
+      return jsonResponse({ id: 4, title: 'EC2', position: 1, objective: 'Compute', contents: '[]', lessons: [], quiz: quiz('preview').quiz, quiz_summary: null })
+    })
+
+    const ModulePage = (await import('../pages/modules/[id]')).default
+    render(<ModulePage />)
+
+    fireEvent.click(await screen.findByLabelText('Si'))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar quiz' }))
+
+    expect(await screen.findByText(/El intento ya se envió o ha caducado/)).toBeInTheDocument()
+    expect(quizFetches).toBe(2)
+    // The fresh attempt starts with no answers selected.
+    expect(screen.getByLabelText('Si')).not.toBeChecked()
+  })
+
+  it('drops the dead attempt and offers a retry when reloading the quiz fails after a 409', async () => {
+    setRouter('/modules/4', { id: '4' })
+    mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' } })
+    const quiz = {
+      attempt_id: 'attempt-1',
+      quiz: {
+        scope: 'module', module_id: 4, title: 'EC2',
+        questions: [{ id: 'bank-0', type: 'multiple_choice', prompt: 'Pregunta?', options: ['Si', 'No'], explanation: 'e' }]
+      },
+      summary: null,
+      eligibility: null
+    }
+    let rejected = false
+    let reloadFailed = false
+    vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/quizzes/modules/4' && init?.method === 'POST') {
+        rejected = true
+        return jsonResponse({ error: 'El intento ya se envió o ha caducado. Recarga el cuestionario para empezar uno nuevo.' }, 409)
+      }
+      if (url === '/api/quizzes/modules/4') {
+        // The reload right after the 409 fails; the retry works.
+        if (rejected && !reloadFailed) {
+          reloadFailed = true
+          return jsonResponse({}, 500)
+        }
+        return jsonResponse(quiz)
+      }
+      if (String(url).startsWith('/api/evidences/')) return jsonResponse({ evidence: null })
+      return jsonResponse({ id: 4, title: 'EC2', position: 1, objective: 'Compute', contents: '[]', lessons: [], quiz: quiz.quiz, quiz_summary: null })
+    })
+
+    const ModulePage = (await import('../pages/modules/[id]')).default
+    render(<ModulePage />)
+
+    fireEvent.click(await screen.findByLabelText('Si'))
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar quiz' }))
+
+    expect(await screen.findByText(/El intento ya se envió o ha caducado/)).toBeInTheDocument()
+    expect(reloadFailed).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Enviar quiz' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Si')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByLabelText('Si')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Responde todas las preguntas' })).toBeInTheDocument()
   })
 
   it('handles login success and invalid credentials', async () => {

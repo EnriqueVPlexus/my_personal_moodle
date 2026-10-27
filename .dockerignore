@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+.githooks
+.env*
+!.env.docker.example
+data/*.db
+coverage
+test-results
+*.log
+Dockerfile
+docker-compose*.yml
+.DS_Store
+.claude
