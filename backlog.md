@@ -1562,7 +1562,10 @@ Pendiente de esta correccion:
 - [ ] Migracion de contenido para instalaciones existentes: el seed solo se
   ejecuta con la base vacia, asi que las instalaciones ya creadas no reciben
   estos cambios (modulo nuevo, quizzes, enlaces). Hace falta una migracion de
-  datos o un mecanismo de actualizacion de contenido.
+  datos o un mecanismo de actualizacion de contenido. Ojo: no basta con volver
+  a ejecutar el seed, porque empareja modulos por `position = ? OR title = ?`
+  y el modulo nuevo desplaza las posiciones de AWS; sobrescribiria modulos
+  equivocados y descolocaria progreso e intentos. Emparejar solo por titulo.
 
 #### Seguimiento de hallazgos "Importante" y "Mejora" (no incluidos)
 
