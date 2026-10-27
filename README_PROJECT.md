@@ -421,6 +421,9 @@ El workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hu
 con los tags `X.Y.Z` y `latest`. Un tag con prerelease (`vX.Y.Z-rc1`, cualquier
 nombre con `-`) publica solo `X.Y.Z-rc1`, nunca `latest`. También puede lanzarse a mano
 (`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
+La imagen es multi-arquitectura (`linux/amd64` y `linux/arm64`, esta última
+emulada con QEMU en el build) para que funcione nativa en Macs con chip Apple;
+la v0.1.0 solo se publicó para `linux/amd64`.
 
 El paquete GHCR de este repositorio es **público**: la v0.1.0 se verificó con
 un `docker pull` anónimo. En un fork el paquete nace privado: hazlo público en
