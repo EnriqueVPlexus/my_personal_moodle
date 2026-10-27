@@ -280,7 +280,7 @@
             }
           ],
           "correctOptionId": "b",
-          "explanation": "Algunos recursos pueden generar coste si se dejan activos o se usan fuera de los límites gratuitos.",
+          "explanation": "Algunos recursos generan coste si se dejan activos (p. ej. NAT Gateway o IPv4 públicas), y el plan gratuito actual termina a los 6 meses o al agotar los créditos.",
           "points": 1
         }
       ]
@@ -565,7 +565,7 @@
     },
     {
       "moduleId": "module-4",
-      "moduleTitle": "AWS IAM y seguridad básica",
+      "moduleTitle": "AWS IAM",
       "quizId": "quiz-module-4-iam",
       "title": "Quiz — AWS IAM",
       "description": "Evaluación sobre usuarios, grupos, políticas, roles y mínimo privilegio.",
@@ -1016,11 +1016,11 @@
         {
           "id": "m7-q2",
           "type": "single_choice",
-          "question": "¿Qué comando se usa habitualmente para configurar credenciales básicas en AWS CLI?",
+          "question": "¿Qué comando configura el acceso a AWS CLI con IAM Identity Center y credenciales temporales?",
           "options": [
             {
               "id": "a",
-              "text": "aws configure"
+              "text": "aws configure sso"
             },
             {
               "id": "b",
@@ -1036,7 +1036,7 @@
             }
           ],
           "correctOptionId": "a",
-          "explanation": "El comando aws configure permite introducir access key, secret key, región y formato de salida.",
+          "explanation": "aws configure sso crea un perfil con IAM Identity Center; después aws sso login obtiene credenciales temporales. aws configure con claves de acceso estáticas queda como excepción desaconsejada.",
           "points": 1
         },
         {
@@ -1120,14 +1120,14 @@
       ]
     },
     {
-      "moduleId": "module-9",
+      "moduleId": "module-8",
       "moduleTitle": "Terraform",
-      "quizId": "quiz-module-9-terraform",
+      "quizId": "quiz-module-8-terraform",
       "title": "Quiz — Terraform",
       "description": "Evaluación sobre conceptos básicos de Infraestructura como Código y Terraform.",
       "questions": [
         {
-          "id": "m9-q1",
+          "id": "m8-q1",
           "type": "single_choice",
           "question": "¿Qué es Terraform?",
           "options": [
@@ -1153,7 +1153,7 @@
           "points": 1
         },
         {
-          "id": "m9-q2",
+          "id": "m8-q2",
           "type": "single_choice",
           "question": "¿Para qué sirve terraform init?",
           "options": [
@@ -1179,7 +1179,7 @@
           "points": 1
         },
         {
-          "id": "m9-q3",
+          "id": "m8-q3",
           "type": "single_choice",
           "question": "¿Qué muestra terraform plan?",
           "options": [
@@ -1205,7 +1205,7 @@
           "points": 1
         },
         {
-          "id": "m9-q4",
+          "id": "m8-q4",
           "type": "single_choice",
           "question": "¿Para qué sirve terraform apply?",
           "options": [
@@ -1231,7 +1231,7 @@
           "points": 1
         },
         {
-          "id": "m9-q5",
+          "id": "m8-q5",
           "type": "single_choice",
           "question": "¿Por qué es útil versionar código Terraform en Git?",
           "options": [
@@ -1259,14 +1259,14 @@
       ]
     },
     {
-      "moduleId": "module-10",
+      "moduleId": "module-9",
       "moduleTitle": "Docker",
-      "quizId": "quiz-module-10-docker",
+      "quizId": "quiz-module-9-docker",
       "title": "Quiz — Docker",
       "description": "Evaluación básica sobre imágenes, contenedores, Dockerfile y ejecución local.",
       "questions": [
         {
-          "id": "m10-q1",
+          "id": "m9-q1",
           "type": "single_choice",
           "question": "¿Qué es una imagen Docker?",
           "options": [
@@ -1292,7 +1292,7 @@
           "points": 1
         },
         {
-          "id": "m10-q2",
+          "id": "m9-q2",
           "type": "single_choice",
           "question": "¿Qué es un contenedor Docker?",
           "options": [
@@ -1318,7 +1318,7 @@
           "points": 1
         },
         {
-          "id": "m10-q3",
+          "id": "m9-q3",
           "type": "single_choice",
           "question": "¿Para qué sirve un Dockerfile?",
           "options": [
@@ -1344,7 +1344,7 @@
           "points": 1
         },
         {
-          "id": "m10-q4",
+          "id": "m9-q4",
           "type": "single_choice",
           "question": "¿Qué comando se usa habitualmente para construir una imagen Docker?",
           "options": [
@@ -1370,7 +1370,7 @@
           "points": 1
         },
         {
-          "id": "m10-q5",
+          "id": "m9-q5",
           "type": "single_choice",
           "question": "¿Para qué sirve mapear puertos al ejecutar un contenedor?",
           "options": [
@@ -1398,14 +1398,14 @@
       ]
     },
     {
-      "moduleId": "module-11",
-      "moduleTitle": "GitHub Actions y CI/CD",
-      "quizId": "quiz-module-11-github-actions",
+      "moduleId": "module-10",
+      "moduleTitle": "GitHub Actions",
+      "quizId": "quiz-module-10-github-actions",
       "title": "Quiz — GitHub Actions y CI/CD",
       "description": "Evaluación sobre conceptos básicos de workflows, jobs, triggers y secrets.",
       "questions": [
         {
-          "id": "m11-q1",
+          "id": "m10-q1",
           "type": "single_choice",
           "question": "¿Qué es GitHub Actions?",
           "options": [
@@ -1431,7 +1431,7 @@
           "points": 1
         },
         {
-          "id": "m11-q2",
+          "id": "m10-q2",
           "type": "single_choice",
           "question": "¿Qué es un workflow en GitHub Actions?",
           "options": [
@@ -1457,7 +1457,7 @@
           "points": 1
         },
         {
-          "id": "m11-q3",
+          "id": "m10-q3",
           "type": "single_choice",
           "question": "¿Qué es un trigger en GitHub Actions?",
           "options": [
@@ -1483,7 +1483,7 @@
           "points": 1
         },
         {
-          "id": "m11-q4",
+          "id": "m10-q4",
           "type": "single_choice",
           "question": "¿Para qué sirven los secrets en GitHub Actions?",
           "options": [
@@ -1509,7 +1509,7 @@
           "points": 1
         },
         {
-          "id": "m11-q5",
+          "id": "m10-q5",
           "type": "single_choice",
           "question": "¿Cuál sería un ejemplo sencillo de CI?",
           "options": [

@@ -1528,6 +1528,62 @@ Tareas:
 - Permitir a los usuarios marcar badges como completadas o adjuntar el enlace a su perfil publico de Credly / Google Cloud Skills Boost.
 - Incluir acceso directo desde la cabecera y desde el detalle del roadmap `Roadmap IA para SRE/DevOps - Versión 2.0`.
 
+### [x] Correccion de contenido critico y enlaces rotos de los roadmaps
+
+Estado: hecho (2026-10-27, rama `fix/roadmap-content-critical`).
+
+Hecho:
+
+- AWS: el roadmap describe el plan gratuito actual (creditos de bienvenida, 6
+  meses o hasta agotar los creditos, servicios seleccionados) y recomienda
+  tipos de instancia elegibles (`t3.micro`). Nuevo modulo 1 `Cuenta AWS, Free
+  Tier, seguridad inicial y control de costes` (MFA en root, Budgets, limpieza,
+  costes de NAT Gateway e IPv4 publicas). El modulo `AWS CLI` pasa a
+  `aws configure sso` (IAM Identity Center) y deja las claves estaticas como
+  excepcion desaconsejada. El roadmap AWS pasa de 11 a 12 modulos.
+- Bug real: `awsRoadmapQuizzes.json` no se importaba en ningun sitio; los
+  modulos AWS solo recibian la pregunta unica de `quizBanks.ts`. Ahora
+  `getSeedQuizForModule` usa esos quizzes (5 preguntas) emparejados por titulo
+  exacto de modulo; se alinearon los titulos y los `moduleId`. Test:
+  `test/aws-quiz-attachment.test.ts`.
+- DevOps Junior: documentacion de Trivy a `/docs/latest/` y aviso oficial
+  GHSA-69fq-xp46-6x23 (CVE-2026-33634, Trivy v0.69.4 comprometida) con buenas
+  practicas de cadena de suministro; enlace de EC2 en vez de Lightsail; canales
+  de YouTube corregidos.
+- IA: AI-900 retirado el 30-06-2026, sustituido por AI-901; Vertex AI pasa a
+  `Gemini Enterprise Agent Platform (antes Vertex AI)`; `last_validated`
+  actualizado.
+- Enlaces: redirecciones permanentes actualizadas (Ansible, GitHub Actions,
+  Pydantic, Google Cloud, LinkedIn Learning, OWASP, Linux Journey, AWS
+  training).
+
+Pendiente de esta correccion:
+
+- [ ] Migracion de contenido para instalaciones existentes: el seed solo se
+  ejecuta con la base vacia, asi que las instalaciones ya creadas no reciben
+  estos cambios (modulo nuevo, quizzes, enlaces). Hace falta una migracion de
+  datos o un mecanismo de actualizacion de contenido.
+
+#### Seguimiento de hallazgos "Importante" y "Mejora" (no incluidos)
+
+- [ ] Terraform/OpenTofu: estado remoto, certificacion Associate 004 y plan
+  gratuito de HCP Terraform.
+- [ ] OIDC de GitHub a AWS (sin claves estaticas) y fijar acciones por SHA.
+- [ ] Gateway API frente a Ingress NGINX en el modulo de Kubernetes.
+- [ ] OpenTelemetry y Fluent Bit en observabilidad.
+- [ ] Docker Compose v2 y licencias de Docker Desktop.
+- [ ] Renombrado de Azure AI Foundry a Microsoft Foundry.
+- [ ] API de LangChain v1.
+- [ ] OWASP Top 10 para LLM (version vigente) y OWASP Top 10 for Agentic
+  Applications.
+- [ ] EU AI Act y AESIA (Espana).
+- [ ] Recursos de MCP (Model Context Protocol).
+- [ ] Prompt para agente de codigo independiente de la herramienta (hoy
+  menciona Codex/VS Code).
+- [ ] Ampliar quizzes (DevOps e IA solo tienen una pregunta por modulo).
+- [ ] Revisar el realismo de las duraciones por modulo.
+- [ ] Temas que faltan en los roadmaps.
+
 ## Ideas a revisar mas adelante
 
 ### [ ] Asignacion de roadmaps a usuarios

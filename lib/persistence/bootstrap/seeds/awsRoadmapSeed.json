@@ -1,7 +1,8 @@
 {
   "title": "Roadmap AWS gratuito para cantera junior DevOps",
-  "description": "Este itinerario está diseñado para perfiles junior con base técnica que quieren iniciarse en AWS con enfoque práctico y orientado a DevOps.",
+  "description": "Este itinerario está diseñado para perfiles junior con base técnica que quieren iniciarse en AWS con enfoque práctico y orientado a DevOps. Está pensado para el plan gratuito de AWS para cuentas nuevas (créditos de bienvenida durante un máximo de 6 meses), con hábitos de control de costes desde el primer día.",
   "objectives": [
+    "Abrir y proteger una cuenta AWS, entender el plan gratuito basado en créditos y controlar los costes",
     "Comprender los fundamentos de cloud computing",
     "Conocer los servicios básicos de AWS",
     "Adquirir nociones de red, seguridad y observabilidad",
@@ -76,12 +77,71 @@
     },
     {
       "position": 1,
+      "title": "Cuenta AWS, Free Tier, seguridad inicial y control de costes",
+      "duration": "1 semana",
+      "objective": "Crear una cuenta AWS de forma segura, entender los límites del plan gratuito y adquirir los hábitos básicos para no generar costes inesperados.",
+      "contents": [
+        "Crear la cuenta AWS y elegir el plan gratuito (Free plan) o de pago",
+        "Plan gratuito actual: 100 USD de créditos de bienvenida más hasta 100 USD adicionales por completar actividades; la cuenta gratuita termina a los 6 meses o al agotar los créditos, lo que ocurra antes",
+        "Al terminar el plan gratuito la cuenta se cierra; hay 90 días para pasar al plan de pago antes de perder los datos",
+        "El plan gratuito solo da acceso a servicios seleccionados; el resto exige pasar al plan de pago",
+        "Las cuentas creadas antes del 15 de julio de 2025 siguen el modelo antiguo de 12 meses; el plan basado en créditos se aplica a las cuentas nuevas",
+        "Activar MFA en el usuario root y no usarlo para el trabajo diario",
+        "Crear una alerta de presupuesto con AWS Budgets y revisar el consumo con Billing and Cost Management",
+        "Estimar costes con AWS Pricing Calculator antes de desplegar",
+        "Costes frecuentes que sorprenden: NAT Gateway, direcciones IPv4 públicas (se cobran por hora, estén en uso o no) y Elastic IPs sin asociar",
+        "Hábito de limpieza: eliminar o terminar los recursos al acabar cada laboratorio"
+      ],
+      "importance": "Abrir una cuenta sin proteger el usuario root ni vigilar el consumo es la causa más habitual de sustos de facturación y de incidentes de seguridad. Este módulo fija los hábitos que se aplican en todos los laboratorios posteriores.",
+      "official_resources": [
+        {
+          "label": "Elegir un plan de AWS Free Tier (plan gratuito y plan de pago)",
+          "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html"
+        },
+        {
+          "label": "Seguimiento del uso de AWS Free Tier",
+          "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/tracking-free-tier-usage.html"
+        },
+        {
+          "label": "Activar MFA para el usuario root",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/enable-mfa-for-root.html"
+        },
+        {
+          "label": "Crear un presupuesto de costes con AWS Budgets",
+          "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html"
+        },
+        {
+          "label": "AWS Pricing Calculator",
+          "url": "https://calculator.aws/"
+        },
+        {
+          "label": "Precios de Amazon VPC (IPv4 públicas y NAT Gateway)",
+          "url": "https://aws.amazon.com/vpc/pricing/"
+        }
+      ],
+      "support_videos": [],
+      "practical_activity": [
+        "Crear la cuenta AWS (o usar la cuenta de laboratorio asignada) y revisar el plan activo en Billing",
+        "Activar MFA en el usuario root",
+        "Crear una alerta de presupuesto con aviso por correo",
+        "Redactar una lista de comprobación de limpieza de recursos para usar al final de cada práctica"
+      ],
+      "deliverable_evidence": [
+        "Captura de la alerta de presupuesto creada (sin datos personales)",
+        "Captura de MFA activo en root (ocultando datos sensibles)",
+        "Lista de comprobación de limpieza de recursos"
+      ],
+      "evaluation": "Quiz sobre plan gratuito, MFA, presupuestos y control de costes."
+    },
+    {
+      "position": 2,
       "title": "Amazon EC2",
       "duration": "1 semana",
       "objective": "Aprender a desplegar y administrar una instancia virtual en AWS.",
       "contents": [
         "Qué es EC2",
         "Tipos de instancia",
+        "Tipos de instancia elegibles para el plan gratuito (p. ej. t3.micro; comprobar la lista con aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true)",
         "AMI",
         "Pares de claves",
         "Security Groups",
@@ -93,6 +153,10 @@
         {
           "label": "Amazon EC2",
           "url": "https://aws.amazon.com/es/ec2/instance-types/"
+        },
+        {
+          "label": "Seguimiento del uso de Free Tier en Amazon EC2 (tipos elegibles)",
+          "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-free-tier-usage.html"
         }
       ],
       "support_videos": [
@@ -106,10 +170,11 @@
         }
       ],
       "practical_activity": [
-        "Crear una instancia EC2 Linux",
+        "Crear una instancia EC2 Linux con un tipo de instancia elegible para Free Tier (p. ej. t3.micro)",
         "Acceder por SSH",
         "Instalar Nginx",
-        "Publicar una página HTML simple"
+        "Publicar una página HTML simple",
+        "Terminar la instancia al acabar la práctica"
       ],
       "deliverable_evidence": [
         "Captura de la instancia",
@@ -119,7 +184,7 @@
       "evaluation": "Cuestionario básico sobre AMI, instancia, clave SSH y Security Groups."
     },
     {
-      "position": 2,
+      "position": 3,
       "title": "Amazon S3",
       "duration": "1 semana",
       "objective": "Aprender a utilizar almacenamiento de objetos en AWS.",
@@ -156,7 +221,7 @@
       "evaluation": "Mini quiz sobre buckets, objetos y versionado."
     },
     {
-      "position": 3,
+      "position": 4,
       "title": "AWS IAM",
       "duration": "1 semana",
       "objective": "Comprender cómo se gestionan usuarios, permisos y acceso en AWS.",
@@ -200,7 +265,7 @@
       "evaluation": "Quiz sobre diferencias entre usuario, grupo, política y rol."
     },
     {
-      "position": 4,
+      "position": 5,
       "title": "Amazon VPC y red en AWS",
       "duration": "1 semana",
       "objective": "Entender los conceptos básicos de red dentro de AWS.",
@@ -210,7 +275,8 @@
         "Route tables",
         "Internet Gateway",
         "Security Groups",
-        "NACL"
+        "NACL",
+        "Costes de red: NAT Gateway y direcciones IPv4 públicas"
       ],
       "importance": "La red es una parte esencial en cloud. Comprender VPC ayuda a entender conectividad, exposición a Internet y segmentación de recursos.",
       "official_resources": [
@@ -221,6 +287,10 @@
         {
           "label": "Buenas prácticas para el diseño de IPv4 en Amazon VPC",
           "url": "https://aws.amazon.com/es/blogs/aws-spanish/buenas-practicas-para-el-diseno-de-ipv4-para-su-amazon-vpc/"
+        },
+        {
+          "label": "Precios de Amazon VPC",
+          "url": "https://aws.amazon.com/vpc/pricing/"
         }
       ],
       "support_videos": [
@@ -238,7 +308,8 @@
         "Crear una subred pública",
         "Asociar tabla de rutas",
         "Añadir Internet Gateway",
-        "Lanzar una EC2 dentro de esa red"
+        "Lanzar una EC2 dentro de esa red",
+        "Eliminar la VPC y sus recursos asociados al terminar (sin crear NAT Gateway en el laboratorio)"
       ],
       "deliverable_evidence": [
         "Diagrama simple de red",
@@ -247,7 +318,7 @@
       "evaluation": "Preguntas sobre VPC, subred, route table y acceso público/privado."
     },
     {
-      "position": 5,
+      "position": 6,
       "title": "Amazon CloudWatch y observabilidad",
       "duration": "1 semana",
       "objective": "Introducir la monitorización básica de recursos en AWS.",
@@ -287,18 +358,27 @@
       "evaluation": "Quiz sobre métricas, logs y alarmas."
     },
     {
-      "position": 6,
+      "position": 7,
       "title": "AWS CLI",
       "duration": "1 semana",
       "objective": "Aprender a interactuar con AWS desde línea de comandos.",
       "contents": [
         "Instalación de AWS CLI",
-        "Configuración de credenciales",
+        "Autenticación recomendada: IAM Identity Center con aws configure sso y aws sso login (credenciales temporales)",
         "Perfiles",
+        "Claves de acceso estáticas con aws configure: solo como excepción desaconsejada, con permisos mínimos, rotación y nunca en repositorios",
         "Comandos básicos sobre S3 y EC2"
       ],
       "importance": "La CLI es el paso natural entre el uso manual de la consola y la automatización de tareas repetitivas.",
       "official_resources": [
+        {
+          "label": "Configurar la AWS CLI con IAM Identity Center (aws configure sso)",
+          "url": "https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html"
+        },
+        {
+          "label": "Introducción a IAM Identity Center",
+          "url": "https://docs.aws.amazon.com/singlesignon/latest/userguide/getting-started.html"
+        },
         {
           "label": "Protección de sus claves de acceso en AWS",
           "url": "https://aws.amazon.com/es/blogs/aws-spanish/proteccion-de-sus-claves-de-acceso-en-aws/"
@@ -316,7 +396,7 @@
       ],
       "practical_activity": [
         "Instalar AWS CLI",
-        "Configurar perfil",
+        "Configurar un perfil con aws configure sso e iniciar sesión con aws sso login",
         "Ejecutar comando para listar buckets",
         "Ejecutar comando para listar instancias"
       ],
@@ -324,10 +404,10 @@
         "Captura de terminal",
         "Documento corto explicando qué ventajas aporta la CLI"
       ],
-      "evaluation": "Quiz sobre perfiles, credenciales y comandos básicos."
+      "evaluation": "Quiz sobre perfiles, credenciales temporales (IAM Identity Center) y comandos básicos."
     },
     {
-      "position": 7,
+      "position": 8,
       "title": "Terraform",
       "duration": "1 semana",
       "objective": "Introducir la Infraestructura como Código.",
@@ -366,10 +446,11 @@
         }
       ],
       "practical_activity": [
-        "Crear una EC2 o bucket S3 con Terraform",
+        "Crear una EC2 (tipo elegible para Free Tier) o un bucket S3 con Terraform",
         "Ejecutar terraform init",
         "Ejecutar terraform plan",
-        "Ejecutar terraform apply"
+        "Ejecutar terraform apply",
+        "Ejecutar terraform destroy al terminar para no dejar recursos activos"
       ],
       "deliverable_evidence": [
         "Repositorio GitHub",
@@ -379,7 +460,7 @@
       "evaluation": "Preguntas básicas sobre IaC y ciclo de vida de Terraform."
     },
     {
-      "position": 8,
+      "position": 9,
       "title": "Docker",
       "duration": "1 semana",
       "objective": "Introducir el uso de contenedores como paso previo a despliegues modernos.",
@@ -419,7 +500,7 @@
       "evaluation": "Quiz sobre imagen, contenedor y Dockerfile."
     },
     {
-      "position": 9,
+      "position": 10,
       "title": "GitHub Actions",
       "duration": "1 semana",
       "objective": "Dar los primeros pasos en integración continua y automatización de workflows.",
@@ -439,7 +520,7 @@
         },
         {
           "label": "Quickstart de GitHub Actions",
-          "url": "https://docs.github.com/es/enterprise-server%403.14/actions/get-started/quickstart"
+          "url": "https://docs.github.com/es/actions/get-started/quickstart"
         }
       ],
       "support_videos": [
@@ -463,7 +544,7 @@
       "evaluation": "Quiz sobre workflow, job y trigger."
     },
     {
-      "position": 10,
+      "position": 11,
       "title": "Proyecto final",
       "duration": "1 o 2 semanas",
       "objective": "Aplicar de forma integrada lo aprendido durante el itinerario.",
@@ -479,16 +560,8 @@
       "importance": "Este módulo permite convertir teoría y laboratorios aislados en una entrega real orientada a empleabilidad.",
       "official_resources": [
         {
-          "label": "AWS Builder Labs",
-          "url": "https://aws.amazon.com/es/training/digital/aws-builder-labs/"
-        },
-        {
-          "label": "AWS Cloud Quest",
-          "url": "https://aws.amazon.com/es/training/digital/aws-cloud-quest/"
-        },
-        {
-          "label": "AWS Jam",
-          "url": "https://aws.amazon.com/es/training/digital/aws-jam/"
+          "label": "AWS Skill Builder: aprendizaje inmersivo (Builder Labs, Cloud Quest y Jam)",
+          "url": "https://aws.amazon.com/training/digital/immersive-learning/"
         }
       ],
       "support_videos": [

@@ -118,7 +118,7 @@ const iaModuleLevels = [
 const seedModuleLevels: Record<string, string[]> = {
   'Roadmap AWS gratuito para cantera junior DevOps': [
     'beginner', 'beginner', 'beginner', 'beginner', 'beginner', 'beginner',
-    'beginner', 'intermediate', 'intermediate', 'intermediate', 'capstone'
+    'beginner', 'beginner', 'intermediate', 'intermediate', 'intermediate', 'capstone'
   ],
   'Roadmap IA para SRE/DevOps - Versión 2.0': iaModuleLevels,
   'Roadmap desde 0 a DevOps Junior': [

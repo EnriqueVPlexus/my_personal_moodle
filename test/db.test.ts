@@ -109,7 +109,7 @@ describe('SQLite database bootstrap', () => {
     expect(roadmapTotal.count).toBe(3)
     expect(await db.get('SELECT id FROM roadmaps WHERE title = ?', ['IA para DevOps'])).toBeUndefined()
     expect(devopsRoadmap.title).toBe('Roadmap desde 0 a DevOps Junior')
-    expect(modulesByRoadmap['Roadmap AWS gratuito para cantera junior DevOps']).toBe(11)
+    expect(modulesByRoadmap['Roadmap AWS gratuito para cantera junior DevOps']).toBe(12)
     expect(modulesByRoadmap['Roadmap IA para SRE/DevOps - Versión 2.0']).toBe(11)
     expect(modulesByRoadmap['Roadmap desde 0 a DevOps Junior']).toBe(12)
     expect(admin.role).toBe('admin')
@@ -161,11 +161,11 @@ describe('SQLite database bootstrap', () => {
     ]))
     expect(awsMetadata).toMatchObject({
       category_key: 'cloud-y-devops',
-      duration_weeks_min: 11,
-      duration_weeks_max: 12,
+      duration_weeks_min: 12,
+      duration_weeks_max: 13,
       topic_count: 6
     })
-    expect(classifiedAwsModules.count).toBe(11)
+    expect(classifiedAwsModules.count).toBe(12)
 
     await db.close()
   })
@@ -191,7 +191,7 @@ describe('SQLite database bootstrap', () => {
     expect(roadmaps.count).toBe(3)
     expect(duplicateRoadmaps).toEqual([])
     expect(duplicateModules).toEqual([])
-    expect(modules.count).toBe(34)
+    expect(modules.count).toBe(35)
     expect(admins.count).toBe(1)
 
     await Promise.all(dbs.map(client => client.close()))
@@ -243,7 +243,7 @@ describe('SQLite database bootstrap', () => {
     expect(roadmapCount.count).toBe(1)
     expect(aiRoadmapCount.count).toBe(1)
     expect(devopsRoadmapCount.count).toBe(1)
-    expect(moduleCount.count).toBe(34)
+    expect(moduleCount.count).toBe(35)
     expect(adminCount.count).toBe(1)
     expect(roadmapProgressTable.name).toBe('user_roadmap_progress')
     expect(lessonProgressIndexes.map((index: any) => index.name)).toEqual(expect.arrayContaining([
