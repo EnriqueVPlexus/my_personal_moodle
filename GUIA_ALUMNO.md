@@ -121,6 +121,8 @@ Tus datos se conservan al parar.
 
 Vuelve a ejecutar **el mismo comando del Paso 3**. Se descarga la versión nueva y **conserva tus datos y tu cuenta**. No generará un código nuevo.
 
+> **Importante: no borres la carpeta `cantera-hub` ni el fichero `.env.docker`**, ni antes ni después de actualizar. Ahí están las claves que abren tus datos. Si los borras y vuelves a instalar, la aplicación no arrancará o no podrás entrar con tu contraseña. Para actualizar basta con repetir el comando; no hace falta desinstalar nada.
+
 ## Ver qué versión tienes
 
 Abre la aplicación y mira el **pie de página** (abajo del todo): aparece el número de versión.
@@ -144,6 +146,14 @@ y envía esas líneas a tu profesor.
 
 **"Error interno del servidor" al crear la cuenta o iniciar sesión**
 No debería ocurrir con el instalador. Si pasa, ejecuta la orden de los registros de arriba y envía el resultado a tu profesor. No borres nada todavía.
+
+**Borré la carpeta `cantera-hub` (o `.env.docker`) y ahora no arranca o no puedo entrar**
+Tus datos siguen guardados en Docker, pero las claves para abrirlos estaban en `.env.docker` y no se pueden recuperar. Si tienes una copia de ese fichero (por ejemplo, en la papelera), vuelve a ponerlo en la carpeta `cantera-hub` y repite el comando del Paso 3. Si no, la única salida es empezar de cero, lo que **borra todos tus datos**:
+
+1. Ejecuta estas dos órdenes, una detrás de otra (si la primera dice que algo no existe, no pasa nada):
+   - `docker rm -f cantera-hub-app-1 cantera-hub-migrate-1 cantera-hub-db-1`
+   - `docker volume rm cantera-hub_cantera_pgdata`
+2. Repite el comando del Paso 3 y crea tu cuenta de nuevo.
 
 **Se me ha olvidado la contraseña**
 No existe "recuperar contraseña" en esta versión. Opciones:
