@@ -34,7 +34,7 @@ function assertRoadmapSeed(seed, expected) {
 
 assertRoadmapSeed(awsSeed, {
   title: 'Roadmap AWS gratuito para cantera junior DevOps',
-  moduleCount: 11,
+  moduleCount: 12,
   evaluationWeights: ['20%', '40%', '20%', '20%']
 })
 

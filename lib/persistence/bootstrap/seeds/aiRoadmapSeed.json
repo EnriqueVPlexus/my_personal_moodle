@@ -3,7 +3,7 @@
   "title": "Roadmap IA para SRE/DevOps - Versión 2.0",
   "version": "2.0",
   "language": "es-ES",
-  "last_validated": "2026-06-25",
+  "last_validated": "2026-10-27",
   "target_profile": [
     "SRE",
     "DevOps Engineer",
@@ -80,13 +80,13 @@
   "credentials_strategy": {
     "priority_high": [
       {
-        "name": "Google Cloud Skills badges de GenAI / Vertex AI",
+        "name": "Google Cloud Skills badges de GenAI / Gemini Enterprise Agent Platform (antes Vertex AI)",
         "reason": "Credenciales digitales visibles para LinkedIn sin necesidad inicial de certificación oficial.",
         "url": "https://cloud.google.com/learn/training/credentials"
       },
       {
-        "name": "Microsoft Azure AI Fundamentals AI-900",
-        "reason": "Base oficial de IA en Azure y buen complemento a un perfil con AZ-104/AZ-900.",
+        "name": "Microsoft Azure AI Fundamentals AI-901",
+        "reason": "Base oficial de IA en Azure (AI-901 sustituye a AI-900, retirado el 30 de junio de 2026) y buen complemento a un perfil con AZ-104/AZ-900.",
         "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/"
       },
       {
@@ -232,7 +232,7 @@
           "type": "linkedin_learning",
           "provider": "LinkedIn Learning",
           "title": "Artificial Intelligence Foundations",
-          "url": "https://www.linkedin.com/learning/topics/artificial-intelligence-foundations",
+          "url": "https://www.linkedin.com/learning/topics/ai-foundations-and-literacy",
           "priority": "medium"
         },
         {
@@ -295,7 +295,7 @@
           "type": "free",
           "provider": "Pydantic Docs",
           "title": "Pydantic Documentation",
-          "url": "https://docs.pydantic.dev/",
+          "url": "https://pydantic.dev/docs/",
           "priority": "medium"
         },
         {
@@ -534,7 +534,7 @@
     },
     {
       "id": "m06-cloud-ai-platforms",
-      "title": "Plataformas cloud de IA: Azure OpenAI, AWS Bedrock y Google Vertex AI",
+      "title": "Plataformas cloud de IA: Azure OpenAI, AWS Bedrock y Google Gemini Enterprise Agent Platform (antes Vertex AI)",
       "level": "intermediate",
       "duration_weeks": 4,
       "goal": "Conocer las principales plataformas cloud de IA sin casarse todavía con una sola.",
@@ -542,7 +542,7 @@
       "topics": [
         "Azure AI Foundry / Azure OpenAI",
         "AWS Bedrock",
-        "Google Vertex AI / Gemini",
+        "Google Gemini Enterprise Agent Platform (antes Vertex AI) / Gemini",
         "model catalog",
         "quotas",
         "costes",
@@ -554,7 +554,7 @@
         {
           "type": "free",
           "provider": "Microsoft Learn",
-          "title": "Azure AI Fundamentals",
+          "title": "Azure AI Fundamentals (examen AI-901)",
           "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/",
           "priority": "high"
         },
@@ -596,7 +596,7 @@
       ],
       "project": {
         "name": "Cloud AI Provider Comparison",
-        "description": "Comparativa práctica de Azure OpenAI, AWS Bedrock y Vertex AI para un caso RAG SRE.",
+        "description": "Comparativa práctica de Azure OpenAI, AWS Bedrock y Gemini Enterprise Agent Platform (antes Vertex AI) para un caso RAG SRE.",
         "features": [
           "Tabla de costes aproximados",
           "IAM/RBAC requerido",
@@ -866,7 +866,7 @@
           "type": "free",
           "provider": "OWASP",
           "title": "OWASP Top 10 for Large Language Model Applications",
-          "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+          "url": "https://owasp.org/projects/top-10-for-large-language-model-applications",
           "priority": "high"
         },
         {
@@ -973,7 +973,7 @@
           "MLflow",
           "Azure OpenAI",
           "AWS Bedrock",
-          "Google Vertex AI"
+          "Google Gemini Enterprise Agent Platform (antes Vertex AI)"
         ]
       },
       "deliverables": [
@@ -1044,7 +1044,7 @@
   },
   "notes": [
     "Los cursos de Udemy Business pueden variar según el catálogo contratado por la empresa; si un curso no aparece, usar el título como término de búsqueda equivalente.",
-    "Los nombres de algunos badges de Google Skills pueden cambiar ligeramente por rebranding de Vertex AI / Agent Platform; mantener URLs y revisar título antes de publicar.",
+    "Google renombró Vertex AI como Gemini Enterprise Agent Platform (anuncio del 22 de abril de 2026, Next '26). Los títulos de los cursos de Google Skills pueden seguir mencionando Vertex AI; mantener URLs y revisar el título antes de publicar.",
     "Este roadmap está diseñado para destacar en mercado como SRE/DevOps especializado en IA productiva, no como data scientist puro."
   ]
 }

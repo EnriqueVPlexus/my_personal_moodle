@@ -1,3 +1,5 @@
+import awsRoadmapQuizzes from './awsRoadmapQuizzes.json'
+
 export type SeedQuizQuestion = {
   question: string
   answer: string
@@ -43,7 +45,38 @@ const banks: Array<[string, SeedQuizQuestion]> = [
   ['Proyecto final y posicionamiento', { question: '¿Qué hace creíble un proyecto de IA para DevOps?', answer: 'Repositorio reproducible con resultados medidos', options: ['Repositorio reproducible con resultados medidos', 'Una afirmación sin evidencia', 'Un título sin implementación'], explanation: 'La implementación reproducible y las métricas permiten evaluar el proyecto.' }]
 ]
 
+type AwsQuizFile = {
+  quizzes: Array<{
+    moduleTitle: string
+    questions: Array<{
+      question: string
+      options: Array<{ id: string; text: string }>
+      correctOptionId: string
+      explanation?: string
+    }>
+  }>
+}
+
+// The AWS roadmap ships a full quiz per module (awsRoadmapQuizzes.json). They
+// are matched to modules by exact title, so a quiz whose `moduleTitle` does not
+// equal a module title of awsRoadmapSeed.json is never attached.
+const awsQuizzesByModuleTitle = new Map<string, SeedQuizQuestion[]>(
+  (awsRoadmapQuizzes as AwsQuizFile).quizzes.map(quiz => [
+    quiz.moduleTitle,
+    quiz.questions.map(question => ({
+      question: question.question,
+      answer: question.options.find(option => option.id === question.correctOptionId)?.text ?? '',
+      options: question.options.map(option => option.text),
+      explanation: question.explanation ?? '',
+      type: 'multiple_choice' as const
+    }))
+  ])
+)
+
 export function getSeedQuizForModule(title: string): SeedQuizQuestion[] {
+  const awsQuiz = awsQuizzesByModuleTitle.get(title)
+  if (awsQuiz) return awsQuiz
+
   const match = banks.find(([prefix]) => title.includes(prefix))
   return match ? [match[1]] : []
 }
