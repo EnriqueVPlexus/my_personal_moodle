@@ -1626,9 +1626,13 @@ acepta URLs `postgres://` ademas de `postgresql://` (sin SSL). Flujo de
 release documentado (probar en local con tag `local`, develop -> main, tag
 `vX.Y.Z` o `npm version` + `git push --follow-tags`): `package.json` es la
 fuente unica de la version, el workflow falla si el tag no coincide con ella y
-la version se muestra en el pie de la app. Pendiente de accion manual: hacer
-publico el paquete GHCR tras la primera publicacion. Guia en `README_PROJECT.md`, seccion "Docker
-(distribucion demo)". El hosting definitivo sigue pendiente.
+la version se muestra en el pie de la app. Paquete GHCR publico (v0.1.0 verificada con pull anonimo).
+Instalacion para alumnos sin perfil tecnico: `GUIA_ALUMNO.md` mas scripts de
+un solo paso (`scripts/install/instalar.sh` y `instalar.ps1`) que descargan el
+compose desde `main` (por eso `main` solo se mueve en releases), generan
+`.env.docker` con secretos aleatorios, eligen un puerto libre (3000-3010) y
+nunca regeneran un `.env.docker` existente (re-ejecutar = actualizar). Guia
+tecnica en `README_PROJECT.md`, seccion "Docker (distribucion demo)". El hosting definitivo sigue pendiente.
 
 Alcance restante:
 
