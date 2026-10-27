@@ -391,13 +391,33 @@ fijar versión: `CANTERA_VERSION=1.2.3` en `.env.docker` (por defecto `latest`).
 
 ### Publicar una versión nueva
 
-Con `main` actualizado y probado: `git tag vX.Y.Z && git push origin vX.Y.Z`. El
-workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hub`
+La versión vive en `package.json` (fuente única) y se muestra discretamente en el
+pie de la app (`vX.Y.Z`). El workflow **falla** si el tag `vX.Y.Z` no coincide
+exactamente con `version` de `package.json` (también para prerelease:
+`v1.0.0-rc.1` exige `"version": "1.0.0-rc.1"`); no se comprueba en lanzamientos
+manuales.
+
+1. Probar en local desde `develop`: construir la imagen con tag `local`
+   (`docker build -t cantera-hub:local .`), poner `CANTERA_VERSION=local` en
+   `.env.docker` y levantar con `docker compose --env-file .env.docker up -d`.
+2. Fusionar `develop` en `main` (con `main` actualizado y probado).
+3. Primera release (la versión actual de `package.json` ya es `0.1.0`):
+   `git tag v0.1.0 && git push origin v0.1.0`.
+4. Releases siguientes: en `main`, `npm version patch|minor|major` (sube
+   `package.json`, hace commit y crea el tag `vX.Y.Z`) y
+   `git push --follow-tags`. Alternativa: `npm version ... --no-git-tag-version`
+   en `develop` (solo sube la versión), fusionar a `main` y crear el tag allí con
+   `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+El workflow `docker-publish.yml` construye y publica `ghcr.io/<owner>/cantera-hub`
 con los tags `X.Y.Z` y `latest`. Un tag con prerelease (`vX.Y.Z-rc1`, cualquier
 nombre con `-`) publica solo `X.Y.Z-rc1`, nunca `latest`. También puede lanzarse a mano
 (`workflow_dispatch`), que publica solo un tag `sha-<corto>` (nunca `latest`).
-Si el paquete GHCR es privado, los alumnos necesitan `docker login ghcr.io`
-con un token con `read:packages`; hazlo público para evitarlo.
+
+Tras la primera publicación el paquete GHCR es privado por defecto: hazlo
+público en GitHub (Packages > `cantera-hub` > Package settings > Change
+visibility > Public) para que los alumnos no necesiten `docker login ghcr.io`
+(si sigue privado, necesitan un token con `read:packages`).
 
 ### Persistencia y reset
 

@@ -1622,7 +1622,12 @@ sin `-` (los prerelease `vX.Y.Z-rc1` no la mueven); en produccion la app
 rechaza `AUTH_PASSWORD_PEPPER`/`AUTH_SETUP_TOKEN` con valor `change-me*`;
 `db` y `migrate` solo reciben sus variables (compose con
 `--env-file .env.docker`); y la deteccion SSL de `localhost`/`127.0.0.1`
-acepta URLs `postgres://` ademas de `postgresql://` (sin SSL). Guia en `README_PROJECT.md`, seccion "Docker
+acepta URLs `postgres://` ademas de `postgresql://` (sin SSL). Flujo de
+release documentado (probar en local con tag `local`, develop -> main, tag
+`vX.Y.Z` o `npm version` + `git push --follow-tags`): `package.json` es la
+fuente unica de la version, el workflow falla si el tag no coincide con ella y
+la version se muestra en el pie de la app. Pendiente de accion manual: hacer
+publico el paquete GHCR tras la primera publicacion. Guia en `README_PROJECT.md`, seccion "Docker
 (distribucion demo)". El hosting definitivo sigue pendiente.
 
 Alcance restante:
@@ -1630,7 +1635,7 @@ Alcance restante:
 - Decidir hosting definitivo y adaptar esta lista a sus particularidades
   (variables de entorno, procesos persistentes vs serverless, etc.).
 - Endurecer credenciales y configuracion de produccion.
-- Documentar deploy automatizado con GitHub.
+- Documentar deploy automatizado con GitHub (hecho para la imagen Docker: ver flujo de release en `README_PROJECT.md`).
 - Configurar health checks, backups y recuperacion.
 
 Hecho cuando:

@@ -44,6 +44,22 @@ describe('cards and layout components', () => {
     expect(screen.getByText('SSH basics')).toBeInTheDocument()
   })
 
+  it('shows the app version in the layout footer', () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_VERSION', '1.2.3')
+    mockFetch({ user: null })
+
+    render(
+      <AuthProvider>
+        <Layout>
+          <p>content</p>
+        </Layout>
+      </AuthProvider>
+    )
+
+    expect(screen.getByText('v1.2.3')).toBeInTheDocument()
+    vi.unstubAllEnvs()
+  })
+
   it('renders learning module detail with external links and fallback text', () => {
     render(
       <ModuleLearningContent
