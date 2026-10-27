@@ -73,7 +73,7 @@ describeIfPostgres('concurrent catalog seeding (real postgres, throwaway databas
     expect(Number(roadmaps.count)).toBe(3)
     expect(duplicateTitles).toEqual([])
     expect(duplicateModules).toEqual([])
-    expect(Number(modules.count)).toBe(34)
+    expect(Number(modules.count)).toBe(35)
     expect(Number(admins.count)).toBe(1)
   })
 })

@@ -17,7 +17,7 @@ const seedCases = [
   {
     file: '../lib/persistence/bootstrap/seeds/awsRoadmapSeed.json',
     title: 'Roadmap AWS gratuito para cantera junior DevOps',
-    moduleCount: 11,
+    moduleCount: 12,
     weights: ['20%', '40%', '20%', '20%']
   }
 ]

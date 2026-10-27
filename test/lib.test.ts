@@ -150,7 +150,8 @@ describe('quiz helpers', () => {
     const devopsQuiz = getSeedQuizForModule('Fase 3 - Kubernetes básico')
     const aiQuiz = getSeedQuizForModule('RAG para documentación')
 
-    expect(awsQuiz[0]).toMatchObject({ answer: 'Security group', options: expect.arrayContaining(['Security group']) })
+    expect(awsQuiz).toHaveLength(5)
+    expect(awsQuiz.every(question => question.options.includes(question.answer))).toBe(true)
     expect(devopsQuiz[0]).toMatchObject({ answer: 'Deployment' })
     expect(aiQuiz[0]).toMatchObject({ answer: 'Contexto relevante para generar la respuesta' })
   })

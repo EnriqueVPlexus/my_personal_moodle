@@ -28,7 +28,7 @@ describe('module repository', () => {
     )
 
     const modules = await repo.findModulesByRoadmapId(db, roadmap.id)
-    expect(modules.length).toBe(11)
+    expect(modules.length).toBe(12)
     expect(modules[0].roadmap_id).toBe(roadmap.id)
 
     const first = await repo.findModuleById(db, modules[0].id)
