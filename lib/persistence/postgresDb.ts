@@ -10,6 +10,11 @@ const ID_TABLES = new Set([
 ])
 
 const POSTGRES_SCHEMA = `
+CREATE TABLE IF NOT EXISTS roadmap_categories (
+  id SERIAL PRIMARY KEY,
+  key TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS roadmaps (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
@@ -18,7 +23,7 @@ CREATE TABLE IF NOT EXISTS roadmaps (
   objectives TEXT,
   methodology TEXT,
   evaluation_weights TEXT,
-  category_id INTEGER,
+  category_id INTEGER REFERENCES roadmap_categories(id) ON DELETE SET NULL,
   duration_weeks_min REAL,
   duration_weeks_max REAL,
   version TEXT NOT NULL DEFAULT 'v1.0.0',
@@ -94,11 +99,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
-CREATE TABLE IF NOT EXISTS roadmap_categories (
-  id SERIAL PRIMARY KEY,
-  key TEXT NOT NULL UNIQUE,
-  label TEXT NOT NULL
-);
 CREATE TABLE IF NOT EXISTS topics (
   id SERIAL PRIMARY KEY,
   key TEXT NOT NULL UNIQUE,
