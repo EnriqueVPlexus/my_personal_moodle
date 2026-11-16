@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { Pool } from 'pg'
 import { resolvePgSsl } from '../lib/persistence/pgSsl'
 import { Kysely, PostgresDialect } from 'kysely'
@@ -49,7 +50,9 @@ function createMigrator(): { db: Kysely<any>; migrator: Migrator } {
     db,
     provider: new FileMigrationProvider({
       fs,
-      path,
+      path: process.platform === 'win32'
+        ? { join: (...parts: string[]) => pathToFileURL(path.join(...parts)).href }
+        : path,
       migrationFolder: MIGRATION_FOLDER
     })
   })
