@@ -104,6 +104,18 @@ describe('PostgresDb', () => {
       expect(calledSql).toContain('ON CONFLICT DO NOTHING')
       expect(calledSql).not.toContain('OR IGNORE')
     })
+
+    it('places ON CONFLICT DO NOTHING before RETURNING id and returns undefined lastID when conflict skips insert', async () => {
+      const { PostgresDb } = await import('../lib/persistence/postgresDb')
+      queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 })
+
+      const db = new PostgresDb('postgres://fake')
+      const result = await db.run('INSERT OR IGNORE INTO topics (key, label) VALUES (?, ?)', ['aws', 'AWS'])
+
+      const calledSql = queryMock.mock.calls[0][0] as string
+      expect(calledSql).toBe('INSERT INTO topics (key, label) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id')
+      expect(result).toEqual({ changes: 0, lastID: undefined })
+    })
   })
 
   describe('transaction()', () => {

@@ -208,7 +208,10 @@ function translateSql(sql: string, params: unknown[] = []) {
     .replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT INTO')
 
   if (/INSERT\s+INTO/i.test(translated) && /INSERT\s+OR\s+IGNORE/i.test(sql)) {
-    translated = `${translated.trim().replace(/;$/, '')} ON CONFLICT DO NOTHING`
+    const trimmed = translated.trim().replace(/;$/, '')
+    translated = /\s+RETURNING\s+/i.test(trimmed)
+      ? trimmed.replace(/\s+(RETURNING\s+[\s\S]+)$/i, ' ON CONFLICT DO NOTHING $1')
+      : `${trimmed} ON CONFLICT DO NOTHING`
   }
 
   let index = 0
@@ -232,14 +235,15 @@ async function runQuery<T extends Record<string, unknown> = Record<string, unkno
 }
 
 async function runRun(target: Queryable, sql: string, params: unknown[] = []): Promise<DatabaseRunResult> {
-  const isInsert = /^\s*INSERT\s+INTO\s+([a-z_]+)/i.exec(sql)
+  const isInsert = /^\s*INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+([a-z_]+)/i.exec(sql)
   const table = isInsert?.[1]?.toLowerCase()
   const needsId = Boolean(table && ID_TABLES.has(table) && !/\bRETURNING\b/i.test(sql))
   const query = needsId ? `${sql.trim().replace(/;$/, '')} RETURNING id` : sql
   const result = await runQuery(target, query, params)
+  const rawId = result.rows[0]?.id
   return {
     changes: result.rowCount || 0,
-    lastID: needsId ? Number(result.rows[0]?.id) : undefined
+    lastID: needsId && rawId !== undefined && rawId !== null ? Number(rawId) : undefined
   }
 }
 
