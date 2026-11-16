@@ -28,6 +28,7 @@ export interface AccountRepository {
 }
 
 export interface RateLimitRepository {
+  deleteExpired(nowIso: string): Promise<void>
   find(key: string): Promise<RateLimitRow | undefined | null>
   update(key: string, attemptCount: number, resetAt: string): Promise<void>
   insert(key: string, attemptCount: number, resetAt: string): Promise<void>

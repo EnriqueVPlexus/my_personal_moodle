@@ -8,6 +8,10 @@ import type { RateLimitRepository, RateLimitRow } from '../ports'
  */
 export function createRateLimitRepository(db: DatabaseClient): RateLimitRepository {
   return {
+    async deleteExpired(nowIso) {
+      await db.run('DELETE FROM rate_limits WHERE reset_at <= ?', [nowIso])
+    },
+
     find(key) {
       return db.get<RateLimitRow | undefined>(
         'SELECT attempt_count, reset_at FROM rate_limits WHERE rate_key = ?',

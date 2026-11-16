@@ -172,17 +172,19 @@ export function makeProgressService(ports: ProgressPorts) {
       }
 
       const now = clock()
-      let session = await quizSessions.findActive(userId, moduleId, now.toISOString())
+      const nowIso = now.toISOString()
+      let session = await quizSessions.findActive(userId, moduleId, nowIso)
       if (!session) {
         const fresh = buildAttemptQuiz(moduleRow, random)
         // Nothing to serve (no bank and nothing to generate): no session either.
         if (fresh.questions.length > 0) {
+          await quizSessions.deleteExpired(nowIso)
           session = await quizSessions.create({
             id: newId(),
             userId,
             moduleId,
             questions: fresh.questions,
-            createdAt: now.toISOString(),
+            createdAt: nowIso,
             expiresAt: new Date(now.getTime() + QUIZ_SESSION_TTL_MS).toISOString()
           })
         }

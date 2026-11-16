@@ -66,6 +66,11 @@ function createFakes(now: () => Date) {
   }
 
   const rateLimits: RateLimitRepository = {
+    async deleteExpired(nowIso) {
+      for (const [key, row] of state.limits.entries()) {
+        if (row.reset_at <= nowIso) state.limits.delete(key)
+      }
+    },
     async find(key) {
       return state.limits.get(key)
     },

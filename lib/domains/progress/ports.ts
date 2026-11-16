@@ -82,6 +82,8 @@ export type NewQuizAttemptSession = {
 }
 
 export interface QuizSessionRepository {
+  /** Deletes unsubmitted sessions whose `expires_at` is at or before `now`. */
+  deleteExpired(now: string): Promise<void>
   /** Latest session of the user for the module that is neither submitted nor expired at `now`. */
   findActive(userId: number, moduleId: number, now: string): Promise<QuizAttemptSession | null>
   create(session: NewQuizAttemptSession): Promise<QuizAttemptSession>
