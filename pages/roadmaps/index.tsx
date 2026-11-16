@@ -50,11 +50,16 @@ function managedCatalogQuery(query: Record<string, string | string[] | undefined
   const managed: Record<string, string | string[]> = {}
   const search = queryValue(query.q)
   if (search) managed.q = search
-  const managedKeys = ['category', 'topic', 'level', 'duration', 'progress_status', 'sort']
-  managedKeys.forEach(key => {
+  const arrayKeys = ['category', 'topic', 'level', 'duration', 'progress_status']
+  arrayKeys.forEach(key => {
     const value = query[key]
-    if (value !== undefined) managed[key] = value
+    if (value !== undefined) {
+      managed[key] = Array.isArray(value) ? value : [value]
+    }
   })
+  if (query.sort !== undefined) {
+    managed.sort = query.sort
+  }
   return managed
 }
 
@@ -71,6 +76,8 @@ export default function RoadmapsPage() {
   const [retryKey, setRetryKey] = useState(0)
   const [metadata, setMetadata] = useState<CatalogMetadata | null>(null)
   const requestId = useRef(0)
+  const routerRef = useRef(router)
+  routerRef.current = router
   const categoryQuery = router.query.category
   const topicQuery = router.query.topic
   const levelQuery = router.query.level
@@ -179,7 +186,7 @@ export default function RoadmapsPage() {
       const url = params.size > 0 ? `/api/roadmaps?${params.toString()}` : '/api/roadmaps'
       const res = await fetch(url, { signal })
       if (res.status === 401) {
-        await router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+        await routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
         return
       }
       if (!res.ok) throw new Error('No se pudo cargar el catálogo')
@@ -198,7 +205,7 @@ export default function RoadmapsPage() {
         setHasLoaded(true)
       }
     }
-  }, [appliedQuery, categoryKey, topicKey, levelKey, durationKey, progressStatusKey, sortKey, router])
+  }, [appliedQuery, categoryKey, topicKey, levelKey, durationKey, progressStatusKey, sortKey])
 
   useEffect(() => {
     const controller = new AbortController()
