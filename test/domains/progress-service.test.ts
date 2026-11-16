@@ -98,6 +98,11 @@ describe('module progress calculation', () => {
 function fakeSessions(): { rows: Map<string, QuizAttemptSession>; repo: QuizSessionRepository } {
   const rows = new Map<string, QuizAttemptSession>()
   const repo: QuizSessionRepository = {
+    deleteExpired: async now => {
+      for (const [id, row] of rows.entries()) {
+        if (row.submitted_at === null && row.expires_at <= now) rows.delete(id)
+      }
+    },
     findActive: async (userId, moduleId, now) => [...rows.values()]
       .filter(row => row.user_id === userId && row.module_id === moduleId && row.submitted_at === null && row.expires_at > now)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null,

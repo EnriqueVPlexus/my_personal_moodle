@@ -113,6 +113,22 @@ export async function createQuizSession(
   }
 }
 
+export async function deleteExpiredQuizSessions(db: DatabaseClient, now: string): Promise<void> {
+  if (db.backend !== 'postgres') {
+    await db.run(
+      'DELETE FROM quiz_attempt_sessions WHERE expires_at <= ? AND submitted_at IS NULL',
+      [now]
+    )
+    return
+  }
+
+  await getQueryDatabase(pool(db))
+    .deleteFrom('quiz_attempt_sessions')
+    .where('expires_at', '<=', now)
+    .where('submitted_at', 'is', null)
+    .execute()
+}
+
 /** `UPDATE ... WHERE submitted_at IS NULL`: only one of several concurrent submits wins. */
 export async function markQuizSessionSubmitted(db: DatabaseClient, id: string, submittedAt: string): Promise<boolean> {
   if (db.backend !== 'postgres') {
@@ -134,6 +150,7 @@ export async function markQuizSessionSubmitted(db: DatabaseClient, id: string, s
 
 export function createQuizSessionRepository(db: DatabaseClient): QuizSessionRepository {
   return {
+    deleteExpired: now => deleteExpiredQuizSessions(db, now),
     findActive: (userId, moduleId, now) => findActiveQuizSession(db, userId, moduleId, now),
     create: session => createQuizSession(db, session),
     findById: id => findQuizSessionById(db, id),

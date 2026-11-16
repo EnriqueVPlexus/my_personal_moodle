@@ -137,14 +137,19 @@ export function makeAuthService(ports: AuthServicePorts, config: AuthServiceConf
 
     /** Records an attempt for `key` and reports whether it is still allowed. */
     async registerAttempt(key: string, policy: RateLimitPolicy): Promise<{ allowed: boolean }> {
-      const nowMs = now().getTime()
+      const current = now()
+      const nowMs = current.getTime()
+      const nowIso = current.toISOString()
       const existing = await rateLimits.find(key)
 
       const isExpired = !existing || new Date(existing.reset_at).getTime() <= nowMs
+      if (isExpired) {
+        await rateLimits.deleteExpired(nowIso)
+      }
       const nextCount = isExpired ? 1 : Number(existing.attempt_count) + 1
       const nextResetAt = isExpired ? new Date(nowMs + policy.windowMs).toISOString() : existing.reset_at
 
-      if (existing) await rateLimits.update(key, nextCount, nextResetAt)
+      if (existing && !isExpired) await rateLimits.update(key, nextCount, nextResetAt)
       else await rateLimits.insert(key, nextCount, nextResetAt)
 
       return { allowed: nextCount <= policy.maxAttempts }
