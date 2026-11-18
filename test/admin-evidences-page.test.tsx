@@ -164,13 +164,19 @@ describe('admin evidences page', () => {
       roadmap_title: 'DevOps Junior'
     }
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url: any, init: any) => {
-      if (init?.method === 'PUT') return jsonResponse({ ok: true })
+      if (init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body || '{}'))
+        evidence.review_status = body.review_status
+        evidence.admin_comment = body.admin_comment
+        return jsonResponse({ ok: true })
+      }
       return jsonResponse([evidence])
     })
     const EvidencesPage = (await import('../pages/admin/evidences')).default
     render(<EvidencesPage />)
 
     expect(await screen.findByText('CI/CD')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Restablecer a Pendiente' })).not.toBeInTheDocument()
 
     const textarea = screen.getByPlaceholderText('Escribe aquí las observaciones o correcciones para el alumno...')
     fireEvent.change(textarea, { target: { value: 'Buen trabajo' } })

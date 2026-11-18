@@ -224,6 +224,7 @@ export default function AdminEvidencesPage() {
                         >
                           {savingStatus === 'requiere_cambios' ? 'Guardando...' : 'Solicitar cambios'}
                         </button>
+<<<<<<< HEAD
                         <button
                           type="button"
                           disabled={isSubmitting}
@@ -232,6 +233,18 @@ export default function AdminEvidencesPage() {
                         >
                           {savingStatus === 'pendiente' ? 'Guardando...' : 'Restablecer a Pendiente'}
                         </button>
+=======
+                        {evidence.review_status && evidence.review_status !== 'pendiente' && (
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleReview(evidence.id, 'pendiente')}
+                            className="inline-flex items-center rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
+                          >
+                            Restablecer a Pendiente
+                          </button>
+                        )}
+>>>>>>> fix/admin-evidences-hide-reset-when-pending
                       </div>
                     </div>
                   </article>
