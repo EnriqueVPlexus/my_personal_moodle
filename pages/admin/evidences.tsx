@@ -38,7 +38,10 @@ export default function AdminEvidencesPage() {
 
   // State for review inputs per evidence ID
   const [reviewComments, setReviewComments] = useState<Record<number, string>>({})
-  const [reviewingId, setReviewingId] = useState<number | null>(null)
+  const [reviewingAction, setReviewingAction] = useState<{
+    id: number
+    status: 'aprobado' | 'requiere_cambios' | 'pendiente'
+  } | null>(null)
 
   const load = useCallback(async (statusFilter: string = activeStatusFilter) => {
     setLoadingRows(true)
@@ -69,7 +72,7 @@ export default function AdminEvidencesPage() {
   }, [isAdmin, activeStatusFilter, load])
 
   async function handleReview(evidenceId: number, status: 'aprobado' | 'requiere_cambios' | 'pendiente') {
-    setReviewingId(evidenceId)
+    setReviewingAction({ id: evidenceId, status })
     setError('')
     try {
       const res = await fetch(`/api/evidences/${evidenceId}/review`, {
@@ -89,7 +92,7 @@ export default function AdminEvidencesPage() {
     } catch {
       setError('Error al comunicar con el servidor.')
     } finally {
-      setReviewingId(null)
+      setReviewingAction(null)
     }
   }
 
@@ -135,11 +138,10 @@ export default function AdminEvidencesPage() {
                 key={filter.id}
                 type="button"
                 onClick={() => setActiveStatusFilter(filter.id)}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                  activeStatusFilter === filter.id
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${activeStatusFilter === filter.id
                     ? 'bg-sky-700 text-white shadow-sm'
                     : 'bg-white text-slate-700 hover:bg-slate-100'
-                }`}
+                  }`}
               >
                 {filter.label}
               </button>
@@ -155,7 +157,8 @@ export default function AdminEvidencesPage() {
             <div className="grid gap-4">
               {evidences.map(evidence => {
                 const badge = statusBadge(evidence.review_status)
-                const isSubmitting = reviewingId === evidence.id
+                const isSubmitting = reviewingAction?.id === evidence.id
+                const savingStatus = isSubmitting ? reviewingAction.status : null
 
                 return (
                   <article key={evidence.id} className="panel p-5">
@@ -211,7 +214,7 @@ export default function AdminEvidencesPage() {
                           onClick={() => handleReview(evidence.id, 'aprobado')}
                           className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
                         >
-                          {isSubmitting ? 'Guardando...' : 'Aprobar'}
+                          {savingStatus === 'aprobado' ? 'Guardando...' : 'Aprobar'}
                         </button>
                         <button
                           type="button"
@@ -219,7 +222,7 @@ export default function AdminEvidencesPage() {
                           onClick={() => handleReview(evidence.id, 'requiere_cambios')}
                           className="inline-flex items-center rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
                         >
-                          {isSubmitting ? 'Guardando...' : 'Solicitar cambios'}
+                          {savingStatus === 'requiere_cambios' ? 'Guardando...' : 'Solicitar cambios'}
                         </button>
                         <button
                           type="button"
@@ -227,7 +230,7 @@ export default function AdminEvidencesPage() {
                           onClick={() => handleReview(evidence.id, 'pendiente')}
                           className="inline-flex items-center rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
                         >
-                          Restablecer a Pendiente
+                          {savingStatus === 'pendiente' ? 'Guardando...' : 'Restablecer a Pendiente'}
                         </button>
                       </div>
                     </div>
