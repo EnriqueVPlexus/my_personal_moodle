@@ -214,6 +214,18 @@ describe('Next pages', () => {
     })
   })
 
+  it('shows an error state instead of hanging on Cargando when roadmap returns 404', async () => {
+    setRouter('/roadmaps/999', { id: '999' })
+    mockAuth()
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'No encontrado.' }, 404))
+
+    const RoadmapDetailPage = (await import('../pages/roadmaps/[id]')).default
+    render(<RoadmapDetailPage />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El roadmap no existe o no tienes acceso.')
+    expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/roadmaps')
+  })
+
   it('renders module details, redirects protected reads and updates personal lesson progress', async () => {
     setRouter('/modules/4', { id: '4' })
     mockAuth({ user: adminUser, isAdmin: true })

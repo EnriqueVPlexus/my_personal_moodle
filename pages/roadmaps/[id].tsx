@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
@@ -108,19 +108,30 @@ export default function RoadmapDetailPage() {
   const { isAdmin, user } = useAuth()
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null)
   const [openModuleKeys, setOpenModuleKeys] = useState<Set<string>>(new Set())
+  const [loadError, setLoadError] = useState('')
+  const routerRef = useRef(router)
+  routerRef.current = router
 
   const load = useCallback(async () => {
     if (!id) return
-    const res = await fetch(`/api/roadmaps/${id}`)
-    if (res.status === 401) {
-      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
-      return
-    }
-    if (res.ok) {
+    setLoadError('')
+    try {
+      const res = await fetch(`/api/roadmaps/${id}`)
+      if (res.status === 401) {
+        routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
+        return
+      }
+      if (!res.ok) {
+        setRoadmap(null)
+        setLoadError(res.status === 404 ? 'El roadmap no existe o no tienes acceso.' : 'No se pudo cargar el roadmap.')
+        return
+      }
       const data = await res.json()
       setRoadmap(data)
+    } catch {
+      setLoadError('No se pudo conectar con el servidor.')
     }
-  }, [id, router])
+  }, [id])
 
   useEffect(() => {
     load()
@@ -145,7 +156,17 @@ export default function RoadmapDetailPage() {
 
   if (!roadmap) return (
     <Layout>
-      <main className="container py-8 text-sm text-slate-600">Cargando...</main>
+      <main className="container py-8 text-sm text-slate-600">
+        {loadError ? (
+          <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
+            <p>{loadError}</p>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <button className="font-semibold underline" onClick={() => load()}>Reintentar</button>
+              <Link href="/roadmaps" className="font-semibold underline">Volver al catálogo</Link>
+            </div>
+          </div>
+        ) : 'Cargando...'}
+      </main>
     </Layout>
   )
 
