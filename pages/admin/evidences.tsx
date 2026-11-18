@@ -139,8 +139,8 @@ export default function AdminEvidencesPage() {
                 type="button"
                 onClick={() => setActiveStatusFilter(filter.id)}
                 className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${activeStatusFilter === filter.id
-                    ? 'bg-sky-700 text-white shadow-sm'
-                    : 'bg-white text-slate-700 hover:bg-slate-100'
+                  ? 'bg-sky-700 text-white shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
                   }`}
               >
                 {filter.label}
@@ -224,16 +224,6 @@ export default function AdminEvidencesPage() {
                         >
                           {savingStatus === 'requiere_cambios' ? 'Guardando...' : 'Solicitar cambios'}
                         </button>
-<<<<<<< HEAD
-                        <button
-                          type="button"
-                          disabled={isSubmitting}
-                          onClick={() => handleReview(evidence.id, 'pendiente')}
-                          className="inline-flex items-center rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
-                        >
-                          {savingStatus === 'pendiente' ? 'Guardando...' : 'Restablecer a Pendiente'}
-                        </button>
-=======
                         {evidence.review_status && evidence.review_status !== 'pendiente' && (
                           <button
                             type="button"
@@ -241,10 +231,9 @@ export default function AdminEvidencesPage() {
                             onClick={() => handleReview(evidence.id, 'pendiente')}
                             className="inline-flex items-center rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
                           >
-                            Restablecer a Pendiente
+                            {savingStatus === 'pendiente' ? 'Guardando...' : 'Restablecer a Pendiente'}
                           </button>
                         )}
->>>>>>> fix/admin-evidences-hide-reset-when-pending
                       </div>
                     </div>
                   </article>
@@ -253,7 +242,7 @@ export default function AdminEvidencesPage() {
             </div>
           )}
         </section>
-      </main>
-    </Layout>
+      </main >
+    </Layout >
   )
 }
