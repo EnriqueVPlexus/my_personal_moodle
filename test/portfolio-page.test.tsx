@@ -111,12 +111,15 @@ describe('portfolio page', () => {
     expect(screen.getByText('Cargando portfolio...')).toBeInTheDocument()
   })
 
-  it('keeps loading indefinitely when there is no session and never calls fetch', async () => {
-    mockAuth({ user: null })
+  it('redirects to login when auth finishes without a session', async () => {
+    mockAuth({ user: null, loading: false })
     const fetchMock = vi.spyOn(global, 'fetch')
     const PortfolioPage = (await import('../pages/portfolio')).default
     render(<PortfolioPage />)
-    expect(screen.getByText('Cargando portfolio...')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/login?next=%2Fportfolio')
+    })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

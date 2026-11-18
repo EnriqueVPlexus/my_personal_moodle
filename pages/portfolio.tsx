@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -29,6 +29,8 @@ function reviewBadge(status: string) {
 
 export default function PortfolioPage() {
   const router = useRouter()
+  const routerRef = useRef(router)
+  routerRef.current = router
   const { user, loading: authLoading } = useAuth()
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -40,7 +42,7 @@ export default function PortfolioPage() {
     try {
       const res = await fetch('/api/portfolio')
       if (res.status === 401) {
-        router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+        routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
         return
       }
       const data = await res.json().catch(() => null)
@@ -54,11 +56,16 @@ export default function PortfolioPage() {
     } finally {
       setLoading(false)
     }
-  }, [router])
+  }, [])
 
   useEffect(() => {
-    if (user) load()
-  }, [user, load])
+    if (authLoading) return
+    if (!user) {
+      routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
+      return
+    }
+    load()
+  }, [authLoading, user, load])
 
   if (authLoading || (loading && !portfolio && !error)) {
     return (
