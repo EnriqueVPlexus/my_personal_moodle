@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
@@ -108,19 +108,30 @@ export default function RoadmapDetailPage() {
   const { isAdmin, user } = useAuth()
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null)
   const [openModuleKeys, setOpenModuleKeys] = useState<Set<string>>(new Set())
+  const [loadError, setLoadError] = useState('')
+  const routerRef = useRef(router)
+  routerRef.current = router
 
   const load = useCallback(async () => {
     if (!id) return
-    const res = await fetch(`/api/roadmaps/${id}`)
-    if (res.status === 401) {
-      router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
-      return
-    }
-    if (res.ok) {
+    setLoadError('')
+    try {
+      const res = await fetch(`/api/roadmaps/${id}`)
+      if (res.status === 401) {
+        routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
+        return
+      }
+      if (!res.ok) {
+        setRoadmap(null)
+        setLoadError(res.status === 404 ? 'El roadmap no existe o no tienes acceso.' : 'No se pudo cargar el roadmap.')
+        return
+      }
       const data = await res.json()
       setRoadmap(data)
+    } catch {
+      setLoadError('No se pudo conectar con el servidor.')
     }
-  }, [id, router])
+  }, [id])
 
   useEffect(() => {
     load()
@@ -145,7 +156,17 @@ export default function RoadmapDetailPage() {
 
   if (!roadmap) return (
     <Layout>
-      <main className="container py-8 text-sm text-slate-600">Cargando...</main>
+      <main className="container py-8 text-sm text-slate-600">
+        {loadError ? (
+          <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
+            <p>{loadError}</p>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <button className="font-semibold underline" onClick={() => load()}>Reintentar</button>
+              <Link href="/roadmaps" className="font-semibold underline">Volver al catálogo</Link>
+            </div>
+          </div>
+        ) : 'Cargando...'}
+      </main>
     </Layout>
   )
 
@@ -234,12 +255,14 @@ export default function RoadmapDetailPage() {
               <div className="min-w-[220px] rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
                 <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Siguiente paso</span>
                 <span className="mt-1 block font-semibold text-slate-950">{roadmap.progress.next_step_label}</span>
-                <Link
-                  href={roadmap.progress.next_href}
-                  className="mt-4 inline-flex rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                >
-                  Continuar
-                </Link>
+                {roadmap.progress.next_href !== `/roadmaps/${roadmap.id}` && (
+                  <Link
+                    href={roadmap.progress.next_href}
+                    className="mt-4 inline-flex rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    Continuar
+                  </Link>
+                )}
               </div>
             </div>
           </section>
@@ -338,7 +361,7 @@ export default function RoadmapDetailPage() {
                                 ? 'bg-emerald-50 text-emerald-700'
                                 : 'bg-amber-50 text-amber-700'
                             }`}>
-                              {module.has_evidence ? 'Con evidencia' : 'Solo lectura'}
+                              {module.has_evidence ? 'Con evidencia' : 'Sin evidencia'}
                             </span>
                           )}
                           <h3 className="text-lg font-semibold text-slate-950">{module.title}</h3>

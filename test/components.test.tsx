@@ -151,7 +151,7 @@ describe('form components', () => {
     }
 
     render(<Harness />)
-    expect(screen.getByText('Solo lectura')).toBeInTheDocument()
+    expect(screen.getByText('Sin evidencia')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Registrar evidencia' })).toBeDisabled()
 
     fireEvent.change(screen.getByPlaceholderText('https://github.com/usuario/proyecto'), {
@@ -178,7 +178,7 @@ describe('form components', () => {
     }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar evidencia' }))
-    expect(await screen.findByText('Solo lectura')).toBeInTheDocument()
+    expect(await screen.findByText('Sin evidencia')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenLastCalledWith('/api/evidences/modules/7', { method: 'DELETE' })
   })
 

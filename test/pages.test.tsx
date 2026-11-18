@@ -191,7 +191,7 @@ describe('Next pages', () => {
     expect(screen.getByText('Tu progreso en este roadmap')).toBeInTheDocument()
     expect(screen.getByText('Continuar con Instance review')).toBeInTheDocument()
     expect(screen.getByText('Con evidencia')).toBeInTheDocument()
-    expect(screen.getByText('Solo lectura')).toBeInTheDocument()
+    expect(screen.getByText('Sin evidencia')).toBeInTheDocument()
     expect(screen.getByText((_content, element) => (
       element?.tagName.toLowerCase() === 'p' &&
       Boolean(element.textContent?.includes('1/3 lecciones completadas'))
@@ -212,6 +212,18 @@ describe('Next pages', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/modules', expect.objectContaining({ method: 'POST' }))
     })
+  })
+
+  it('shows an error state instead of hanging on Cargando when roadmap returns 404', async () => {
+    setRouter('/roadmaps/999', { id: '999' })
+    mockAuth()
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'No encontrado.' }, 404))
+
+    const RoadmapDetailPage = (await import('../pages/roadmaps/[id]')).default
+    render(<RoadmapDetailPage />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El roadmap no existe o no tienes acceso.')
+    expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/roadmaps')
   })
 
   it('renders module details, redirects protected reads and updates personal lesson progress', async () => {
