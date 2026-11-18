@@ -155,9 +155,14 @@ export default function ImportRoadmapPage() {
         <section className="container grid gap-6 py-8 lg:grid-cols-[1fr_0.9fr]">
           <div className="panel p-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <label className="grid gap-1 text-sm font-semibold text-slate-900">
+              <label className="grid gap-1.5 text-sm font-semibold text-slate-900">
                 Seleccionar archivo JSON
-                <input type="file" accept="application/json,.json" onChange={handleFile} className="text-sm font-normal text-slate-600" />
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={handleFile}
+                  className="cursor-pointer text-sm font-normal text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-700 file:transition hover:file:bg-slate-50"
+                />
               </label>
               <button type="button" onClick={() => changeText(JSON.stringify(exampleRoadmap, null, 2))} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Cargar ejemplo
