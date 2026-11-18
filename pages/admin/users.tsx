@@ -22,6 +22,7 @@ export default function AdminUsersPage() {
   const [actionError, setActionError] = useState('')
   const [saving, setSaving] = useState(false)
   const [resetPasswords, setResetPasswords] = useState<Record<number, string>>({})
+  const [resetFeedback, setResetFeedback] = useState<Record<number, { type: 'error' | 'success'; message: string } | undefined>>({})
   const [accessSaving, setAccessSaving] = useState<Record<number, boolean>>({})
 
   async function loadUsers() {
@@ -113,11 +114,27 @@ export default function AdminUsersPage() {
 
   async function handleResetPassword(target: UserRow) {
     setActionError('')
+    const nextPassword = resetPasswords[target.id] || ''
+    if (nextPassword.length < 12) {
+      setResetFeedback(current => ({
+        ...current,
+        [target.id]: { type: 'error', message: 'La contraseña debe tener al menos 12 caracteres.' }
+      }))
+      return
+    }
+    setResetFeedback(current => ({ ...current, [target.id]: undefined }))
     try {
-      await patchUser(target.id, { action: 'reset_password', password: resetPasswords[target.id] || '' })
+      await patchUser(target.id, { action: 'reset_password', password: nextPassword })
       setResetPasswords(current => ({ ...current, [target.id]: '' }))
+      setResetFeedback(current => ({
+        ...current,
+        [target.id]: { type: 'success', message: 'Contraseña actualizada correctamente.' }
+      }))
     } catch (err: any) {
-      setActionError(err.message)
+      setResetFeedback(current => ({
+        ...current,
+        [target.id]: { type: 'error', message: err.message }
+      }))
     }
   }
 
@@ -275,21 +292,49 @@ export default function AdminUsersPage() {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row">
-                      <input
-                        type="password"
-                        value={resetPasswords[account.id] || ''}
-                        onChange={e => setResetPasswords(current => ({ ...current, [account.id]: e.target.value }))}
-                        placeholder="Nueva contraseña"
-                        minLength={12}
-                        className="form-field min-w-0 flex-1"
-                      />
-                      <button
-                        onClick={() => handleResetPassword(account)}
-                        className="primary-action px-3"
+                    <div className="border-t border-slate-200 pt-4">
+                      <form
+                        onSubmit={e => {
+                          e.preventDefault()
+                          void handleResetPassword(account)
+                        }}
+                        className="flex flex-col gap-2 sm:flex-row"
                       >
-                        Resetear
-                      </button>
+                        <input
+                          type="password"
+                          value={resetPasswords[account.id] || ''}
+                          onChange={e => {
+                            setResetPasswords(current => ({ ...current, [account.id]: e.target.value }))
+                            if (resetFeedback[account.id]) {
+                              setResetFeedback(current => ({ ...current, [account.id]: undefined }))
+                            }
+                          }}
+                          placeholder="Nueva contraseña"
+                          minLength={12}
+                          autoComplete="new-password"
+                          className="form-field min-w-0 flex-1"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="primary-action px-3"
+                        >
+                          Resetear
+                        </button>
+                      </form>
+                      <p className="mt-1.5 text-xs text-slate-500">Mínimo 12 caracteres.</p>
+                      {resetFeedback[account.id] && (
+                        <p
+                          role={resetFeedback[account.id]?.type === 'error' ? 'alert' : 'status'}
+                          className={`mt-2 rounded-md p-2.5 text-xs font-medium ${
+                            resetFeedback[account.id]?.type === 'error'
+                              ? 'bg-red-50 text-red-700'
+                              : 'bg-emerald-50 text-emerald-700'
+                          }`}
+                        >
+                          {resetFeedback[account.id]?.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
