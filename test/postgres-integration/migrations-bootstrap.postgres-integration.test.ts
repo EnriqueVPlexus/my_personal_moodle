@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { promises as fs } from 'node:fs'
 import { Pool, Client } from 'pg'
 import { Kysely, PostgresDialect, sql } from 'kysely'
@@ -105,7 +106,9 @@ describeIfPostgres('migrateToLatest bootstraps an empty schema (real postgres, t
       db,
       provider: new FileMigrationProvider({
         fs,
-        path,
+        path: process.platform === 'win32'
+          ? { join: (...parts: string[]) => pathToFileURL(path.join(...parts)).href }
+          : path,
         migrationFolder: MIGRATION_FOLDER
       }),
       // Without this, Kysely's Postgres introspector checks for

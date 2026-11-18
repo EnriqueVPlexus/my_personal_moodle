@@ -16,6 +16,7 @@ const API_DIR = join(ROOT, 'pages', 'api')
 /** `pages/api/evidences/[id]/review.ts` -> `/api/evidences/{id}/review`. */
 function routeOfFile(file: string) {
   const route = relative(join(ROOT, 'pages'), file)
+    .replace(/\\/g, '/')
     .replace(/\.ts$/, '')
     .replace(/\/index$/, '')
     .replace(/\[(\w+)\]/g, '{$1}')
@@ -64,7 +65,7 @@ describe('OpenAPI document', () => {
   const document = buildOpenApiDocument() as any
 
   it('matches the committed openapi.json (run `npm run contracts:generate` if this fails)', () => {
-    const committed = readFileSync(join(ROOT, 'openapi.json'), 'utf8')
+    const committed = readFileSync(join(ROOT, 'openapi.json'), 'utf8').replace(/\r\n/g, '\n')
 
     expect(
       committed === serializeOpenApiDocument(),
