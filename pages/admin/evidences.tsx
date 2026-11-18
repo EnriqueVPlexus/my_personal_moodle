@@ -221,14 +221,16 @@ export default function AdminEvidencesPage() {
                         >
                           {isSubmitting ? 'Guardando...' : 'Solicitar cambios'}
                         </button>
-                        <button
-                          type="button"
-                          disabled={isSubmitting}
-                          onClick={() => handleReview(evidence.id, 'pendiente')}
-                          className="inline-flex items-center rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
-                        >
-                          Restablecer a Pendiente
-                        </button>
+                        {evidence.review_status && evidence.review_status !== 'pendiente' && (
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleReview(evidence.id, 'pendiente')}
+                            className="inline-flex items-center rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
+                          >
+                            Restablecer a Pendiente
+                          </button>
+                        )}
                       </div>
                     </div>
                   </article>
