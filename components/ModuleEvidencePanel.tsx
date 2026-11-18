@@ -103,7 +103,7 @@ export default function ModuleEvidencePanel({ moduleId, evidence, onChange }: Pr
             <span className={`rounded-md px-2 py-1 text-xs font-semibold ${
               evidence ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
             }`}>
-              {evidence ? 'Con evidencia' : 'Solo lectura'}
+              {evidence ? 'Con evidencia' : 'Sin evidencia'}
             </span>
             {evidence && (
               <span className={`rounded-md px-2 py-1 text-xs font-semibold ${badge.class}`}>

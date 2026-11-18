@@ -255,12 +255,14 @@ export default function RoadmapDetailPage() {
               <div className="min-w-[220px] rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
                 <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Siguiente paso</span>
                 <span className="mt-1 block font-semibold text-slate-950">{roadmap.progress.next_step_label}</span>
-                <Link
-                  href={roadmap.progress.next_href}
-                  className="mt-4 inline-flex rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                >
-                  Continuar
-                </Link>
+                {roadmap.progress.next_href !== `/roadmaps/${roadmap.id}` && (
+                  <Link
+                    href={roadmap.progress.next_href}
+                    className="mt-4 inline-flex rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    Continuar
+                  </Link>
+                )}
               </div>
             </div>
           </section>
@@ -359,7 +361,7 @@ export default function RoadmapDetailPage() {
                                 ? 'bg-emerald-50 text-emerald-700'
                                 : 'bg-amber-50 text-amber-700'
                             }`}>
-                              {module.has_evidence ? 'Con evidencia' : 'Solo lectura'}
+                              {module.has_evidence ? 'Con evidencia' : 'Sin evidencia'}
                             </span>
                           )}
                           <h3 className="text-lg font-semibold text-slate-950">{module.title}</h3>

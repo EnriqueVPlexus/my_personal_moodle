@@ -191,7 +191,7 @@ describe('Next pages', () => {
     expect(screen.getByText('Tu progreso en este roadmap')).toBeInTheDocument()
     expect(screen.getByText('Continuar con Instance review')).toBeInTheDocument()
     expect(screen.getByText('Con evidencia')).toBeInTheDocument()
-    expect(screen.getByText('Solo lectura')).toBeInTheDocument()
+    expect(screen.getByText('Sin evidencia')).toBeInTheDocument()
     expect(screen.getByText((_content, element) => (
       element?.tagName.toLowerCase() === 'p' &&
       Boolean(element.textContent?.includes('1/3 lecciones completadas'))

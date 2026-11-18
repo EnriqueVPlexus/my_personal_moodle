@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -38,6 +38,8 @@ function formatQuizPercentage(value?: number | null) {
 
 export default function MyRoadmapsPage() {
   const router = useRouter()
+  const routerRef = useRef(router)
+  routerRef.current = router
   const [loading, setLoading] = useState(true)
   const [roadmaps, setRoadmaps] = useState<UserRoadmapProgress[]>([])
   const [error, setError] = useState('')
@@ -48,7 +50,7 @@ export default function MyRoadmapsPage() {
     try {
       const res = await fetch('/api/progress/roadmaps')
       if (res.status === 401) {
-        router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+        routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
         return
       }
       if (!res.ok) {
@@ -61,7 +63,7 @@ export default function MyRoadmapsPage() {
     } finally {
       setLoading(false)
     }
-  }, [router])
+  }, [])
 
   useEffect(() => {
     load()
@@ -211,12 +213,14 @@ export default function MyRoadmapsPage() {
                       </span>
                     </div>
                     <div className="flex gap-3">
-                      <Link
-                        href={roadmap.next_href}
-                        className="inline-flex items-center rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-                      >
-                        Continuar
-                      </Link>
+                      {roadmap.next_href !== `/roadmaps/${roadmap.roadmap_id}` && (
+                        <Link
+                          href={roadmap.next_href}
+                          className="inline-flex items-center rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                        >
+                          Continuar
+                        </Link>
+                      )}
                       <Link
                         href={`/roadmaps/${roadmap.roadmap_id}`}
                         className="inline-flex items-center rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
