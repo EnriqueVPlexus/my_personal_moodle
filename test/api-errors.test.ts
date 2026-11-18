@@ -108,4 +108,11 @@ describe('withApiErrors', () => {
     const result = await withApiErrors(() => 'done')(createRequest(), createResponse())
     expect(result).toBe('done')
   })
+
+  it('resolves to undefined when the handler returns res (e.g. res.status(204).end())', async () => {
+    const res = createResponse()
+    const result = await withApiErrors((_req, response) => response.status(204).end())(createRequest(), res)
+    expect(res.statusCode).toBe(204)
+    expect(result).toBeUndefined()
+  })
 })

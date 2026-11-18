@@ -29,7 +29,8 @@ function routeOf(req: NextApiRequest): string {
 export function withApiErrors(handler: NextApiHandler): ApiHandler {
   const wrapped = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
-      return await handler(req, res)
+      const result = await handler(req, res)
+      return result === res ? undefined : result
     } catch (error) {
       console.error(`[api] unhandled error in ${req.method ?? 'UNKNOWN'} ${routeOf(req)}`, error)
       if (!res.headersSent) {
