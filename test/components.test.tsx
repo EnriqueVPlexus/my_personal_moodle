@@ -30,6 +30,7 @@ describe('cards and layout components', () => {
       <AuthProvider>
         <Layout>
           <RoadmapCard title="AWS Roadmap" description="Cloud path" moduleCount={11} />
+          <RoadmapCard title="Single Module Roadmap" moduleCount={1} />
           <ModuleCard title="EC2" objective="Deploy compute" duration="1 semana" position={1} />
           <LessonCard title="SSH basics" />
           <ProgressBar value={125} />
@@ -40,6 +41,7 @@ describe('cards and layout components', () => {
     expect(screen.getByText('CanteraHub')).toBeInTheDocument()
     expect(screen.getByText('AWS Roadmap')).toBeInTheDocument()
     expect(screen.getByText('11 módulos')).toBeInTheDocument()
+    expect(screen.getByText('1 módulo')).toBeInTheDocument()
     expect(screen.getByText('Deploy compute')).toBeInTheDocument()
     expect(screen.getByText('SSH basics')).toBeInTheDocument()
   })

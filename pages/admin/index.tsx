@@ -131,7 +131,9 @@ export default function AdminDashboardPage() {
                           <Link href={`/roadmaps/${roadmap.roadmap_id}`} className="font-semibold text-slate-900 hover:text-sky-700">
                             {roadmap.title}
                           </Link>
-                          <span className="shrink-0 text-slate-600">{roadmap.learners_count} usuarios</span>
+                          <span className="shrink-0 text-slate-600">
+                            {roadmap.learners_count} {roadmap.learners_count === 1 ? 'usuario' : 'usuarios'}
+                          </span>
                         </div>
                         <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                           <div
@@ -140,7 +142,7 @@ export default function AdminDashboardPage() {
                           />
                         </div>
                         <p className="mt-1.5 text-xs text-slate-500">
-                          {roadmap.active_learners_count} activos · {roadmap.completed_learners_count} completados
+                          {roadmap.active_learners_count} {roadmap.active_learners_count === 1 ? 'activo' : 'activos'} · {roadmap.completed_learners_count} {roadmap.completed_learners_count === 1 ? 'completado' : 'completados'}
                         </p>
                       </article>
                     )) : (
@@ -162,14 +164,16 @@ export default function AdminDashboardPage() {
                             <Link href={`/modules/${module.module_id}`} className="font-semibold text-slate-900 hover:text-emerald-700">
                               {module.title}
                             </Link>
-                            <p className="mt-1 text-xs text-slate-500">{module.roadmap_title} · {module.total_lessons} lecciones</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {module.roadmap_title} · {module.total_lessons} {module.total_lessons === 1 ? 'lección' : 'lecciones'}
+                            </p>
                           </div>
                           <span className="rounded-md bg-emerald-50 px-2 py-1 text-sm font-bold text-emerald-700">
                             {module.completed_learners_count}
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-slate-500">
-                          {module.completed_learners_count} de {module.learners_count} usuarios con actividad lo completaron.
+                          {module.completed_learners_count} de {module.learners_count} {module.learners_count === 1 ? 'usuario' : 'usuarios'} con actividad {module.completed_learners_count === 1 ? 'lo completó' : 'lo completaron'}.
                         </p>
                       </article>
                     )) : (
@@ -185,7 +189,9 @@ export default function AdminDashboardPage() {
                     <p className="text-sm font-semibold uppercase tracking-[0.14em] text-amber-700">Seguimiento</p>
                     <h2 id="stalled-title" className="mt-1 text-xl font-semibold text-slate-950">Usuarios sin actividad reciente</h2>
                   </div>
-                  <p className="text-xs text-slate-500">Roadmaps incompletos sin actividad durante {dashboard.paused_after_days} días o más.</p>
+                  <p className="text-xs text-slate-500">
+                    Roadmaps incompletos sin actividad durante {dashboard.paused_after_days} {dashboard.paused_after_days === 1 ? 'día' : 'días'} o más.
+                  </p>
                 </div>
                 <div className="mt-5 grid gap-3">
                   {dashboard.stalled_learners.length > 0 ? dashboard.stalled_learners.map(row => (
@@ -199,11 +205,11 @@ export default function AdminDashboardPage() {
                           {row.roadmap_title}
                         </Link>
                         <p className="mt-1 text-xs text-slate-600">
-                          {row.current_module_title || 'Sin módulo actual'} · {row.completed_lessons_count}/{row.total_lessons} lecciones
+                          {row.current_module_title || 'Sin módulo actual'} · {row.completed_lessons_count}/{row.total_lessons} {row.total_lessons === 1 ? 'lección' : 'lecciones'}
                         </p>
                       </div>
                       <div className="lg:text-right">
-                        <p className="text-sm font-bold text-amber-800">{row.inactivity_days} días</p>
+                        <p className="text-sm font-bold text-amber-800">{row.inactivity_days} {row.inactivity_days === 1 ? 'día' : 'días'}</p>
                         <p className="mt-1 text-xs text-slate-600">{row.progress_percentage}% completado</p>
                       </div>
                     </article>

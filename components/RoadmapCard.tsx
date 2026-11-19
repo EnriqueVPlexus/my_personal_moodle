@@ -18,7 +18,7 @@ export default function RoadmapCard({ title, description, moduleCount, category,
         </div>
         {typeof moduleCount === 'number' && (
           <span className="shrink-0 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-            {moduleCount} módulos
+            {moduleCount} {moduleCount === 1 ? 'módulo' : 'módulos'}
           </span>
         )}
       </div>
