@@ -99,7 +99,11 @@ function fallbackProgress(lessons: LessonWithProgress[]): ModuleProgress {
 export default function ModulePage() {
   const router = useRouter()
   const { id } = router.query
-  const { isAdmin, user } = useAuth()
+  const moduleId = Array.isArray(id) ? id[0] : id
+  const { isAdmin, user, loading: authLoading } = useAuth()
+  const userId = user?.id ?? null
+  const routerRef = useRef(router)
+  routerRef.current = router
   const [module, setModule] = useState<ModuleDetail | null>(null)
   const [lessons, setLessons] = useState<LessonWithProgress[]>([])
   const [evidence, setEvidence] = useState<ModuleEvidence | null>(null)
@@ -128,14 +132,14 @@ export default function ModulePage() {
 
   /** Fetches the learner's active attempt (or a new one) and resets the answers. */
   const loadAttemptQuiz = useCallback(async () => {
-    if (!id) return
+    if (!moduleId) return
     // Drop the previous attempt first: if the reload fails the learner must not
     // keep submitting a dead `attempt_id`.
     setAttemptQuiz(null)
     setQuizAnswers({})
     setQuizResult(null)
     try {
-      const res = await fetch(`/api/quizzes/modules/${id}`)
+      const res = await fetch(`/api/quizzes/modules/${moduleId}`)
       if (!res.ok) {
         setQuizError('No se pudo cargar el cuestionario.')
         return
@@ -144,26 +148,27 @@ export default function ModulePage() {
     } catch {
       setQuizError('No se pudo conectar con el servidor.')
     }
-  }, [id])
+  }, [moduleId])
 
   const load = useCallback(async () => {
-    if (!id) return
+    if (!moduleId) return
     setLoadError('')
     try {
-      const res = await fetch(`/api/modules/${id}`)
+      const res = await fetch(`/api/modules/${moduleId}`)
       if (res.status === 401) {
-        router.push(`/login?next=${encodeURIComponent(router.asPath)}`)
+        routerRef.current.push(`/login?next=${encodeURIComponent(routerRef.current.asPath)}`)
         return
       }
       if (!res.ok) {
+        setModule(null)
         setLoadError(res.status === 404 ? 'El módulo ya no existe.' : 'No se pudo cargar el módulo.')
         return
       }
       const data = await res.json()
       setModule(data)
       setLessons(data.lessons || [])
-      if (user) {
-        const evidenceRes = await fetch(`/api/evidences/modules/${id}`)
+      if (userId !== null) {
+        const evidenceRes = await fetch(`/api/evidences/modules/${moduleId}`)
         if (evidenceRes.ok) {
           const evidenceData = await evidenceRes.json()
           setEvidence(evidenceData.evidence || null)
@@ -175,15 +180,18 @@ export default function ModulePage() {
       setQuizResult(null)
       setQuizError('')
       setProgressError('')
-      if (user) await loadAttemptQuiz()
+      if (userId !== null) await loadAttemptQuiz()
       else setAttemptQuiz(null)
       moduleOpenedAt.current = Date.now()
     } catch {
       setLoadError('No se pudo conectar con el servidor.')
     }
-  }, [id, router, user, loadAttemptQuiz])
+  }, [moduleId, userId, loadAttemptQuiz])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (authLoading) return
+    void load()
+  }, [authLoading, load])
 
   async function toggleComplete(lesson: LessonWithProgress) {
     const elapsedSeconds = Math.max(30, Math.min(1800, Math.round((Date.now() - moduleOpenedAt.current) / 1000)))
@@ -265,7 +273,7 @@ export default function ModulePage() {
         setModuleActionError(data.error || 'No se pudo eliminar el módulo.')
         return
       }
-      await router.push(module.roadmap_id ? `/roadmaps/${module.roadmap_id}` : '/roadmaps')
+      await routerRef.current.push(module.roadmap_id ? `/roadmaps/${module.roadmap_id}` : '/roadmaps')
     } catch {
       setModuleActionError('No se pudo conectar con el servidor.')
     } finally {

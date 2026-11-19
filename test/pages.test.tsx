@@ -608,6 +608,24 @@ describe('Next pages', () => {
     expect(screen.getByRole('button', { name: 'Responde todas las preguntas' })).toBeInTheDocument()
   })
 
+  it('fetches an invalid module id only once and shows a catalog back link', async () => {
+    setRouter('/modules/abc', { id: 'abc' })
+    mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' } })
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'Invalid id' }, 400))
+
+    const ModulePage = (await import('../pages/modules/[id]')).default
+    const { rerender } = render(<ModulePage />)
+
+    expect(await screen.findByText('No se pudo cargar el módulo.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/roadmaps')
+
+    rerender(<ModulePage />)
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+    expect(fetchMock).toHaveBeenCalledWith('/api/modules/abc')
+  })
+
   it('handles login success and invalid credentials', async () => {
     setRouter('/login', { next: '/admin/users' })
     const auth = mockAuth()
