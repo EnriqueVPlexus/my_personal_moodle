@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
@@ -8,6 +8,10 @@ import type { AdminUserWithAccess, CatalogRoadmap } from '../../lib/contracts'
 
 type UserRow = AdminUserWithAccess
 type RoadmapRow = Pick<CatalogRoadmap, 'id' | 'title'>
+
+function normalizeSearchText(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
 
 
 export default function AdminUsersPage() {
@@ -24,6 +28,44 @@ export default function AdminUsersPage() {
   const [resetPasswords, setResetPasswords] = useState<Record<number, string>>({})
   const [resetFeedback, setResetFeedback] = useState<Record<number, { type: 'error' | 'success'; message: string } | undefined>>({})
   const [accessSaving, setAccessSaving] = useState<Record<number, boolean>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [accessFilter, setAccessFilter] = useState<'all' | 'all_roadmaps' | 'restricted'>('all')
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || roleFilter !== 'all' || statusFilter !== 'all' || accessFilter !== 'all'
+  )
+
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = normalizeSearchText(searchQuery)
+    return users.filter(account => {
+      if (normalizedQuery) {
+        const matchesEmail = normalizeSearchText(account.email).includes(normalizedQuery)
+        const matchesName = normalizeSearchText(account.name || '').includes(normalizedQuery)
+        if (!matchesEmail && !matchesName) return false
+      }
+      if (roleFilter !== 'all' && account.role !== roleFilter) return false
+      if (statusFilter === 'active' && !account.is_active) return false
+      if (statusFilter === 'inactive' && Boolean(account.is_active)) return false
+      if (accessFilter === 'all_roadmaps') {
+        const hasAll = account.role === 'admin' || Number(account.can_view_all_roadmaps) !== 0
+        if (!hasAll) return false
+      }
+      if (accessFilter === 'restricted') {
+        const isRestricted = account.role !== 'admin' && Number(account.can_view_all_roadmaps) === 0
+        if (!isRestricted) return false
+      }
+      return true
+    })
+  }, [users, searchQuery, roleFilter, statusFilter, accessFilter])
+
+  function clearFilters() {
+    setSearchQuery('')
+    setRoleFilter('all')
+    setStatusFilter('all')
+    setAccessFilter('all')
+  }
 
   async function loadUsers() {
     const res = await fetch('/api/users')
@@ -221,10 +263,76 @@ export default function AdminUsersPage() {
           </form>
 
           <div className="panel p-5">
-            <h2 className="text-lg font-semibold text-slate-950">Cuentas existentes</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-slate-950">Cuentas existentes</h2>
+              <span className="text-sm font-medium text-slate-600">
+                {hasActiveFilters
+                  ? `Mostrando ${filteredUsers.length} de ${users.length} ${users.length === 1 ? 'cuenta' : 'cuentas'}`
+                  : `${users.length} ${users.length === 1 ? 'cuenta' : 'cuentas'}`}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="search"
+                  aria-label="Buscar usuarios"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nombre o email..."
+                  className="form-field min-w-0 flex-1 bg-white"
+                />
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <select
+                  aria-label="Filtrar por rol"
+                  value={roleFilter}
+                  onChange={e => setRoleFilter(e.target.value as 'all' | 'admin' | 'user')}
+                  className="form-field bg-white"
+                >
+                  <option value="all">Todos los roles</option>
+                  <option value="admin">Admins</option>
+                  <option value="user">Usuarios normales</option>
+                </select>
+                <select
+                  aria-label="Filtrar por estado"
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                  className="form-field bg-white"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </select>
+                <select
+                  aria-label="Filtrar por acceso"
+                  value={accessFilter}
+                  onChange={e => setAccessFilter(e.target.value as 'all' | 'all_roadmaps' | 'restricted')}
+                  className="form-field bg-white"
+                >
+                  <option value="all">Todo acceso</option>
+                  <option value="all_roadmaps">Acceso completo</option>
+                  <option value="restricted">Acceso restringido</option>
+                </select>
+              </div>
+            </div>
+
             {actionError && <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
             <div className="mt-4 grid gap-3">
-              {users.map(account => (
+              {users.length > 0 && filteredUsers.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">
+                  No hay usuarios que coincidan con los filtros actuales.
+                </p>
+              ) : filteredUsers.map(account => (
                 <div key={account.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>

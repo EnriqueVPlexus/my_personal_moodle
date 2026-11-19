@@ -309,4 +309,94 @@ describe('admin users page', () => {
 
     expect(await screen.findByText('password too weak')).toBeInTheDocument()
   })
+
+  it('filters users by search query, role, active status and roadmap access and clears filters', async () => {
+    mockAuth({ user: adminUser, isAdmin: true })
+    const users = [
+      {
+        id: 1,
+        email: 'mentor.demo@plexus.es',
+        name: 'Mentor Demo',
+        role: 'admin',
+        is_active: 1,
+        can_view_all_roadmaps: 1,
+        roadmap_access_ids: [],
+        created_at: '2026-05-30'
+      },
+      {
+        id: 2,
+        email: 'elena.martinez@plexus.es',
+        name: 'Elena Martínez',
+        role: 'user',
+        is_active: 1,
+        can_view_all_roadmaps: 0,
+        roadmap_access_ids: [1],
+        created_at: '2026-05-30'
+      },
+      {
+        id: 3,
+        email: 'carlos.lopez@plexus.es',
+        name: 'Carlos López',
+        role: 'user',
+        is_active: 0,
+        can_view_all_roadmaps: 1,
+        roadmap_access_ids: [],
+        created_at: '2026-05-30'
+      }
+    ]
+    vi.spyOn(global, 'fetch').mockImplementation(async (url: any) => {
+      if (url === '/api/roadmaps') return jsonResponse([{ id: 1, title: 'AWS' }])
+      return jsonResponse(users)
+    })
+
+    const AdminUsersPage = (await import('../pages/admin/users')).default
+    render(<AdminUsersPage />)
+
+    expect(await screen.findByText('mentor.demo@plexus.es')).toBeInTheDocument()
+    expect(screen.getByText('3 cuentas')).toBeInTheDocument()
+
+    // Accent/case-insensitive search
+    fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'martinez' } })
+    expect(screen.getByText('elena.martinez@plexus.es')).toBeInTheDocument()
+    expect(screen.queryByText('mentor.demo@plexus.es')).not.toBeInTheDocument()
+    expect(screen.queryByText('carlos.lopez@plexus.es')).not.toBeInTheDocument()
+    expect(screen.getByText('Mostrando 1 de 3 cuentas')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(screen.getByText('mentor.demo@plexus.es')).toBeInTheDocument()
+    expect(screen.getByText('carlos.lopez@plexus.es')).toBeInTheDocument()
+
+    // Role filter -> admin
+    fireEvent.change(screen.getByLabelText('Filtrar por rol'), { target: { value: 'admin' } })
+    expect(screen.getByText('mentor.demo@plexus.es')).toBeInTheDocument()
+    expect(screen.queryByText('elena.martinez@plexus.es')).not.toBeInTheDocument()
+    expect(screen.queryByText('carlos.lopez@plexus.es')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+
+    // Status filter -> inactive
+    fireEvent.change(screen.getByLabelText('Filtrar por estado'), { target: { value: 'inactive' } })
+    expect(screen.getByText('carlos.lopez@plexus.es')).toBeInTheDocument()
+    expect(screen.queryByText('mentor.demo@plexus.es')).not.toBeInTheDocument()
+    expect(screen.queryByText('elena.martinez@plexus.es')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+
+    // Access filter -> restricted
+    fireEvent.change(screen.getByLabelText('Filtrar por acceso'), { target: { value: 'restricted' } })
+    expect(screen.getByText('elena.martinez@plexus.es')).toBeInTheDocument()
+    expect(screen.queryByText('mentor.demo@plexus.es')).not.toBeInTheDocument()
+    expect(screen.queryByText('carlos.lopez@plexus.es')).not.toBeInTheDocument()
+
+    // Combine incompatible filters -> empty state
+    fireEvent.change(screen.getByLabelText('Filtrar por estado'), { target: { value: 'inactive' } })
+    expect(screen.getByText('No hay usuarios que coincidan con los filtros actuales.')).toBeInTheDocument()
+    expect(screen.getByText('Mostrando 0 de 3 cuentas')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(screen.getByText('mentor.demo@plexus.es')).toBeInTheDocument()
+    expect(screen.getByText('elena.martinez@plexus.es')).toBeInTheDocument()
+    expect(screen.getByText('carlos.lopez@plexus.es')).toBeInTheDocument()
+    expect(screen.getByText('3 cuentas')).toBeInTheDocument()
+  })
 })
