@@ -9,7 +9,7 @@ import type { SetupStatusResponse } from '../lib/contracts'
 
 export default function SetupPage() {
   const router = useRouter()
-  const { refresh } = useAuth()
+  const { refresh, user, isAdmin } = useAuth()
   const [status, setStatus] = useState<SetupStatusResponse | null>(null)
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -61,10 +61,28 @@ export default function SetupPage() {
 
           {status && !status.needsSetup && (
             <div className="mt-5 rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
-              Ya existe al menos un usuario. Entra con una cuenta admin para crear más usuarios desde el panel.
-              <div className="mt-3">
-                <Link href="/login" className="font-semibold text-emerald-900 hover:underline">Ir al login</Link>
-              </div>
+              {isAdmin ? (
+                <>
+                  Ya existe al menos un usuario y tienes sesión iniciada como admin. Puedes gestionar usuarios desde el panel.
+                  <div className="mt-3">
+                    <Link href="/admin/users" className="font-semibold text-emerald-900 hover:underline">Ir al panel de usuarios</Link>
+                  </div>
+                </>
+              ) : user ? (
+                <>
+                  Ya existe al menos un usuario. Necesitas una cuenta admin para crear más usuarios desde el panel.
+                  <div className="mt-3">
+                    <Link href="/roadmaps" className="font-semibold text-emerald-900 hover:underline">Ir a los roadmaps</Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  Ya existe al menos un usuario. Entra con una cuenta admin para crear más usuarios desde el panel.
+                  <div className="mt-3">
+                    <Link href="/login" className="font-semibold text-emerald-900 hover:underline">Ir al login</Link>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
