@@ -23,6 +23,8 @@ async function renderCatalog(options: {
   query?: string
   routeQuery?: Record<string, string | string[]>
   isAdmin?: boolean
+  user?: { id: number; email: string; role: 'admin' | 'user' } | null
+  authLoading?: boolean
 } = {}) {
   nextRouterMock.pathname = '/roadmaps'
   nextRouterMock.asPath = options.query ? `/roadmaps?q=${encodeURIComponent(options.query)}` : '/roadmaps'
@@ -30,8 +32,16 @@ async function renderCatalog(options: {
   nextRouterMock.replace.mockResolvedValue(true)
   nextRouterMock.push.mockResolvedValue(true)
 
+  const mockedUser = options.user !== undefined
+    ? options.user
+    : (options.isAdmin ? { id: 1, email: 'admin@plexus.es', role: 'admin' as const } : null)
+
   vi.doMock('../components/AuthProvider', () => ({
-    useAuth: () => ({ isAdmin: Boolean(options.isAdmin) })
+    useAuth: () => ({
+      isAdmin: Boolean(options.isAdmin),
+      user: mockedUser,
+      loading: Boolean(options.authLoading)
+    })
   }))
 
   const RoadmapsPage = (await import('../pages/roadmaps/index')).default
@@ -233,5 +243,71 @@ describe('roadmap catalog search experience', () => {
       undefined,
       { shallow: true }
     ))
+  })
+
+  it('hides the progress status filter and strips progress_status from URL for unauthenticated visitors', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      if (String(url) === '/api/roadmaps/metadata') {
+        return jsonResponse({
+          categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 3 }],
+          topics: [],
+          levels: [{ key: 'beginner', roadmap_count: 3 }],
+          progress_statuses: [
+            { key: 'not_started', label: 'Sin empezar', roadmap_count: 3 },
+            { key: 'in_progress', label: 'En curso', roadmap_count: 0 },
+            { key: 'completed', label: 'Completados', roadmap_count: 0 }
+          ]
+        })
+      }
+      return jsonResponse([{ id: 1, title: 'AWS práctico', module_count: 4 }])
+    })
+
+    await renderCatalog({
+      routeQuery: { progress_status: 'not_started' },
+      user: null
+    })
+
+    expect(await screen.findByText('AWS práctico')).toBeInTheDocument()
+    expect(screen.queryByText('Estado mi progreso')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Sin empezar/ })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/roadmaps',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    await waitFor(() => expect(nextRouterMock.replace).toHaveBeenCalledWith(
+      { pathname: '/roadmaps', query: {} },
+      undefined,
+      { shallow: true }
+    ))
+  })
+
+  it('shows and applies the progress status filter for authenticated users', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      if (String(url) === '/api/roadmaps/metadata') {
+        return jsonResponse({
+          categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 3 }],
+          topics: [],
+          levels: [{ key: 'beginner', roadmap_count: 3 }],
+          progress_statuses: [
+            { key: 'not_started', label: 'Sin empezar', roadmap_count: 2 },
+            { key: 'in_progress', label: 'En curso', roadmap_count: 1 },
+            { key: 'completed', label: 'Completados', roadmap_count: 0 }
+          ]
+        })
+      }
+      return jsonResponse([{ id: 1, title: 'AWS práctico', module_count: 4 }])
+    })
+
+    await renderCatalog({
+      user: { id: 2, email: 'ana@plexus.es', role: 'user' }
+    })
+
+    expect(await screen.findByText('Estado mi progreso')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: /En curso/ }))
+    expect(nextRouterMock.replace).toHaveBeenCalledWith(
+      { pathname: '/roadmaps', query: { progress_status: ['in_progress'] } },
+      undefined,
+      { shallow: true }
+    )
   })
 })
