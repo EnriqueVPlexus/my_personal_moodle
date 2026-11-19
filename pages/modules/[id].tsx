@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
 import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import LessonForm from '../../components/LessonForm'
@@ -25,6 +26,7 @@ type ModuleProgress = Pick<
 type QuizResult = QuizAttemptResponse
 
 type ModuleDetail = LearningModule & {
+  roadmap_id?: number | null
   progress?: ModuleProgress | null
   quiz?: ModuleQuiz | null
   quiz_summary?: QuizSummary | null
@@ -110,6 +112,18 @@ export default function ModulePage() {
   const [progressError, setProgressError] = useState('')
   const [lessonUpdatingId, setLessonUpdatingId] = useState<number | null>(null)
   const [loadError, setLoadError] = useState('')
+  const [editingModule, setEditingModule] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editLevel, setEditLevel] = useState('')
+  const [editDuration, setEditDuration] = useState('')
+  const [editDurationMin, setEditDurationMin] = useState('')
+  const [editDurationMax, setEditDurationMax] = useState('')
+  const [moduleActionBusy, setModuleActionBusy] = useState(false)
+  const [moduleActionError, setModuleActionError] = useState('')
+  const [editingLessonId, setEditingLessonId] = useState<number | null>(null)
+  const [editLessonTitle, setEditLessonTitle] = useState('')
+  const [lessonAdminBusyId, setLessonAdminBusyId] = useState<number | null>(null)
+  const [lessonAdminError, setLessonAdminError] = useState('')
   const moduleOpenedAt = useRef(Date.now())
 
   /** Fetches the learner's active attempt (or a new one) and resets the answers. */
@@ -197,6 +211,125 @@ export default function ModulePage() {
     }
   }
 
+  function openModuleEditForm() {
+    if (!module) return
+    setEditTitle(module.title || '')
+    setEditLevel(module.level || '')
+    setEditDuration(module.duration || '')
+    setEditDurationMin(module.duration_weeks_min !== null && module.duration_weeks_min !== undefined ? String(module.duration_weeks_min) : '')
+    setEditDurationMax(module.duration_weeks_max !== null && module.duration_weeks_max !== undefined ? String(module.duration_weeks_max) : '')
+    setModuleActionError('')
+    setEditingModule(true)
+  }
+
+  async function handleUpdateModule(event: React.FormEvent) {
+    event.preventDefault()
+    if (!module?.id) return
+    setModuleActionBusy(true)
+    setModuleActionError('')
+    try {
+      const res = await fetch(`/api/modules/${module.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          level: editLevel,
+          duration: editDuration,
+          duration_weeks_min: editDurationMin,
+          duration_weeks_max: editDurationMax
+        })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setModuleActionError(data.error || 'No se pudo actualizar el módulo.')
+        return
+      }
+      setEditingModule(false)
+      await load()
+    } catch {
+      setModuleActionError('No se pudo conectar con el servidor.')
+    } finally {
+      setModuleActionBusy(false)
+    }
+  }
+
+  async function handleDeleteModule() {
+    if (!module?.id) return
+    if (!window.confirm(`¿Eliminar el módulo "${module.title}" y todas sus lecciones y progresos? Esta acción no se puede deshacer.`)) return
+    setModuleActionBusy(true)
+    setModuleActionError('')
+    try {
+      const res = await fetch(`/api/modules/${module.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setModuleActionError(data.error || 'No se pudo eliminar el módulo.')
+        return
+      }
+      await router.push(module.roadmap_id ? `/roadmaps/${module.roadmap_id}` : '/roadmaps')
+    } catch {
+      setModuleActionError('No se pudo conectar con el servidor.')
+    } finally {
+      setModuleActionBusy(false)
+    }
+  }
+
+  function startEditLesson(lesson: LessonWithProgress) {
+    setEditingLessonId(lesson.id)
+    setEditLessonTitle(lesson.title)
+    setLessonAdminError('')
+  }
+
+  function cancelEditLesson() {
+    setEditingLessonId(null)
+    setEditLessonTitle('')
+    setLessonAdminError('')
+  }
+
+  async function handleUpdateLesson(event: React.FormEvent, lessonId: number) {
+    event.preventDefault()
+    setLessonAdminBusyId(lessonId)
+    setLessonAdminError('')
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editLessonTitle })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setLessonAdminError(data.error || 'No se pudo actualizar la lección.')
+        return
+      }
+      setEditingLessonId(null)
+      setEditLessonTitle('')
+      await load()
+    } catch {
+      setLessonAdminError('No se pudo conectar con el servidor.')
+    } finally {
+      setLessonAdminBusyId(null)
+    }
+  }
+
+  async function handleDeleteLesson(lesson: LessonWithProgress) {
+    if (!window.confirm(`¿Eliminar la lección "${lesson.title}"? Esta acción no se puede deshacer.`)) return
+    setLessonAdminBusyId(lesson.id)
+    setLessonAdminError('')
+    try {
+      const res = await fetch(`/api/lessons/${lesson.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setLessonAdminError(data.error || 'No se pudo eliminar la lección.')
+        return
+      }
+      if (editingLessonId === lesson.id) setEditingLessonId(null)
+      await load()
+    } catch {
+      setLessonAdminError('No se pudo conectar con el servidor.')
+    } finally {
+      setLessonAdminBusyId(null)
+    }
+  }
+
   async function startNewAttempt() {
     setQuizError('')
     setQuizSubmitting(true)
@@ -246,7 +379,10 @@ export default function ModulePage() {
         {loadError ? (
           <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
             <p>{loadError}</p>
-            <button className="mt-3 font-semibold underline" onClick={() => load()}>Reintentar</button>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <button className="font-semibold underline" onClick={() => load()}>Reintentar</button>
+              <Link href="/roadmaps" className="font-semibold underline">Volver al catálogo</Link>
+            </div>
           </div>
         ) : 'Cargando...'}
       </main>
@@ -270,21 +406,49 @@ export default function ModulePage() {
         <section className="app-band">
           <div className="container grid gap-5 py-8 lg:grid-cols-[1fr_auto] lg:items-start">
             <div>
+              <Link
+                href={module.roadmap_id ? `/roadmaps/${module.roadmap_id}` : '/roadmaps'}
+                className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-sky-700 transition hover:text-sky-900"
+              >
+                ← {module.roadmap_id ? 'Volver al roadmap' : 'Volver al catálogo'}
+              </Link>
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Módulo {module.position ?? ''}</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{module.title}</h1>
               {module.objective && <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{module.objective}</p>}
             </div>
-            <div className="grid gap-3 text-sm sm:grid-cols-2 lg:w-[340px]">
-              {module.duration && (
-                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-                  <span className="block text-lg font-bold text-emerald-700">{module.duration}</span>
-                  <span className="text-emerald-900">duración</span>
-                </div>
-              )}
-              {progress && (
-                <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
-                  <span className="block text-lg font-bold text-sky-800">{progress.progress_percentage}%</span>
-                  <span className="text-sky-950">progreso</span>
+            <div className="flex flex-col items-start gap-3 lg:items-end">
+              <div className="grid gap-3 text-sm sm:grid-cols-2 lg:w-[340px]">
+                {module.duration && (
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                    <span className="block text-lg font-bold text-emerald-700">{module.duration}</span>
+                    <span className="text-emerald-900">duración</span>
+                  </div>
+                )}
+                {progress && (
+                  <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
+                    <span className="block text-lg font-bold text-sky-800">{progress.progress_percentage}%</span>
+                    <span className="text-sky-950">progreso</span>
+                  </div>
+                )}
+              </div>
+              {isAdmin && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={moduleActionBusy}
+                    onClick={() => (editingModule ? setEditingModule(false) : openModuleEditForm())}
+                    className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {editingModule ? 'Cancelar edición' : 'Editar módulo'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={moduleActionBusy}
+                    onClick={() => void handleDeleteModule()}
+                    className="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-50"
+                  >
+                    Eliminar módulo
+                  </button>
                 </div>
               )}
             </div>
@@ -292,6 +456,80 @@ export default function ModulePage() {
         </section>
 
         <div className="container py-8">
+          {moduleActionError && (
+            <div role="alert" className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {moduleActionError}
+            </div>
+          )}
+          {isAdmin && editingModule && (
+            <section className="panel mb-6 p-5">
+              <h2 className="text-lg font-semibold text-slate-950">Editar módulo</h2>
+              <form onSubmit={handleUpdateModule} className="mt-4 grid gap-3">
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Título
+                  <input
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    required
+                    className="form-field"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    Nivel
+                    <select value={editLevel} onChange={e => setEditLevel(e.target.value)} className="form-field">
+                      <option value="">Sin clasificar</option>
+                      <option value="beginner">Inicial</option>
+                      <option value="intermediate">Intermedio</option>
+                      <option value="advanced">Avanzado</option>
+                      <option value="capstone">Proyecto final</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    Duración visible
+                    <input
+                      value={editDuration}
+                      onChange={e => setEditDuration(e.target.value)}
+                      placeholder="Ej. 2 semanas"
+                      className="form-field"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    Mínimo (semanas)
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={editDurationMin}
+                      onChange={e => setEditDurationMin(e.target.value)}
+                      className="form-field"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    Máximo (semanas)
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={editDurationMax}
+                      onChange={e => setEditDurationMax(e.target.value)}
+                      className="form-field"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="submit" disabled={moduleActionBusy || !editTitle.trim()} className="primary-action">
+                    {moduleActionBusy ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                  <button type="button" onClick={() => setEditingModule(false)} className="secondary-action">
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
           {progress && (
             <section className="panel mb-6 p-5">
               <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -338,29 +576,86 @@ export default function ModulePage() {
             {progressError && (
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{progressError}</p>
             )}
+            {lessonAdminError && (
+              <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{lessonAdminError}</p>
+            )}
             {lessons.length > 0 ? (
               lessons.map(l => (
                 <div key={l.id} className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0">
-                    <span className={`mb-1 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
-                      l.completed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {l.completed ? 'Completada' : 'Pendiente'}
-                    </span>
-                    <div className={`text-sm ${l.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{l.title}</div>
-                  </div>
-                  {user && (
-                    <div className="space-x-2">
+                  {isAdmin && editingLessonId === l.id ? (
+                    <form onSubmit={event => void handleUpdateLesson(event, l.id)} className="flex flex-1 flex-wrap items-center gap-2">
+                      <input
+                        aria-label="Editar título de la lección"
+                        value={editLessonTitle}
+                        onChange={e => setEditLessonTitle(e.target.value)}
+                        required
+                        className="form-field min-w-[200px] flex-1"
+                      />
                       <button
-                        className="text-sm font-medium text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400"
-                        disabled={lessonUpdatingId !== null}
-                        onClick={() => toggleComplete(l)}
+                        type="submit"
+                        disabled={lessonAdminBusyId !== null || !editLessonTitle.trim()}
+                        className="primary-action px-3 py-1.5 text-sm"
                       >
-                        {lessonUpdatingId === l.id
-                          ? 'Guardando...'
-                          : l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
+                        {lessonAdminBusyId === l.id ? 'Guardando...' : 'Guardar'}
                       </button>
-                    </div>
+                      <button
+                        type="button"
+                        disabled={lessonAdminBusyId !== null}
+                        onClick={cancelEditLesson}
+                        className="secondary-action px-3 py-1.5 text-sm"
+                      >
+                        Cancelar
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="min-w-0">
+                        <span className={`mb-1 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
+                          l.completed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {l.completed ? 'Completada' : 'Pendiente'}
+                        </span>
+                        <div className={`text-sm ${l.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{l.title}</div>
+                      </div>
+                      {(user || isAdmin) && (
+                        <div className="flex flex-wrap items-center gap-3">
+                          {user && (
+                            <button
+                              type="button"
+                              className="text-sm font-medium text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                              disabled={lessonUpdatingId !== null || lessonAdminBusyId !== null}
+                              onClick={() => toggleComplete(l)}
+                            >
+                              {lessonUpdatingId === l.id
+                                ? 'Guardando...'
+                                : l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <>
+                              <button
+                                type="button"
+                                aria-label={`Editar lección ${l.title}`}
+                                disabled={lessonAdminBusyId !== null || lessonUpdatingId !== null}
+                                onClick={() => startEditLesson(l)}
+                                className="text-sm font-medium text-sky-700 hover:text-sky-900 disabled:cursor-not-allowed disabled:text-slate-400"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Eliminar lección ${l.title}`}
+                                disabled={lessonAdminBusyId !== null || lessonUpdatingId !== null}
+                                onClick={() => void handleDeleteLesson(l)}
+                                className="text-sm font-medium text-red-700 hover:text-red-900 disabled:cursor-not-allowed disabled:text-slate-400"
+                              >
+                                {lessonAdminBusyId === l.id ? 'Eliminando...' : 'Eliminar'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ))

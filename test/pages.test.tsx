@@ -427,6 +427,106 @@ describe('Next pages', () => {
     })
   })
 
+  it('lets admins edit and delete modules and lessons from the module detail page', async () => {
+    setRouter('/modules/4', { id: '4' })
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    const emptyQuiz = {
+      attempt_id: null,
+      quiz: { scope: 'module', module_id: 4, title: 'EC2', questions: [] },
+      summary: null,
+      eligibility: null
+    }
+    const modulePayload = {
+      id: 4,
+      roadmap_id: 7,
+      title: 'EC2',
+      position: 1,
+      level: 'beginner',
+      duration: '1 semana',
+      duration_weeks_min: 1,
+      duration_weeks_max: 2,
+      objective: 'Compute foundations',
+      contents: '[]',
+      lessons: [{ id: 9, title: 'SSH basics', completed: 0 }],
+      quiz: emptyQuiz.quiz,
+      quiz_summary: null
+    }
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/modules/4' && init?.method === 'PUT') return jsonResponse({ id: 4, title: 'EC2 avanzado' })
+      if (url === '/api/modules/4' && init?.method === 'DELETE') return jsonResponse({}, 204)
+      if (url === '/api/lessons/9' && init?.method === 'PUT') return jsonResponse({ id: 9, title: 'SSH avanzado', module_id: 4, completed: 0 })
+      if (url === '/api/lessons/9' && init?.method === 'DELETE') return jsonResponse({}, 204)
+      if (url === '/api/quizzes/modules/4') return jsonResponse(emptyQuiz)
+      if (url === '/api/evidences/modules/4') return jsonResponse({ evidence: null })
+      return jsonResponse(modulePayload)
+    })
+
+    const ModulePage = (await import('../pages/modules/[id]')).default
+    render(<ModulePage />)
+
+    expect(await screen.findByRole('link', { name: /Volver al roadmap/ })).toHaveAttribute('href', '/roadmaps/7')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar módulo' }))
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'EC2 avanzado' } })
+    fireEvent.change(screen.getByLabelText('Nivel'), { target: { value: 'advanced' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/modules/4', expect.objectContaining({
+        method: 'PUT',
+        body: expect.stringContaining('"title":"EC2 avanzado"')
+      }))
+    })
+    const modulePut = fetchMock.mock.calls.find(([url, init]) => url === '/api/modules/4' && init?.method === 'PUT')
+    expect(String(modulePut?.[1]?.body)).toContain('"level":"advanced"')
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Editar módulo' })).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar lección SSH basics' }))
+    fireEvent.change(screen.getByLabelText('Editar título de la lección'), { target: { value: 'SSH avanzado' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/lessons/9', expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ title: 'SSH avanzado' })
+      }))
+    })
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Editar título de la lección')).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar lección SSH basics' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/lessons/9', { method: 'DELETE' })
+      expect(screen.getByRole('button', { name: 'Eliminar lección SSH basics' })).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar módulo' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/modules/4', { method: 'DELETE' })
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/roadmaps/7')
+    })
+
+    cleanup()
+    vi.resetModules()
+    setRouter('/modules/4', { id: '4' })
+    mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' }, isAdmin: false })
+
+    const StudentModulePage = (await import('../pages/modules/[id]')).default
+    render(<StudentModulePage />)
+
+    expect(await screen.findByRole('heading', { name: 'EC2' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Editar módulo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Eliminar módulo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Editar lección SSH basics' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Eliminar lección SSH basics' })).not.toBeInTheDocument()
+  })
+
   it('shows the server error and loads a fresh attempt when the attempt was already sent or expired', async () => {
     setRouter('/modules/4', { id: '4' })
     mockAuth({ user: { id: 2, email: 'user@example.com', role: 'user' } })
