@@ -20,7 +20,7 @@ const USER_COLUMNS = ['id', 'email', 'name', 'role', 'is_active', 'can_view_all_
 export async function findAllUsers(db: DatabaseClient): Promise<UserRow[]> {
   if (db.backend !== 'postgres') {
     return db.all<UserRow>(
-      `SELECT ${USER_COLUMNS.join(', ')} FROM users ORDER BY created_at DESC`
+      `SELECT ${USER_COLUMNS.join(', ')} FROM users ORDER BY created_at DESC, id DESC`
     )
   }
 
@@ -28,6 +28,7 @@ export async function findAllUsers(db: DatabaseClient): Promise<UserRow[]> {
     .selectFrom('users')
     .select(USER_COLUMNS)
     .orderBy('created_at', 'desc')
+    .orderBy('id', 'desc')
     .execute()
 }
 

@@ -60,6 +60,30 @@ describe('userRepository (SQLite backend)', () => {
     await db.close()
   })
 
+  it('findAllUsers keeps a deterministic id desc order when created_at matches even after updates', async () => {
+    const db = await setupDb()
+    const { findAllUsers, updateUserRoadmapAccessFlag } = await import('../lib/domains/admin/repositories/userRepository')
+
+    const sharedCreatedAt = '2026-06-01T10:00:00.000Z'
+    const first = await db.run(
+      `INSERT INTO users (email, name, role, password_hash, is_active, can_view_all_roadmaps, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['ana@example.com', 'Ana', 'user', 'hash', 1, 1, sharedCreatedAt, sharedCreatedAt]
+    )
+    const second = await db.run(
+      `INSERT INTO users (email, name, role, password_hash, is_active, can_view_all_roadmaps, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['carlos@example.com', 'Carlos', 'user', 'hash', 1, 1, sharedCreatedAt, sharedCreatedAt]
+    )
+
+    await updateUserRoadmapAccessFlag(db, first.lastID as number, false, '2026-06-02T12:00:00.000Z')
+
+    const users = await findAllUsers(db)
+    expect(users.map(u => u.id)).toEqual([second.lastID, first.lastID])
+
+    await db.close()
+  })
+
   it('findUserById returns undefined for a missing user', async () => {
     const db = await setupDb()
     const { findUserById } = await import('../lib/domains/admin/repositories/userRepository')

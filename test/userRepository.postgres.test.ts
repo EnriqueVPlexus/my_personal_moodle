@@ -31,7 +31,7 @@ describe('userRepository (postgres backend)', () => {
     const { pool } = createFakePool(async sql => {
       expect(sql).toContain('select')
       expect(sql).not.toContain('password_hash')
-      expect(sql).toContain('order by')
+      expect(sql).toMatch(/order by.*"created_at"\s+desc,\s*"id"\s+desc/i)
       return {
         command: 'SELECT',
         rowCount: 1,
