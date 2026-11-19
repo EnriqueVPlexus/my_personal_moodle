@@ -109,6 +109,17 @@ export default function RoadmapDetailPage() {
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null)
   const [openModuleKeys, setOpenModuleKeys] = useState<Set<string>>(new Set())
   const [loadError, setLoadError] = useState('')
+  const [editingRoadmap, setEditingRoadmap] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [editTopics, setEditTopics] = useState('')
+  const [editDuration, setEditDuration] = useState('')
+  const [editDurationMin, setEditDurationMin] = useState('')
+  const [editDurationMax, setEditDurationMax] = useState('')
+  const [editVersion, setEditVersion] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [adminActionBusy, setAdminActionBusy] = useState(false)
+  const [adminActionError, setAdminActionError] = useState('')
   const routerRef = useRef(router)
   routerRef.current = router
 
@@ -141,6 +152,74 @@ export default function RoadmapDetailPage() {
     const firstModule = roadmap?.modules?.[0]
     setOpenModuleKeys(firstModule ? new Set([moduleDisclosureKey(firstModule, 0)]) : new Set())
   }, [roadmap?.id, roadmap?.modules])
+
+  function openEditForm() {
+    if (!roadmap) return
+    setEditTitle(roadmap.title || '')
+    setEditCategory(roadmap.category?.label || '')
+    setEditTopics((roadmap.topics || []).map(t => t.label).join(', '))
+    setEditDuration(roadmap.duration || '')
+    setEditDurationMin(roadmap.duration_weeks_min !== null && roadmap.duration_weeks_min !== undefined ? String(roadmap.duration_weeks_min) : '')
+    setEditDurationMax(roadmap.duration_weeks_max !== null && roadmap.duration_weeks_max !== undefined ? String(roadmap.duration_weeks_max) : '')
+    setEditVersion(roadmap.version || 'v1.0.0')
+    setEditDescription(roadmap.description || '')
+    setAdminActionError('')
+    setEditingRoadmap(true)
+  }
+
+  async function handleUpdateRoadmap(event: React.FormEvent) {
+    event.preventDefault()
+    if (!roadmap) return
+    setAdminActionBusy(true)
+    setAdminActionError('')
+    try {
+      const res = await fetch(`/api/roadmaps/${roadmap.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+          category: editCategory,
+          topics: editTopics,
+          duration: editDuration,
+          duration_weeks_min: editDurationMin,
+          duration_weeks_max: editDurationMax,
+          version: editVersion
+        })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setAdminActionError(data.error || 'No se pudo actualizar el roadmap.')
+        return
+      }
+      setEditingRoadmap(false)
+      await load()
+    } catch {
+      setAdminActionError('No se pudo conectar con el servidor.')
+    } finally {
+      setAdminActionBusy(false)
+    }
+  }
+
+  async function handleDeleteRoadmap() {
+    if (!roadmap) return
+    if (!window.confirm(`¿Eliminar el roadmap "${roadmap.title}" y todos sus módulos y progresos? Esta acción no se puede deshacer.`)) return
+    setAdminActionBusy(true)
+    setAdminActionError('')
+    try {
+      const res = await fetch(`/api/roadmaps/${roadmap.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setAdminActionError(data.error || 'No se pudo eliminar el roadmap.')
+        return
+      }
+      await routerRef.current.push('/roadmaps')
+    } catch {
+      setAdminActionError('No se pudo conectar con el servidor.')
+    } finally {
+      setAdminActionBusy(false)
+    }
+  }
 
   function handleModuleToggle(key: string) {
     setOpenModuleKeys(previous => {
@@ -211,22 +290,138 @@ export default function RoadmapDetailPage() {
                 </div>
               </div>
               {isAdmin && (
-                <a
-                  href={`/api/roadmaps/${roadmap.id}/export`}
-                  download
-                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-                >
-                  <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Exportar JSON
-                </a>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={adminActionBusy}
+                    onClick={() => (editingRoadmap ? setEditingRoadmap(false) : openEditForm())}
+                    className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {editingRoadmap ? 'Cancelar edición' : 'Editar roadmap'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={adminActionBusy}
+                    onClick={() => void handleDeleteRoadmap()}
+                    className="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-50"
+                  >
+                    Eliminar roadmap
+                  </button>
+                  <a
+                    href={`/api/roadmaps/${roadmap.id}/export`}
+                    download
+                    className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                  >
+                    <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Exportar JSON
+                  </a>
+                </div>
               )}
             </div>
           </div>
         </section>
 
         <div className="container py-8">
+        {adminActionError && (
+          <div role="alert" className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {adminActionError}
+          </div>
+        )}
+        {isAdmin && editingRoadmap && (
+          <section className="panel mb-6 p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Editar roadmap</h2>
+            <form onSubmit={handleUpdateRoadmap} className="mt-4 grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Título
+                  <input
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    required
+                    className="form-field"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Versión
+                  <input
+                    value={editVersion}
+                    onChange={e => setEditVersion(e.target.value)}
+                    placeholder="v1.0.0"
+                    className="form-field"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Categoría principal
+                  <input
+                    value={editCategory}
+                    onChange={e => setEditCategory(e.target.value)}
+                    className="form-field"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Temas (separados por comas)
+                  <input
+                    value={editTopics}
+                    onChange={e => setEditTopics(e.target.value)}
+                    className="form-field"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Duración visible
+                  <input
+                    value={editDuration}
+                    onChange={e => setEditDuration(e.target.value)}
+                    className="form-field"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Mínimo (semanas)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={editDurationMin}
+                    onChange={e => setEditDurationMin(e.target.value)}
+                    className="form-field"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Máximo (semanas)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={editDurationMax}
+                    onChange={e => setEditDurationMax(e.target.value)}
+                    className="form-field"
+                  />
+                </label>
+              </div>
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Descripción
+                <textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="form-field min-h-24"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" disabled={adminActionBusy || !editTitle.trim()} className="primary-action">
+                  {adminActionBusy ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+                <button type="button" onClick={() => setEditingRoadmap(false)} className="secondary-action">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
         {roadmap.progress && (
           <section className="panel mb-6 p-5">
             <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">

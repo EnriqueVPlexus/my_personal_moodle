@@ -226,6 +226,46 @@ describe('Next pages', () => {
     expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/roadmaps')
   })
 
+  it('lets admins edit and delete a roadmap from the detail page', async () => {
+    setRouter('/roadmaps/4', { id: '4' })
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/roadmaps/4' && init?.method === 'PUT') return jsonResponse({ id: 4, title: 'AWS v2' })
+      if (url === '/api/roadmaps/4' && init?.method === 'DELETE') return jsonResponse({}, 204)
+      return jsonResponse({
+        id: 4,
+        title: 'AWS v1',
+        description: 'Desc',
+        version: 'v1.0.0',
+        category: { key: 'cloud', label: 'Cloud' },
+        topics: [{ key: 'aws', label: 'AWS' }],
+        modules: []
+      })
+    })
+
+    const RoadmapDetailPage = (await import('../pages/roadmaps/[id]')).default
+    render(<RoadmapDetailPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar roadmap' }))
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'AWS v2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/roadmaps/4', expect.objectContaining({
+        method: 'PUT',
+        body: expect.stringContaining('"title":"AWS v2"')
+      }))
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar roadmap' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/roadmaps/4', { method: 'DELETE' })
+      expect(nextRouterMock.push).toHaveBeenCalledWith('/roadmaps')
+    })
+  })
+
   it('renders module details, redirects protected reads and updates personal lesson progress', async () => {
     setRouter('/modules/4', { id: '4' })
     mockAuth({ user: adminUser, isAdmin: true })
