@@ -282,7 +282,7 @@ export default function RoadmapDetailPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
                   <span className="block text-2xl font-bold text-sky-800">{roadmap.modules?.length || 0}</span>
-                  <span className="text-sky-950">módulos</span>
+                  <span className="text-sky-950">{(roadmap.modules?.length || 0) === 1 ? 'módulo' : 'módulos'}</span>
                 </div>
                 <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
                   <span className="block text-2xl font-bold text-emerald-700">{roadmap.duration || estimateDuration(roadmap.modules || [])}</span>
