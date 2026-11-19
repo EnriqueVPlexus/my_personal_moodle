@@ -65,7 +65,8 @@ function managedCatalogQuery(query: Record<string, string | string[] | undefined
 
 export default function RoadmapsPage() {
   const router = useRouter()
-  const { isAdmin } = useAuth()
+  const { isAdmin, user, loading: authLoading } = useAuth()
+  const isAuthenticated = Boolean(user)
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([])
   const initialQuery = queryValue(router.query.q as string | string[] | undefined)
   const [searchInput, setSearchInput] = useState(initialQuery)
@@ -92,11 +93,12 @@ export default function RoadmapsPage() {
     progress_status: progressStatusQuery,
     sort: sortQuery
   }), [categoryQuery, topicQuery, levelQuery, durationQuery, progressStatusQuery, sortQuery])
+  const effectiveProgressStatuses = isAuthenticated ? filters.progressStatuses : []
   const categoryKey = filters.categories.join(',')
   const topicKey = filters.topics.join(',')
   const levelKey = filters.levels.join(',')
   const durationKey = filters.durations.join(',')
-  const progressStatusKey = filters.progressStatuses.join(',')
+  const progressStatusKey = effectiveProgressStatuses.join(',')
   const sortKey = filters.sort
 
   const syncQueryToUrl = useCallback((query: string) => {
@@ -150,11 +152,13 @@ export default function RoadmapsPage() {
   }, [])
 
   useEffect(() => {
-    if (!metadata || !router.isReady) return
+    if (!metadata || !router.isReady || authLoading) return
     const validCategories = new Set(metadata.categories.map(item => item.key))
     const validTopics = new Set(metadata.topics.map(item => item.key))
     const validLevels = new Set(metadata.levels.filter(item => item.roadmap_count > 0).map(item => item.key))
-    const validProgressStatuses = new Set((metadata.progress_statuses ?? []).map(item => item.key))
+    const validProgressStatuses = isAuthenticated
+      ? new Set((metadata.progress_statuses ?? []).map(item => item.key))
+      : new Set<string>()
     const canonicalFilters = {
       ...filters,
       categories: filters.categories.filter(value => validCategories.has(value)),
@@ -167,7 +171,7 @@ export default function RoadmapsPage() {
     if (current !== JSON.stringify(canonical)) {
       void router.replace({ pathname: router.pathname, query: canonical }, undefined, { shallow: true })
     }
-  }, [metadata, router.isReady, filters, router])
+  }, [metadata, router.isReady, authLoading, isAuthenticated, filters, router])
 
   const load = useCallback(async (signal?: AbortSignal) => {
     const currentRequest = ++requestId.current
@@ -228,8 +232,9 @@ export default function RoadmapsPage() {
   }
 
   const updateFilters = (nextFilters: RoadmapCatalogFilters) => {
+    const sanitizedFilters = isAuthenticated ? nextFilters : { ...nextFilters, progressStatuses: [] }
     void router.replace(
-      { pathname: router.pathname, query: canonicalCatalogQuery(appliedQuery, nextFilters) },
+      { pathname: router.pathname, query: canonicalCatalogQuery(appliedQuery, sanitizedFilters) },
       undefined,
       { shallow: true }
     )
@@ -253,7 +258,8 @@ export default function RoadmapsPage() {
   }
 
   const activeFilterCount = filters.categories.length + filters.topics.length +
-    filters.levels.length + filters.durations.length + filters.progressStatuses.length
+    filters.levels.length + filters.durations.length + effectiveProgressStatuses.length
+  const showProgressStatusFilter = isAuthenticated && Boolean(metadata?.progress_statuses?.some(item => item.roadmap_count > 0))
 
   const searchIsPending = queryValue(searchInput) !== appliedQuery
   const showResults = hasLoaded && !loading && !searchIsPending && !error
@@ -341,7 +347,7 @@ export default function RoadmapsPage() {
               </label>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className={`mt-4 grid gap-4 md:grid-cols-2 ${showProgressStatusFilter ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
               <FilterGroup
                 title="Categoría"
                 options={metadata?.categories ?? []}
@@ -367,11 +373,11 @@ export default function RoadmapsPage() {
                 onToggle={value => toggleFilter('durations', value)}
                 hideCounts={!metadata?.duration_ranges}
               />
-              {metadata?.progress_statuses && metadata.progress_statuses.some(item => item.roadmap_count > 0) ? (
+              {showProgressStatusFilter && metadata?.progress_statuses ? (
                 <FilterGroup
                   title="Estado mi progreso"
                   options={metadata.progress_statuses}
-                  selected={filters.progressStatuses}
+                  selected={effectiveProgressStatuses}
                   onToggle={value => toggleFilter('progressStatuses', value)}
                 />
               ) : null}
@@ -383,7 +389,7 @@ export default function RoadmapsPage() {
                 {filters.topics.map(value => <FilterChip key={`topic-${value}`} label={metadata?.topics.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('topics', value)} />)}
                 {filters.levels.map(value => <FilterChip key={`level-${value}`} label={levelLabel(value)} onRemove={() => toggleFilter('levels', value)} />)}
                 {filters.durations.map(value => <FilterChip key={`duration-${value}`} label={ROADMAP_DURATION_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('durations', value)} />)}
-                {filters.progressStatuses.map(value => <FilterChip key={`progress_status-${value}`} label={ROADMAP_PROGRESS_STATUS_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('progressStatuses', value)} />)}
+                {effectiveProgressStatuses.map(value => <FilterChip key={`progress_status-${value}`} label={ROADMAP_PROGRESS_STATUS_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('progressStatuses', value)} />)}
                 <button type="button" onClick={clearAll} className="ml-auto rounded-sm text-sm font-semibold text-sky-700 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
                   Limpiar todo
                 </button>
