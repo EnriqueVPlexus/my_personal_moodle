@@ -82,7 +82,8 @@ describe('roadmap catalog search experience', () => {
       target: { value: '  AWS  ' }
     })
     expect(screen.getByText('Buscando roadmaps…')).toBeInTheDocument()
-    expect(screen.queryByText('Catálogo completo')).not.toBeInTheDocument()
+    expect(screen.getByText('Catálogo completo')).toBeInTheDocument()
+    expect(screen.getByText('Catálogo completo').closest('[aria-busy="true"]')).toBeInTheDocument()
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/roadmaps?q=AWS',
@@ -92,7 +93,7 @@ describe('roadmap catalog search experience', () => {
     expect(nextRouterMock.replace).toHaveBeenCalledWith(
       { pathname: '/roadmaps', query: { q: 'AWS' } },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar búsqueda' }))
@@ -100,7 +101,7 @@ describe('roadmap catalog search experience', () => {
     expect(nextRouterMock.replace).toHaveBeenLastCalledWith(
       { pathname: '/roadmaps', query: {} },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
   })
 
@@ -109,7 +110,7 @@ describe('roadmap catalog search experience', () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
       if (String(url).includes('?q=AWS')) {
         awsSignal = init?.signal as AbortSignal
-        return new Promise(() => {})
+        return new Promise(() => { })
       }
       if (String(url).includes('?q=IA')) {
         return jsonResponse([{ id: 3, title: 'IA para DevOps', module_count: 5 }])
@@ -139,7 +140,7 @@ describe('roadmap catalog search experience', () => {
       jsonResponse([{ id: 2, title: 'AWS desde URL', module_count: 2 }])
     ]
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async url => (
-      String(url) === '/api/roadmaps/metadata'
+      String(url).startsWith('/api/roadmaps/metadata')
         ? jsonResponse({ categories: [], topics: [], levels: [] })
         : catalogResponses.shift() ?? jsonResponse([])
     ))
@@ -155,9 +156,17 @@ describe('roadmap catalog search experience', () => {
     expect(await screen.findByText('AWS desde URL')).toBeInTheDocument()
     expect(screen.getByRole('searchbox', { name: 'Buscar roadmaps' })).toHaveValue('AWS')
 
-    fetchMock
-      .mockRejectedValueOnce(new TypeError('network error'))
-      .mockResolvedValueOnce(jsonResponse([{ id: 3, title: 'Recuperado', module_count: 3 }]))
+    let failNextCatalogFetch = true
+    fetchMock.mockImplementation(async url => {
+      if (String(url).startsWith('/api/roadmaps/metadata')) {
+        return jsonResponse({ categories: [], topics: [], levels: [] })
+      }
+      if (failNextCatalogFetch) {
+        failNextCatalogFetch = false
+        throw new TypeError('network error')
+      }
+      return jsonResponse([{ id: 3, title: 'Recuperado', module_count: 3 }])
+    })
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar roadmaps' }), {
       target: { value: 'fallo' }
     })
@@ -179,7 +188,7 @@ describe('roadmap catalog search experience', () => {
 
   it('restores combinable filters from the URL and removes one chip without clearing the rest', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async url => {
-      if (String(url) === '/api/roadmaps/metadata') {
+      if (String(url).startsWith('/api/roadmaps/metadata')) {
         return jsonResponse({
           categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 1 }],
           topics: [{ key: 'aws', label: 'AWS', roadmap_count: 1 }],
@@ -202,21 +211,21 @@ describe('roadmap catalog search experience', () => {
     expect(nextRouterMock.replace).toHaveBeenLastCalledWith(
       { pathname: '/roadmaps', query: { q: 'cloud', topic: ['aws'], sort: 'title' } },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar todo' }))
     expect(nextRouterMock.replace).toHaveBeenLastCalledWith(
       { pathname: '/roadmaps', query: {} },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
   })
 
   it('canonicalizes invalid filter URLs and keeps long dynamic options accessible', async () => {
     const longTopic = 'Observabilidad distribuida para plataformas empresariales con nombres extensos'
     vi.spyOn(global, 'fetch').mockImplementation(async url => {
-      if (String(url) === '/api/roadmaps/metadata') {
+      if (String(url).startsWith('/api/roadmaps/metadata')) {
         return jsonResponse({
           categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 1 }],
           topics: [{ key: 'observabilidad', label: longTopic, roadmap_count: 1 }],
@@ -241,13 +250,13 @@ describe('roadmap catalog search experience', () => {
     await waitFor(() => expect(nextRouterMock.replace).toHaveBeenCalledWith(
       { pathname: '/roadmaps', query: { category: ['cloud-y-devops'] } },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     ))
   })
 
   it('hides the progress status filter and strips progress_status from URL for unauthenticated visitors', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async url => {
-      if (String(url) === '/api/roadmaps/metadata') {
+      if (String(url).startsWith('/api/roadmaps/metadata')) {
         return jsonResponse({
           categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 3 }],
           topics: [],
@@ -277,13 +286,13 @@ describe('roadmap catalog search experience', () => {
     await waitFor(() => expect(nextRouterMock.replace).toHaveBeenCalledWith(
       { pathname: '/roadmaps', query: {} },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     ))
   })
 
   it('shows and applies the progress status filter for authenticated users', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async url => {
-      if (String(url) === '/api/roadmaps/metadata') {
+      if (String(url).startsWith('/api/roadmaps/metadata')) {
         return jsonResponse({
           categories: [{ key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 3 }],
           topics: [],
@@ -307,7 +316,159 @@ describe('roadmap catalog search experience', () => {
     expect(nextRouterMock.replace).toHaveBeenCalledWith(
       { pathname: '/roadmaps', query: { progress_status: ['in_progress'] } },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
+  })
+
+  it('updates filter counts dynamically when searching and selecting filters', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      const urlStr = String(url)
+      if (urlStr === '/api/roadmaps/metadata') {
+        return jsonResponse({
+          categories: [
+            { key: 'aws', label: 'AWS', roadmap_count: 1 },
+            { key: 'desarrollo', label: 'Desarrollo', roadmap_count: 1 }
+          ],
+          topics: [{ key: 'aws', label: 'AWS', roadmap_count: 2 }],
+          levels: [{ key: 'beginner', roadmap_count: 3 }],
+          duration_ranges: [
+            { key: 'up-to-4', label: 'Hasta 4 semanas', roadmap_count: 2 },
+            { key: '5-to-12', label: '5-12 semanas', roadmap_count: 1 },
+            { key: 'over-12', label: 'Más de 12 semanas', roadmap_count: 0 }
+          ]
+        })
+      }
+      if (urlStr === '/api/roadmaps/metadata?q=AWS') {
+        return jsonResponse({
+          categories: [
+            { key: 'aws', label: 'AWS', roadmap_count: 1 },
+            { key: 'desarrollo', label: 'Desarrollo', roadmap_count: 0 }
+          ],
+          topics: [{ key: 'aws', label: 'AWS', roadmap_count: 2 }],
+          levels: [{ key: 'beginner', roadmap_count: 2 }],
+          duration_ranges: [
+            { key: 'up-to-4', label: 'Hasta 4 semanas', roadmap_count: 1 },
+            { key: '5-to-12', label: '5-12 semanas', roadmap_count: 1 },
+            { key: 'over-12', label: 'Más de 12 semanas', roadmap_count: 0 }
+          ]
+        })
+      }
+      if (urlStr === '/api/roadmaps/metadata?q=AWS&duration=up-to-4') {
+        return jsonResponse({
+          categories: [
+            { key: 'aws', label: 'AWS', roadmap_count: 1 },
+            { key: 'desarrollo', label: 'Desarrollo', roadmap_count: 0 }
+          ],
+          topics: [{ key: 'aws', label: 'AWS', roadmap_count: 1 }],
+          levels: [{ key: 'beginner', roadmap_count: 1 }],
+          duration_ranges: [
+            { key: 'up-to-4', label: 'Hasta 4 semanas', roadmap_count: 1 },
+            { key: '5-to-12', label: '5-12 semanas', roadmap_count: 1 },
+            { key: 'over-12', label: 'Más de 12 semanas', roadmap_count: 0 }
+          ]
+        })
+      }
+      if (urlStr.includes('duration=up-to-4')) {
+        return jsonResponse([{ id: 4, title: 'De 0 a 100 en AWS en 14 días', module_count: 1 }])
+      }
+      if (urlStr.includes('q=AWS')) {
+        return jsonResponse([
+          { id: 1, title: 'Roadmap AWS gratuito', module_count: 12 },
+          { id: 4, title: 'De 0 a 100 en AWS en 14 días', module_count: 1 }
+        ])
+      }
+      return jsonResponse([
+        { id: 1, title: 'Roadmap AWS gratuito', module_count: 12 },
+        { id: 4, title: 'De 0 a 100 en AWS en 14 días', module_count: 1 },
+        { id: 5, title: 'Roadmap de ejemplo', module_count: 1 }
+      ])
+    })
+
+    const { RoadmapsPage, rerender } = await renderCatalog()
+    expect(await screen.findByText('Roadmap de ejemplo')).toBeInTheDocument()
+    expect(await screen.findByRole('checkbox', { name: /Hasta 4 semanas\s*\(2\)/ })).toBeInTheDocument()
+
+    // Search "AWS" -> duration "Hasta 4 semanas" updates from (2) to (1)
+    nextRouterMock.query = { q: 'AWS' }
+    nextRouterMock.asPath = '/roadmaps?q=AWS'
+    rerender(<RoadmapsPage />)
+
+    expect(await screen.findByRole('checkbox', { name: /Hasta 4 semanas\s*\(1\)/ })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/roadmaps/metadata?q=AWS',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+
+    // Select duration "Hasta 4 semanas" -> requests filtered metadata with q=AWS&duration=up-to-4
+    nextRouterMock.query = { q: 'AWS', duration: ['up-to-4'] }
+    nextRouterMock.asPath = '/roadmaps?q=AWS&duration=up-to-4'
+    rerender(<RoadmapsPage />)
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/roadmaps/metadata?q=AWS&duration=up-to-4',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    ))
+    expect(await screen.findByRole('checkbox', { name: /Hasta 4 semanas\s*\(1\)/ })).toBeChecked()
+    expect(await screen.findByText('1 resultado')).toBeInTheDocument()
+  })
+
+  it('refreshes catalog metadata and filter options after creating a roadmap', async () => {
+    let created = false
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
+      const urlStr = String(input)
+      if (urlStr === '/api/roadmaps' && init?.method === 'POST') {
+        created = true
+        return jsonResponse({ id: 9, title: 'Nuevo roadmap Cloud', module_count: 0 }, 201)
+      }
+      if (urlStr === '/api/roadmaps/metadata') {
+        return jsonResponse(
+          created
+            ? {
+                categories: [
+                  { key: 'backend', label: 'Backend', roadmap_count: 1 },
+                  { key: 'cloud', label: 'Cloud', roadmap_count: 1 }
+                ],
+                topics: [{ key: 'kubernetes', label: 'Kubernetes', roadmap_count: 1 }],
+                levels: [{ key: 'beginner', roadmap_count: 2 }],
+                duration_ranges: [
+                  { key: 'up-to-4', label: 'Hasta 4 semanas', roadmap_count: 2 },
+                  { key: '5-to-12', label: '5-12 semanas', roadmap_count: 0 },
+                  { key: 'over-12', label: 'Más de 12 semanas', roadmap_count: 0 }
+                ]
+              }
+            : {
+                categories: [{ key: 'backend', label: 'Backend', roadmap_count: 1 }],
+                topics: [],
+                levels: [{ key: 'beginner', roadmap_count: 1 }],
+                duration_ranges: [
+                  { key: 'up-to-4', label: 'Hasta 4 semanas', roadmap_count: 1 },
+                  { key: '5-to-12', label: '5-12 semanas', roadmap_count: 0 },
+                  { key: 'over-12', label: 'Más de 12 semanas', roadmap_count: 0 }
+                ]
+              }
+        )
+      }
+      return jsonResponse(
+        created
+          ? [
+              { id: 1, title: 'Roadmap inicial', module_count: 2 },
+              { id: 9, title: 'Nuevo roadmap Cloud', module_count: 0 }
+            ]
+          : [{ id: 1, title: 'Roadmap inicial', module_count: 2 }]
+      )
+    })
+
+    await renderCatalog({ isAdmin: true })
+    expect(await screen.findByText('Roadmap inicial')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Cloud/ })).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText('Título del roadmap'), {
+      target: { value: 'Nuevo roadmap Cloud' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear roadmap' }))
+
+    expect(await screen.findByRole('checkbox', { name: /Cloud\s*\(1\)/ })).toBeInTheDocument()
+    expect(await screen.findByText('Nuevo roadmap Cloud')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/roadmaps/metadata')).toHaveLength(2)
   })
 })

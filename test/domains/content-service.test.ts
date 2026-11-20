@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { RoadmapImportConflictError } from '../../lib/domains/content/import'
+import { parseRoadmapCatalogFilters } from '../../lib/domains/content/filters'
 import { parseRoadmapSearchQuery } from '../../lib/domains/content/search'
 import { buildCatalogMetadata, emptyCatalogMetadata, makeContentService, type ContentPorts } from '../../lib/domains/content/service'
 import type {
@@ -130,6 +131,53 @@ describe('catalog metadata aggregation', () => {
 
     const metadata = await service.getCatalogMetadata({ user: null, allRoadmaps: true, roadmapIds: [] })
     expect(metadata.progress_statuses.find(item => item.key === 'not_started')?.roadmap_count).toBe(3)
+  })
+
+  it('computes dynamic catalog metadata with search, filters and learner progress overlay', async () => {
+    const service = setup({
+      catalog: {
+        listCatalogRows: async () => [
+          {
+            id: 1,
+            title: 'De 0 a 100 en AWS en 14 días',
+            duration_weeks_min: 1.5,
+            duration_weeks_max: 4,
+            category_key: 'aws',
+            category_label: 'AWS',
+            topics_metadata: 'aws\u001fAWS',
+            module_levels: 'beginner',
+            module_count: 1,
+            module_search_text: ''
+          },
+          {
+            id: 2,
+            title: 'Roadmap de ejemplo',
+            duration_weeks_min: 2,
+            duration_weeks_max: 2,
+            category_key: 'desarrollo',
+            category_label: 'Desarrollo',
+            topics_metadata: 'testing\u001fTesting',
+            module_levels: 'beginner',
+            module_count: 1,
+            module_search_text: ''
+          }
+        ]
+      },
+      learnerProgress: {
+        listUserRoadmapProgress: async () => [{ roadmap_id: 1, status: 'in_progress' }]
+      }
+    })
+
+    const metadata = await service.getCatalogMetadata(
+      { user: { id: 5 }, allRoadmaps: true, roadmapIds: [] },
+      parseRoadmapSearchQuery('AWS'),
+      parseRoadmapCatalogFilters({})
+    )
+
+    expect(Object.fromEntries(metadata.duration_ranges.map(item => [item.key, item.roadmap_count])))
+      .toEqual({ 'up-to-4': 1, '5-to-12': 0, 'over-12': 0 })
+    expect(Object.fromEntries(metadata.progress_statuses.map(item => [item.key, item.roadmap_count])))
+      .toEqual({ not_started: 0, in_progress: 1, completed: 0 })
   })
 })
 

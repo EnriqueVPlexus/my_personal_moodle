@@ -1,4 +1,12 @@
-import { RoadmapCatalogFilters, roadmapDurationMatches } from './filters'
+import {
+  ROADMAP_DURATION_FILTERS,
+  ROADMAP_PROGRESS_STATUS_FILTERS,
+  RoadmapCatalogFilters,
+  roadmapDurationMatches
+} from './filters'
+import { MODULE_LEVELS } from './metadata'
+
+export type CatalogFilterFamily = 'categories' | 'topics' | 'levels' | 'durations' | 'progressStatuses'
 
 export const MAX_ROADMAP_SEARCH_QUERY_LENGTH = 100
 
@@ -109,17 +117,121 @@ function metadataValues(value: unknown) {
   return String(value ?? '').split(',').filter(Boolean)
 }
 
-function matchesFilters(row: RoadmapSearchRow, filters?: RoadmapCatalogFilters) {
+function matchesFilters(
+  row: RoadmapSearchRow,
+  filters?: RoadmapCatalogFilters,
+  omitFamily?: CatalogFilterFamily
+) {
   if (!filters) return true
   const topicKeys = metadataValues(row.topics_metadata).map(value => value.split('\u001f')[0])
   const levels = metadataValues(row.module_levels)
   const userProgressStatus = (row.user_progress_status as string) || 'not_started'
 
-  return (!filters.categories.length || Boolean(row.category_key && filters.categories.includes(row.category_key))) &&
-    (!filters.topics.length || filters.topics.some(topic => topicKeys.includes(topic))) &&
-    (!filters.levels.length || filters.levels.some(level => levels.includes(level))) &&
-    (!filters.progressStatuses.length || filters.progressStatuses.includes(userProgressStatus as any)) &&
-    roadmapDurationMatches(row.duration_weeks_min, row.duration_weeks_max, filters.durations)
+  return (omitFamily === 'categories' || !filters.categories.length || Boolean(row.category_key && filters.categories.includes(row.category_key))) &&
+    (omitFamily === 'topics' || !filters.topics.length || filters.topics.some(topic => topicKeys.includes(topic))) &&
+    (omitFamily === 'levels' || !filters.levels.length || filters.levels.some(level => levels.includes(level))) &&
+    (omitFamily === 'progressStatuses' || !filters.progressStatuses.length || filters.progressStatuses.includes(userProgressStatus as any)) &&
+    (omitFamily === 'durations' || roadmapDurationMatches(row.duration_weeks_min, row.duration_weeks_max, filters.durations))
+}
+
+export function matchesRoadmapSearch(row: RoadmapSearchRow, search?: RoadmapSearchQuery): boolean {
+  if (!search?.normalizedQuery) return true
+  return searchScore(row, search) !== null
+}
+
+function compareLabels(first: [string, string], second: [string, string]) {
+  return first[1].localeCompare(second[1], 'es', { sensitivity: 'base' }) || first[0].localeCompare(second[0])
+}
+
+export function computeFilteredCatalogMetadata(
+  visibleRows: RoadmapSearchRow[],
+  search?: RoadmapSearchQuery,
+  filters?: RoadmapCatalogFilters
+) {
+  const knownCategories = new Map<string, string>()
+  const knownTopics = new Map<string, string>()
+
+  visibleRows.forEach(row => {
+    if (row.category_key && row.category_label) {
+      knownCategories.set(row.category_key, row.category_label)
+    }
+    metadataValues(row.topics_metadata).forEach(entry => {
+      const [key, label] = entry.split('\u001f')
+      if (key && label) knownTopics.set(key, label)
+    })
+  })
+
+  const searchRows = visibleRows.filter(row => matchesRoadmapSearch(row, search))
+
+  const categoryCounts = new Map<string, number>()
+  searchRows.filter(row => matchesFilters(row, filters, 'categories')).forEach(row => {
+    if (!row.category_key) return
+    categoryCounts.set(row.category_key, (categoryCounts.get(row.category_key) ?? 0) + 1)
+  })
+
+  const topicCounts = new Map<string, number>()
+  searchRows.filter(row => matchesFilters(row, filters, 'topics')).forEach(row => {
+    const keys = new Set(metadataValues(row.topics_metadata).map(value => value.split('\u001f')[0]).filter(Boolean))
+    keys.forEach(key => {
+      topicCounts.set(key, (topicCounts.get(key) ?? 0) + 1)
+    })
+  })
+
+  const levelCounts = new Map<string, number>()
+  searchRows.filter(row => matchesFilters(row, filters, 'levels')).forEach(row => {
+    const levels = new Set(metadataValues(row.module_levels))
+    levels.forEach(level => {
+      levelCounts.set(level, (levelCounts.get(level) ?? 0) + 1)
+    })
+  })
+
+  const durationRows = searchRows.filter(row => matchesFilters(row, filters, 'durations'))
+  let minWeeks: number | null = null
+  let maxWeeks: number | null = null
+  durationRows.forEach(row => {
+    if (row.duration_weeks_min !== null && row.duration_weeks_min !== undefined) {
+      const min = Number(row.duration_weeks_min)
+      if (Number.isFinite(min)) minWeeks = minWeeks === null ? min : Math.min(minWeeks, min)
+    }
+    if (row.duration_weeks_max !== null && row.duration_weeks_max !== undefined) {
+      const max = Number(row.duration_weeks_max)
+      if (Number.isFinite(max)) maxWeeks = maxWeeks === null ? max : Math.max(maxWeeks, max)
+    }
+  })
+
+  const progressCounts: Record<string, number> = {
+    not_started: 0,
+    in_progress: 0,
+    completed: 0
+  }
+  searchRows.filter(row => matchesFilters(row, filters, 'progressStatuses')).forEach(row => {
+    const status = (row.user_progress_status as string) || 'not_started'
+    progressCounts[status] = (progressCounts[status] ?? 0) + 1
+  })
+
+  const unclassifiedRoadmaps = searchRows.filter(row => matchesFilters(row, filters) && !row.category_key).length
+
+  return {
+    categories: [...knownCategories.entries()]
+      .sort(compareLabels)
+      .map(([key, label]) => ({ key, label, roadmap_count: categoryCounts.get(key) ?? 0 })),
+    topics: [...knownTopics.entries()]
+      .sort(compareLabels)
+      .map(([key, label]) => ({ key, label, roadmap_count: topicCounts.get(key) ?? 0 })),
+    levels: MODULE_LEVELS.map(key => ({ key, roadmap_count: levelCounts.get(key) ?? 0 })),
+    duration: { min_weeks: minWeeks, max_weeks: maxWeeks },
+    duration_ranges: ROADMAP_DURATION_FILTERS.map(range => ({
+      key: range.key,
+      label: range.label,
+      roadmap_count: durationRows.filter(row => roadmapDurationMatches(row.duration_weeks_min, row.duration_weeks_max, [range.key])).length
+    })),
+    progress_statuses: ROADMAP_PROGRESS_STATUS_FILTERS.map(item => ({
+      key: item.key,
+      label: item.label,
+      roadmap_count: progressCounts[item.key] ?? 0
+    })),
+    unclassified_roadmaps: unclassifiedRoadmaps
+  }
 }
 
 export function filterAndRankRoadmaps(

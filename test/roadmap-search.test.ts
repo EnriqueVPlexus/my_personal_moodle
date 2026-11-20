@@ -2,6 +2,7 @@ import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 import { describe, expect, it } from 'vitest'
 import {
+  computeFilteredCatalogMetadata,
   filterAndRankRoadmaps,
   normalizeSearchText,
   parseRoadmapSearchQuery
@@ -250,5 +251,140 @@ describe('roadmap search helpers', () => {
     expect(elapsedMs).toBeLessThan(1500)
 
     await db.close()
+  })
+
+  it('recalculates disjunctive filter counts when a search query is active', () => {
+    const sampleRows = [
+      {
+        id: 1,
+        title: 'AWS gratuito para cantera DevOps',
+        description: 'Ruta AWS',
+        module_count: 12,
+        module_search_text: '',
+        category_key: 'cloud-y-devops',
+        category_label: 'Cloud y DevOps',
+        topics_metadata: 'aws\u001fAWS,terraform\u001fTerraform',
+        module_levels: 'beginner,intermediate',
+        duration_weeks_min: 10,
+        duration_weeks_max: 12,
+        user_progress_status: 'in_progress'
+      },
+      {
+        id: 2,
+        title: 'De 0 a 100 en AWS en 14 días',
+        description: 'Ruta corta AWS',
+        module_count: 1,
+        module_search_text: '',
+        category_key: 'aws',
+        category_label: 'AWS',
+        topics_metadata: 'aws\u001fAWS',
+        module_levels: 'beginner',
+        duration_weeks_min: 1.5,
+        duration_weeks_max: 4,
+        user_progress_status: 'not_started'
+      },
+      {
+        id: 3,
+        title: 'Roadmap de ejemplo',
+        description: 'Pruebas unitarias',
+        module_count: 1,
+        module_search_text: '',
+        category_key: 'desarrollo',
+        category_label: 'Desarrollo',
+        topics_metadata: 'testing\u001fTesting',
+        module_levels: 'beginner',
+        duration_weeks_min: 2,
+        duration_weeks_max: 2,
+        user_progress_status: 'completed'
+      }
+    ]
+
+    const metadata = computeFilteredCatalogMetadata(
+      sampleRows,
+      parseRoadmapSearchQuery('AWS'),
+      parseRoadmapCatalogFilters({})
+    )
+
+    expect(Object.fromEntries(metadata.duration_ranges.map(item => [item.key, item.roadmap_count])))
+      .toEqual({ 'up-to-4': 1, '5-to-12': 1, 'over-12': 0 })
+    expect(metadata.categories).toEqual([
+      { key: 'aws', label: 'AWS', roadmap_count: 1 },
+      { key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 1 },
+      { key: 'desarrollo', label: 'Desarrollo', roadmap_count: 0 }
+    ])
+    expect(metadata.topics).toEqual([
+      { key: 'aws', label: 'AWS', roadmap_count: 2 },
+      { key: 'terraform', label: 'Terraform', roadmap_count: 1 },
+      { key: 'testing', label: 'Testing', roadmap_count: 0 }
+    ])
+  })
+
+  it('keeps the selected filter family disjunctive while intersecting all other active filters', () => {
+    const sampleRows = [
+      {
+        id: 1,
+        title: 'AWS gratuito para cantera DevOps',
+        module_count: 12,
+        module_search_text: '',
+        category_key: 'cloud-y-devops',
+        category_label: 'Cloud y DevOps',
+        topics_metadata: 'aws\u001fAWS,terraform\u001fTerraform',
+        module_levels: 'beginner,intermediate',
+        duration_weeks_min: 10,
+        duration_weeks_max: 12,
+        user_progress_status: 'in_progress'
+      },
+      {
+        id: 2,
+        title: 'De 0 a 100 en AWS en 14 días',
+        module_count: 1,
+        module_search_text: '',
+        category_key: 'aws',
+        category_label: 'AWS',
+        topics_metadata: 'aws\u001fAWS',
+        module_levels: 'beginner',
+        duration_weeks_min: 1.5,
+        duration_weeks_max: 4,
+        user_progress_status: 'not_started'
+      },
+      {
+        id: 3,
+        title: 'Roadmap de ejemplo',
+        module_count: 1,
+        module_search_text: '',
+        category_key: 'desarrollo',
+        category_label: 'Desarrollo',
+        topics_metadata: 'testing\u001fTesting',
+        module_levels: 'beginner',
+        duration_weeks_min: 2,
+        duration_weeks_max: 2,
+        user_progress_status: 'completed'
+      }
+    ]
+
+    const metadata = computeFilteredCatalogMetadata(
+      sampleRows,
+      parseRoadmapSearchQuery('AWS'),
+      parseRoadmapCatalogFilters({ duration: 'up-to-4' })
+    )
+
+    // Duration keeps both AWS duration buckets visible (disjunctive on its own family)
+    expect(Object.fromEntries(metadata.duration_ranges.map(item => [item.key, item.roadmap_count])))
+      .toEqual({ 'up-to-4': 1, '5-to-12': 1, 'over-12': 0 })
+    // Categories, topics, levels and progress statuses intersect q=AWS AND duration=up-to-4
+    expect(metadata.categories).toEqual([
+      { key: 'aws', label: 'AWS', roadmap_count: 1 },
+      { key: 'cloud-y-devops', label: 'Cloud y DevOps', roadmap_count: 0 },
+      { key: 'desarrollo', label: 'Desarrollo', roadmap_count: 0 }
+    ])
+    expect(metadata.topics).toEqual([
+      { key: 'aws', label: 'AWS', roadmap_count: 1 },
+      { key: 'terraform', label: 'Terraform', roadmap_count: 0 },
+      { key: 'testing', label: 'Testing', roadmap_count: 0 }
+    ])
+    expect(Object.fromEntries(metadata.levels.map(item => [item.key, item.roadmap_count])))
+      .toEqual({ beginner: 1, intermediate: 0, advanced: 0, capstone: 0 })
+    expect(Object.fromEntries(metadata.progress_statuses.map(item => [item.key, item.roadmap_count])))
+      .toEqual({ not_started: 1, in_progress: 0, completed: 0 })
   })
 })

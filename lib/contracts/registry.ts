@@ -298,7 +298,9 @@ export const operations: ApiOperation[] = [
     path: '/api/roadmaps/metadata',
     tag: 'Catálogo',
     summary: 'Metadatos y contadores de los filtros del catálogo',
+    description: 'Admite opcionalmente `q` y los filtros activos para recalcular contadores disyuntivos por faceta.',
     auth: 'read',
+    request: { query: roadmapCatalogQuerySchema },
     responses: { 200: json('Categorías, temas, niveles, duraciones y estados con su número de roadmaps.', catalogMetadataSchema) }
   }),
   operation({

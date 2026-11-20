@@ -63,6 +63,12 @@ function managedCatalogQuery(query: Record<string, string | string[] | undefined
   return managed
 }
 
+function isCatalogMetadata(data: unknown): data is CatalogMetadata {
+  if (!data || typeof data !== 'object') return false
+  const candidate = data as CatalogMetadata
+  return Array.isArray(candidate.categories) && Array.isArray(candidate.topics) && Array.isArray(candidate.levels)
+}
+
 export default function RoadmapsPage() {
   const router = useRouter()
   const { isAdmin, user, loading: authLoading } = useAuth()
@@ -75,7 +81,9 @@ export default function RoadmapsPage() {
   const [hasLoaded, setHasLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
-  const [metadata, setMetadata] = useState<CatalogMetadata | null>(null)
+  const [catalogVersion, setCatalogVersion] = useState(0)
+  const [baseMetadata, setBaseMetadata] = useState<CatalogMetadata | null>(null)
+  const [filteredMetadata, setFilteredMetadata] = useState<CatalogMetadata | null>(null)
   const requestId = useRef(0)
   const routerRef = useRef(router)
   routerRef.current = router
@@ -101,6 +109,17 @@ export default function RoadmapsPage() {
   const progressStatusKey = effectiveProgressStatuses.join(',')
   const sortKey = filters.sort
 
+  const metadataQueryString = useMemo(() => {
+    const params = new URLSearchParams()
+    if (appliedQuery) params.set('q', appliedQuery)
+    categoryKey.split(',').filter(Boolean).forEach(value => params.append('category', value))
+    topicKey.split(',').filter(Boolean).forEach(value => params.append('topic', value))
+    levelKey.split(',').filter(Boolean).forEach(value => params.append('level', value))
+    durationKey.split(',').filter(Boolean).forEach(value => params.append('duration', value))
+    progressStatusKey.split(',').filter(Boolean).forEach(value => params.append('progress_status', value))
+    return params.toString()
+  }, [appliedQuery, categoryKey, topicKey, levelKey, durationKey, progressStatusKey])
+
   const syncQueryToUrl = useCallback((query: string) => {
     const nextQuery = { ...router.query }
     if (query) nextQuery.q = query
@@ -109,7 +128,7 @@ export default function RoadmapsPage() {
     void router.replace(
       { pathname: router.pathname, query: nextQuery },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
   }, [router])
 
@@ -133,31 +152,31 @@ export default function RoadmapsPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    async function loadMetadata() {
+    async function loadBaseMetadata() {
       try {
         const res = await fetch('/api/roadmaps/metadata', { signal: controller.signal })
         if (!res.ok) return
         const data = await res.json()
-        if (Array.isArray(data?.categories) && Array.isArray(data?.topics) && Array.isArray(data?.levels)) {
-          setMetadata(data)
+        if (isCatalogMetadata(data)) {
+          setBaseMetadata(data)
         }
       } catch (metadataError) {
         if (!(metadataError instanceof DOMException && metadataError.name === 'AbortError')) {
-          setMetadata(null)
+          setBaseMetadata(null)
         }
       }
     }
-    void loadMetadata()
+    void loadBaseMetadata()
     return () => controller.abort()
-  }, [])
+  }, [catalogVersion])
 
   useEffect(() => {
-    if (!metadata || !router.isReady || authLoading) return
-    const validCategories = new Set(metadata.categories.map(item => item.key))
-    const validTopics = new Set(metadata.topics.map(item => item.key))
-    const validLevels = new Set(metadata.levels.filter(item => item.roadmap_count > 0).map(item => item.key))
+    if (!baseMetadata || !router.isReady || authLoading) return
+    const validCategories = new Set(baseMetadata.categories.map(item => item.key))
+    const validTopics = new Set(baseMetadata.topics.map(item => item.key))
+    const validLevels = new Set(baseMetadata.levels.filter(item => item.roadmap_count > 0).map(item => item.key))
     const validProgressStatuses = isAuthenticated
-      ? new Set((metadata.progress_statuses ?? []).map(item => item.key))
+      ? new Set((baseMetadata.progress_statuses ?? []).map(item => item.key))
       : new Set<string>()
     const canonicalFilters = {
       ...filters,
@@ -169,9 +188,9 @@ export default function RoadmapsPage() {
     const current = JSON.stringify(managedCatalogQuery(router.query))
     const canonical = canonicalCatalogQuery(queryValue(router.query.q), canonicalFilters)
     if (current !== JSON.stringify(canonical)) {
-      void router.replace({ pathname: router.pathname, query: canonical }, undefined, { shallow: true })
+      void router.replace({ pathname: router.pathname, query: canonical }, undefined, { shallow: true, scroll: false })
     }
-  }, [metadata, router.isReady, authLoading, isAuthenticated, filters, router])
+  }, [baseMetadata, router.isReady, authLoading, isAuthenticated, filters, router])
 
   const load = useCallback(async (signal?: AbortSignal) => {
     const currentRequest = ++requestId.current
@@ -179,13 +198,7 @@ export default function RoadmapsPage() {
     setError(null)
 
     try {
-      const params = new URLSearchParams()
-      if (appliedQuery) params.set('q', appliedQuery)
-      categoryKey.split(',').filter(Boolean).forEach(value => params.append('category', value))
-      topicKey.split(',').filter(Boolean).forEach(value => params.append('topic', value))
-      levelKey.split(',').filter(Boolean).forEach(value => params.append('level', value))
-      durationKey.split(',').filter(Boolean).forEach(value => params.append('duration', value))
-      progressStatusKey.split(',').filter(Boolean).forEach(value => params.append('progress_status', value))
+      const params = new URLSearchParams(metadataQueryString)
       if (sortKey !== 'relevance') params.set('sort', sortKey)
       const url = params.size > 0 ? `/api/roadmaps?${params.toString()}` : '/api/roadmaps'
       const res = await fetch(url, { signal })
@@ -209,13 +222,37 @@ export default function RoadmapsPage() {
         setHasLoaded(true)
       }
     }
-  }, [appliedQuery, categoryKey, topicKey, levelKey, durationKey, progressStatusKey, sortKey])
+  }, [metadataQueryString, sortKey])
 
   useEffect(() => {
     const controller = new AbortController()
     void load(controller.signal)
     return () => controller.abort()
   }, [load, retryKey])
+
+  useEffect(() => {
+    if (!metadataQueryString) {
+      setFilteredMetadata(null)
+      return
+    }
+    const controller = new AbortController()
+    async function loadFilteredMetadata() {
+      try {
+        const res = await fetch(`/api/roadmaps/metadata?${metadataQueryString}`, { signal: controller.signal })
+        if (!res.ok) return
+        const data = await res.json()
+        if (isCatalogMetadata(data)) {
+          setFilteredMetadata(data)
+        }
+      } catch (metadataError) {
+        if (!(metadataError instanceof DOMException && metadataError.name === 'AbortError')) {
+          setFilteredMetadata(null)
+        }
+      }
+    }
+    void loadFilteredMetadata()
+    return () => controller.abort()
+  }, [metadataQueryString, catalogVersion])
 
   const submittedSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -236,7 +273,7 @@ export default function RoadmapsPage() {
     void router.replace(
       { pathname: router.pathname, query: canonicalCatalogQuery(appliedQuery, sanitizedFilters) },
       undefined,
-      { shallow: true }
+      { shallow: true, scroll: false }
     )
   }
 
@@ -254,15 +291,22 @@ export default function RoadmapsPage() {
   const clearAll = () => {
     setSearchInput('')
     setAppliedQuery('')
-    void router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true })
+    void router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true, scroll: false })
   }
 
+  const activeMetadata = metadataQueryString ? (filteredMetadata ?? baseMetadata) : baseMetadata
+  const visibleLevelKeys = useMemo(
+    () => new Set((baseMetadata?.levels ?? []).filter(item => item.roadmap_count > 0).map(item => item.key)),
+    [baseMetadata]
+  )
   const activeFilterCount = filters.categories.length + filters.topics.length +
     filters.levels.length + filters.durations.length + effectiveProgressStatuses.length
-  const showProgressStatusFilter = isAuthenticated && Boolean(metadata?.progress_statuses?.some(item => item.roadmap_count > 0))
+  const showProgressStatusFilter = isAuthenticated && Boolean(baseMetadata?.progress_statuses?.some(item => item.roadmap_count > 0))
+  const hasActiveCriteria = activeFilterCount > 0 || Boolean(appliedQuery) || filters.sort !== 'relevance'
 
   const searchIsPending = queryValue(searchInput) !== appliedQuery
-  const showResults = hasLoaded && !loading && !searchIsPending && !error
+  const isRefreshing = loading || searchIsPending
+  const showResults = hasLoaded && !error
   const resultLabel = appliedQuery
     ? `${roadmaps.length} ${roadmaps.length === 1 ? 'resultado' : 'resultados'}`
     : `${roadmaps.length} ${roadmaps.length === 1 ? 'ruta disponible' : 'rutas disponibles'}`
@@ -285,10 +329,10 @@ export default function RoadmapsPage() {
             </div>
             <div
               aria-live="polite"
-              className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+              className="min-w-[168px] rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm tabular-nums text-slate-600"
             >
-              <span className="block text-2xl font-bold text-slate-950">{showResults ? roadmaps.length : '—'}</span>
-              {showResults ? resultLabel.replace(/^\d+ /, '') : 'cargando catálogo'}
+              <span className="block text-2xl font-bold text-slate-950">{hasLoaded && !error ? roadmaps.length : '—'}</span>
+              {hasLoaded && !error ? resultLabel.replace(/^\d+ /, '') : 'cargando catálogo'}
             </div>
           </div>
         </section>
@@ -350,55 +394,59 @@ export default function RoadmapsPage() {
             <div className={`mt-4 grid gap-4 md:grid-cols-2 ${showProgressStatusFilter ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
               <FilterGroup
                 title="Categoría"
-                options={metadata?.categories ?? []}
+                options={activeMetadata?.categories ?? []}
                 selected={filters.categories}
                 onToggle={value => toggleFilter('categories', value)}
               />
               <FilterGroup
                 title="Temas"
-                options={metadata?.topics ?? []}
+                options={activeMetadata?.topics ?? []}
                 selected={filters.topics}
                 onToggle={value => toggleFilter('topics', value)}
               />
               <FilterGroup
                 title="Nivel"
-                options={(metadata?.levels ?? []).filter(item => item.roadmap_count > 0).map(item => ({ ...item, label: levelLabel(item.key) }))}
+                options={(activeMetadata?.levels ?? []).filter(item => visibleLevelKeys.has(item.key)).map(item => ({ ...item, label: levelLabel(item.key) }))}
                 selected={filters.levels}
                 onToggle={value => toggleFilter('levels', value)}
               />
               <FilterGroup
                 title="Duración"
-                options={metadata?.duration_ranges ?? ROADMAP_DURATION_FILTERS.map(item => ({ key: item.key, label: item.label, roadmap_count: 0 }))}
+                options={activeMetadata?.duration_ranges ?? ROADMAP_DURATION_FILTERS.map(item => ({ key: item.key, label: item.label, roadmap_count: 0 }))}
                 selected={filters.durations}
                 onToggle={value => toggleFilter('durations', value)}
-                hideCounts={!metadata?.duration_ranges}
+                hideCounts={!activeMetadata?.duration_ranges}
               />
-              {showProgressStatusFilter && metadata?.progress_statuses ? (
+              {showProgressStatusFilter && activeMetadata?.progress_statuses ? (
                 <FilterGroup
                   title="Estado mi progreso"
-                  options={metadata.progress_statuses}
+                  options={activeMetadata.progress_statuses}
                   selected={effectiveProgressStatuses}
                   onToggle={value => toggleFilter('progressStatuses', value)}
                 />
               ) : null}
             </div>
 
-            {(activeFilterCount > 0 || appliedQuery || filters.sort !== 'relevance') && (
-              <div aria-live="polite" className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-                {filters.categories.map(value => <FilterChip key={`category-${value}`} label={metadata?.categories.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('categories', value)} />)}
-                {filters.topics.map(value => <FilterChip key={`topic-${value}`} label={metadata?.topics.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('topics', value)} />)}
-                {filters.levels.map(value => <FilterChip key={`level-${value}`} label={levelLabel(value)} onRemove={() => toggleFilter('levels', value)} />)}
-                {filters.durations.map(value => <FilterChip key={`duration-${value}`} label={ROADMAP_DURATION_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('durations', value)} />)}
-                {effectiveProgressStatuses.map(value => <FilterChip key={`progress_status-${value}`} label={ROADMAP_PROGRESS_STATUS_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('progressStatuses', value)} />)}
-                <button type="button" onClick={clearAll} className="ml-auto rounded-sm text-sm font-semibold text-sky-700 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
-                  Limpiar todo
-                </button>
-              </div>
-            )}
+            <div aria-live="polite" className="mt-4 flex min-h-[44px] flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+              {hasActiveCriteria ? (
+                <>
+                  {filters.categories.map(value => <FilterChip key={`category-${value}`} label={baseMetadata?.categories.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('categories', value)} />)}
+                  {filters.topics.map(value => <FilterChip key={`topic-${value}`} label={baseMetadata?.topics.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('topics', value)} />)}
+                  {filters.levels.map(value => <FilterChip key={`level-${value}`} label={levelLabel(value)} onRemove={() => toggleFilter('levels', value)} />)}
+                  {filters.durations.map(value => <FilterChip key={`duration-${value}`} label={ROADMAP_DURATION_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('durations', value)} />)}
+                  {effectiveProgressStatuses.map(value => <FilterChip key={`progress_status-${value}`} label={ROADMAP_PROGRESS_STATUS_FILTERS.find(item => item.key === value)?.label ?? value} onRemove={() => toggleFilter('progressStatuses', value)} />)}
+                  <button type="button" onClick={clearAll} className="ml-auto rounded-sm text-sm font-semibold text-sky-700 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
+                    Limpiar todo
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-slate-400">Sin filtros activos</span>
+              )}
+            </div>
           </section>
 
           <div aria-live="polite" aria-atomic="true" className="min-h-6 text-sm text-slate-600">
-            {loading || searchIsPending
+            {isRefreshing
               ? (hasLoaded ? 'Buscando roadmaps…' : 'Cargando catálogo…')
               : error
                 ? error
@@ -418,36 +466,56 @@ export default function RoadmapsPage() {
             </div>
           ) : null}
 
-          {showResults ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {roadmaps.length > 0 ? (
-                roadmaps.map(r => (
-                  <Link key={r.id} href={`/roadmaps/${r.id}`} className="block">
-                    <RoadmapCard
-                      title={r.title}
-                      description={r.description ?? undefined}
-                      moduleCount={r.module_count}
-                      category={r.category?.label}
-                      topics={r.topics?.map(topic => topic.label)}
-                    />
-                  </Link>
-                ))
-              ) : (
-                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
-                  {appliedQuery
-                    ? `No hay roadmaps que coincidan con “${appliedQuery}”. Prueba con otros términos.`
-                    : 'Todavía no hay roadmaps publicados.'}
-                </div>
-              )}
-            </div>
-          ) : null}
+          <div className="min-h-[420px]">
+            {showResults ? (
+              <div
+                aria-busy={isRefreshing}
+                className={`grid grid-cols-1 gap-4 transition-opacity md:grid-cols-2 ${isRefreshing ? 'pointer-events-none opacity-60' : ''}`}
+              >
+                {roadmaps.length > 0 ? (
+                  roadmaps.map(r => (
+                    <Link key={r.id} href={`/roadmaps/${r.id}`} className="block">
+                      <RoadmapCard
+                        title={r.title}
+                        description={r.description ?? undefined}
+                        moduleCount={r.module_count}
+                        category={r.category?.label}
+                        topics={r.topics?.map(topic => topic.label)}
+                      />
+                    </Link>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
+                    {appliedQuery
+                      ? `No hay roadmaps que coincidan con “${appliedQuery}”. Prueba con otros términos.`
+                      : 'Todavía no hay roadmaps publicados.'}
+                  </div>
+                )}
+              </div>
+            ) : !hasLoaded && !error ? (
+              <div aria-hidden="true" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {[0, 1].map(item => (
+                  <div key={item} className="h-52 animate-pulse rounded-lg border border-slate-200 bg-white p-5">
+                    <div className="h-3 w-24 rounded bg-slate-200" />
+                    <div className="mt-4 h-5 w-3/4 rounded bg-slate-200" />
+                    <div className="mt-3 flex gap-2">
+                      <div className="h-5 w-20 rounded bg-slate-100" />
+                      <div className="h-5 w-16 rounded bg-slate-100" />
+                    </div>
+                    <div className="mt-4 h-3 w-full rounded bg-slate-100" />
+                    <div className="mt-2 h-3 w-2/3 rounded bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           {isAdmin ? (
             <div className="panel mt-6 p-5">
               <h2 className="text-lg font-semibold text-slate-950">Crear nuevo roadmap</h2>
               <p className="mt-1 text-sm text-slate-600">Añade rutas internas rápidas para seguir ampliando la cantera.</p>
               <div className="mt-4">
-                <RoadmapForm onCreate={() => setRetryKey(key => key + 1)} />
+                <RoadmapForm onCreate={() => { setRetryKey(key => key + 1); setCatalogVersion(v => v + 1) }} />
               </div>
             </div>
           ) : (
@@ -478,18 +546,24 @@ function FilterGroup({
     <fieldset>
       <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</legend>
       <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1">
-        {options.length ? options.map(option => (
-          <label key={option.key} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={selected.includes(option.key)}
-              onChange={() => onToggle(option.key)}
-              className="h-4 w-4 rounded border-slate-300 text-sky-700 focus:ring-sky-500"
-            />
-            <span className="min-w-0 break-words">{option.label ?? option.key}</span>
-            {!hideCounts && <span className="text-xs text-slate-400">({option.roadmap_count})</span>}
-          </label>
-        )) : <span className="text-sm text-slate-400">Sin opciones</span>}
+        {options.length ? options.map(option => {
+          const isMuted = option.roadmap_count === 0 && !selected.includes(option.key) && !hideCounts
+          return (
+            <label
+              key={option.key}
+              className={`flex cursor-pointer items-center gap-2 text-sm ${isMuted ? 'text-slate-400' : 'text-slate-700'}`}
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(option.key)}
+                onChange={() => onToggle(option.key)}
+                className="h-4 w-4 rounded border-slate-300 text-sky-700 focus:ring-sky-500"
+              />
+              <span className="min-w-0 break-words">{option.label ?? option.key}</span>
+              {!hideCounts && <span className="text-xs text-slate-400">({option.roadmap_count})</span>}
+            </label>
+          )
+        }) : <span className="text-sm text-slate-400">Sin opciones</span>}
       </div>
     </fieldset>
   )
