@@ -3,7 +3,7 @@ import type { UnitOfWork } from '../shared/unitOfWork'
 import { RoadmapImportConflictError } from './import'
 import { MODULE_LEVELS } from './metadata'
 import { ROADMAP_DURATION_FILTERS, ROADMAP_PROGRESS_STATUS_FILTERS, type RoadmapCatalogFilters } from './filters'
-import { filterAndRankRoadmaps, type RoadmapSearchQuery } from './search'
+import { computeFilteredCatalogMetadata, filterAndRankRoadmaps, type RoadmapSearchQuery } from './search'
 import type {
   CatalogRepository,
   ImportRepository,
@@ -135,10 +135,33 @@ export function emptyCatalogMetadata() {
   }
 }
 
+function hasActiveCatalogCriteria(search?: RoadmapSearchQuery, filters?: RoadmapCatalogFilters) {
+  return Boolean(
+    search?.normalizedQuery ||
+    filters?.categories.length ||
+    filters?.topics.length ||
+    filters?.levels.length ||
+    filters?.durations.length ||
+    filters?.progressStatuses.length
+  )
+}
+
 export type ContentService = ReturnType<typeof makeContentService>
 
 export function makeContentService(ports: ContentPorts) {
   const { roadmaps, metadata, catalog, modules, lessons, imports, learnerProgress, unitOfWork } = ports
+
+  async function attachUserProgress(visibleRows: Array<Record<string, unknown>>, scope: ContentReadScope) {
+    if (!scope.user) return
+    const userProgress = await learnerProgress.listUserRoadmapProgress(scope.user.id)
+    const progressMap = new Map<number, string>()
+    userProgress.forEach(item => {
+      progressMap.set(item.roadmap_id, item.status === 'completed' ? 'completed' : 'in_progress')
+    })
+    visibleRows.forEach(row => {
+      row.user_progress_status = progressMap.get(Number(row.id)) || 'not_started'
+    })
+  }
 
   return {
     // --- Catalog: search and filter metadata -------------------------------
@@ -151,23 +174,24 @@ export function makeContentService(ports: ContentPorts) {
         ? rows
         : rows.filter(row => scope.roadmapIds.includes(Number(row.id)))
 
-      if (scope.user) {
-        const userProgress = await learnerProgress.listUserRoadmapProgress(scope.user.id)
-        const progressMap = new Map<number, string>()
-        userProgress.forEach(item => {
-          progressMap.set(item.roadmap_id, item.status === 'completed' ? 'completed' : 'in_progress')
-        })
-        visibleRows.forEach(row => {
-          row.user_progress_status = progressMap.get(Number(row.id)) || 'not_started'
-        })
-      }
+      await attachUserProgress(visibleRows, scope)
 
       return filterAndRankRoadmaps(visibleRows, search, filters)
     },
 
-    async getCatalogMetadata(scope: ContentReadScope) {
+    async getCatalogMetadata(scope: ContentReadScope, search?: RoadmapSearchQuery, filters?: RoadmapCatalogFilters) {
       const roadmapIds = scope.allRoadmaps ? null : scope.roadmapIds
       if (roadmapIds && roadmapIds.length === 0) return emptyCatalogMetadata()
+
+      if (hasActiveCatalogCriteria(search, filters)) {
+        const rows = await catalog.listCatalogRows()
+        const visibleRows = scope.allRoadmaps
+          ? rows
+          : rows.filter(row => scope.roadmapIds.includes(Number(row.id)))
+
+        await attachUserProgress(visibleRows, scope)
+        return computeFilteredCatalogMetadata(visibleRows, search, filters)
+      }
 
       const [categories, topics, duration] = await Promise.all([
         catalog.listCategoryCounts(roadmapIds),

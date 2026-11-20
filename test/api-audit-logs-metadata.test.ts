@@ -247,4 +247,60 @@ describe('GET /api/roadmaps/metadata', () => {
     expect(categoriesSql).toContain('WHERE roadmaps.id IN')
     expect(categoriesParams).toEqual([5])
   })
+
+  it('recomputes filtered facet counts when search or filter query parameters are provided', async () => {
+    const db = {
+      all: vi.fn().mockResolvedValueOnce([
+        {
+          id: 1,
+          title: 'De 0 a 100 en AWS en 14 días',
+          duration_weeks_min: 1.5,
+          duration_weeks_max: 4,
+          category_key: 'aws',
+          category_label: 'AWS',
+          topics_metadata: 'aws\u001fAWS',
+          module_levels: 'beginner',
+          module_count: 1,
+          module_search_text: ''
+        },
+        {
+          id: 2,
+          title: 'Roadmap de ejemplo',
+          duration_weeks_min: 2,
+          duration_weeks_max: 2,
+          category_key: 'desarrollo',
+          category_label: 'Desarrollo',
+          topics_metadata: 'testing\u001fTesting',
+          module_levels: 'beginner',
+          module_count: 1,
+          module_search_text: ''
+        }
+      ]),
+      get: vi.fn()
+    }
+    await mockMetadataApi(db, { scope: { user: null, allRoadmaps: true, roadmapIds: [] } })
+    const handler = (await import('../pages/api/roadmaps/metadata')).default
+
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET', query: { q: 'AWS', duration: 'up-to-4' } }), res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.duration_ranges.find((item: any) => item.key === 'up-to-4')?.roadmap_count).toBe(1)
+    expect(res.body.categories).toEqual([
+      { key: 'aws', label: 'AWS', roadmap_count: 1 },
+      { key: 'desarrollo', label: 'Desarrollo', roadmap_count: 0 }
+    ])
+  })
+
+  it('rejects metadata queries whose search term exceeds the maximum length', async () => {
+    const db = { all: vi.fn(), get: vi.fn() }
+    await mockMetadataApi(db)
+    const handler = (await import('../pages/api/roadmaps/metadata')).default
+
+    const res = createResponse()
+    await handler(createRequest({ method: 'GET', query: { q: 'a'.repeat(101) } }), res)
+
+    expect(res.statusCode).toBe(400)
+    expect(db.all).not.toHaveBeenCalled()
+  })
 })

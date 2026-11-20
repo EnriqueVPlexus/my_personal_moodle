@@ -276,6 +276,7 @@ const calls: Array<[string, Call]> = [
   ['create roadmap as learner', { operationId: 'createRoadmap', status: 403, role: 'user', req: { body: { title: 'AWS' } } }],
   ['create roadmap fails', { operationId: 'createRoadmap', status: 500, arrange: () => { state.services.content.createRoadmap = vi.fn(async () => null) }, req: { body: { title: 'AWS' } } }],
   ['catalog metadata', { operationId: 'getCatalogMetadata', status: 200, role: null }],
+  ['catalog metadata with an invalid filter', { operationId: 'getCatalogMetadata', status: 400, role: null, req: { query: { q: { nested: 'x' } } } }],
   ['import preview', { operationId: 'importRoadmap', status: 200, req: { body: { action: 'preview', roadmap: importDoc } } }],
   ['import preview of an existing roadmap', { operationId: 'importRoadmap', status: 200, arrange: () => { state.services.content.findImportTarget = vi.fn(async () => ({ id: 1, title: 'AWS' })) }, req: { body: { action: 'preview', roadmap: importDoc } } }],
   ['import update', { operationId: 'importRoadmap', status: 200, req: { body: { action: 'publish', strategy: 'update', roadmap: importDoc } } }],
