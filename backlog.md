@@ -1557,15 +1557,24 @@ Hecho:
   Pydantic, Google Cloud, LinkedIn Learning, OWASP, Linux Journey, AWS
   training).
 
-Pendiente de esta correccion:
+Hecho tras esta correccion:
 
-- [ ] Migracion de contenido para instalaciones existentes: el seed solo se
-  ejecuta con la base vacia, asi que las instalaciones ya creadas no reciben
-  estos cambios (modulo nuevo, quizzes, enlaces). Hace falta una migracion de
-  datos o un mecanismo de actualizacion de contenido. Ojo: no basta con volver
-  a ejecutar el seed, porque empareja modulos por `position = ? OR title = ?`
-  y el modulo nuevo desplaza las posiciones de AWS; sobrescribiria modulos
-  equivocados y descolocaria progreso e intentos. Emparejar solo por titulo.
+- [x] Migracion de contenido para instalaciones existentes: el seed solo se
+  ejecuta con la base vacia, asi que las instalaciones ya creadas no recibian
+  estos cambios. Migracion `0005_roadmap_content_fixes`: politica "solo campos
+  corregidos". Contiene una instantanea congelada (generada con los helpers de
+  normalizacion del seed, asi el JSON guardado es identico al de un seed nuevo)
+  solo de los campos que cambiaron en a8ae5b4/5582c66; no toca el resto de
+  campos que un admin haya editado. Empareja roadmaps y modulos solo por titulo
+  exacto (nunca por `position`; el unico renombrado, el modulo de plataformas
+  cloud de IA, se mapea titulo antiguo -> nuevo), no cambia ids ni borra filas,
+  desplaza las posiciones AWS e inserta el modulo nuevo solo si no existe ese
+  titulo. Un roadmap o modulo ausente se omite con `console.warn`; un
+  `quiz_bank` solo se reemplaza si sigue siendo el del seed antiguo (o esta
+  vacio). Las sesiones de quiz abiertas guardan una copia completa de sus
+  preguntas, asi que no se corrompen. En base vacia es un no-op (el seed inserta
+  el contenido actual) y es idempotente. Test:
+  `roadmap-content-fixes.postgres-integration.test.ts`.
 
 #### Seguimiento de hallazgos "Importante" y "Mejora" (no incluidos)
 
