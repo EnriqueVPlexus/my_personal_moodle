@@ -28,7 +28,7 @@ type ProjectSeed =
       must_include?: string[]
     }>
 
-type RoadmapSeed = {
+export type RoadmapSeed = {
   title: string
   category?: string
   topics?: string[]
@@ -115,7 +115,7 @@ const iaModuleLevels = [
   'intermediate', 'advanced', 'advanced', 'advanced', 'advanced', 'capstone'
 ]
 
-const seedModuleLevels: Record<string, string[]> = {
+export const seedModuleLevels: Record<string, string[]> = {
   'Roadmap AWS gratuito para cantera junior DevOps': [
     'beginner', 'beginner', 'beginner', 'beginner', 'beginner', 'beginner',
     'beginner', 'beginner', 'intermediate', 'intermediate', 'intermediate', 'capstone'
@@ -150,30 +150,12 @@ export async function seedRoadmaps(db: any) {
 }
 
 async function seedRoadmap(db: any, seed: RoadmapSeed) {
-  const description = seed.description ?? seed.positioning_goal ?? null
-  const objectives = normalizeRoadmapObjectives(seed)
-  const methodology = normalizeRoadmapMethodology(seed)
-  const evaluationWeights = seed.evaluation_weights ?? {
-    'Entregables prácticos': '40%',
-    'Proyecto final': '30%',
-    'Portfolio y documentación': '20%',
-    'Credenciales y posicionamiento': '10%'
-  }
+  const roadmapColumns = buildRoadmapColumns(seed)
   const normalizedModules = seed.modules.map((moduleSeed, index) => normalizeModuleSeed(
     moduleSeed,
     index,
     seedModuleLevels[seed.title]?.[index]
   ))
-  const displayedDuration = seed.duration ?? (
-    seed.estimated_duration?.total_months ? `${seed.estimated_duration.total_months} meses` : null
-  )
-  const parsedRoadmapDuration = parseDurationWeeks(displayedDuration)
-  const moduleDuration = normalizedModules.reduce((total, module) => ({
-    min: total.min + (module.duration_weeks_min ?? 0),
-    max: total.max + (module.duration_weeks_max ?? 0)
-  }), { min: 0, max: 0 })
-  const durationWeeksMin = parsedRoadmapDuration.min ?? (moduleDuration.min || null)
-  const durationWeeksMax = parsedRoadmapDuration.max ?? (moduleDuration.max || null)
   const existing = await db.get('SELECT id, version, published_at FROM roadmaps WHERE title = ?', [seed.title])
   let roadmapId = existing?.id
   const version = normalizeRoadmapVersion(seed.version) || existing?.version || DEFAULT_ROADMAP_VERSION
@@ -186,13 +168,13 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
            duration_weeks_min = ?, duration_weeks_max = ?, version = ?, published_at = ?
        WHERE id = ?`,
       [
-        description,
-        seed.duration ?? null,
-        JSON.stringify(objectives),
-        JSON.stringify(methodology),
-        JSON.stringify(evaluationWeights),
-        durationWeeksMin,
-        durationWeeksMax,
+        roadmapColumns.description,
+        roadmapColumns.duration,
+        roadmapColumns.objectives,
+        roadmapColumns.methodology,
+        roadmapColumns.evaluation_weights,
+        roadmapColumns.duration_weeks_min,
+        roadmapColumns.duration_weeks_max,
         version,
         publishedAt,
         roadmapId
@@ -206,13 +188,13 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         seed.title,
-        description,
-        seed.duration ?? null,
-        JSON.stringify(objectives),
-        JSON.stringify(methodology),
-        JSON.stringify(evaluationWeights),
-        durationWeeksMin,
-        durationWeeksMax,
+        roadmapColumns.description,
+        roadmapColumns.duration,
+        roadmapColumns.objectives,
+        roadmapColumns.methodology,
+        roadmapColumns.evaluation_weights,
+        roadmapColumns.duration_weeks_min,
+        roadmapColumns.duration_weeks_max,
         version,
         publishedAt
       ]
@@ -230,34 +212,29 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
 
   for (const [index, moduleSeed] of seed.modules.entries()) {
     const normalizedModule = normalizedModules[index]
-    const deliverableEvidence = moduleSeed.deliverable_evidence ?? moduleSeed.deliverable ?? null
+    const columns = buildModuleColumns(moduleSeed, normalizedModule)
     const moduleRow = await db.get(
       'SELECT id FROM modules WHERE roadmap_id = ? AND (position = ? OR title = ?)',
       [roadmapId, normalizedModule.position, normalizedModule.title]
     )
 
-    const quiz = moduleSeed.quiz && moduleSeed.quiz.length > 0
-      ? moduleSeed.quiz
-      : getSeedQuizForModule(normalizedModule.title)
-    const quizBank = quiz.length > 0 ? JSON.stringify(quiz) : null
-
     const values = [
       roadmapId,
-      normalizedModule.position,
-      normalizedModule.title,
-      normalizedModule.duration,
-      normalizedModule.duration_weeks_min,
-      normalizedModule.duration_weeks_max,
-      normalizedModule.level,
-      normalizedModule.objective,
-      JSON.stringify(normalizedModule.contents),
-      normalizedModule.importance,
-      JSON.stringify(normalizedModule.official_resources),
-      JSON.stringify(normalizedModule.support_videos),
-      JSON.stringify(normalizedModule.practical_activity),
-      JSON.stringify(normalizedModule.deliverable_evidence ?? deliverableEvidence),
-      normalizedModule.evaluation,
-      quizBank
+      columns.position,
+      columns.title,
+      columns.duration,
+      columns.duration_weeks_min,
+      columns.duration_weeks_max,
+      columns.level,
+      columns.objective,
+      columns.contents,
+      columns.importance,
+      columns.official_resources,
+      columns.support_videos,
+      columns.practical_activity,
+      columns.deliverable_evidence,
+      columns.evaluation,
+      columns.quiz_bank
     ]
 
     if (moduleRow?.id) {
@@ -282,6 +259,86 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
     }
   }
 }
+
+/**
+ * Roadmap columns exactly as the seed stores them. Exported (with
+ * `buildModuleColumns`) so data migrations can reuse the seed's normalization
+ * and stay byte-identical to a fresh seed.
+ */
+export function buildRoadmapColumns(seed: RoadmapSeed) {
+  const normalizedModules = seed.modules.map((moduleSeed, index) => normalizeModuleSeed(
+    moduleSeed,
+    index,
+    seedModuleLevels[seed.title]?.[index]
+  ))
+  const evaluationWeights = seed.evaluation_weights ?? {
+    'Entregables prácticos': '40%',
+    'Proyecto final': '30%',
+    'Portfolio y documentación': '20%',
+    'Credenciales y posicionamiento': '10%'
+  }
+  const displayedDuration = seed.duration ?? (
+    seed.estimated_duration?.total_months ? `${seed.estimated_duration.total_months} meses` : null
+  )
+  const parsedRoadmapDuration = parseDurationWeeks(displayedDuration)
+  const moduleDuration = normalizedModules.reduce((total, module) => ({
+    min: total.min + (module.duration_weeks_min ?? 0),
+    max: total.max + (module.duration_weeks_max ?? 0)
+  }), { min: 0, max: 0 })
+
+  return {
+    description: seed.description ?? seed.positioning_goal ?? null,
+    duration: seed.duration ?? null,
+    objectives: JSON.stringify(normalizeRoadmapObjectives(seed)),
+    methodology: JSON.stringify(normalizeRoadmapMethodology(seed)),
+    evaluation_weights: JSON.stringify(evaluationWeights),
+    duration_weeks_min: parsedRoadmapDuration.min ?? (moduleDuration.min || null),
+    duration_weeks_max: parsedRoadmapDuration.max ?? (moduleDuration.max || null)
+  }
+}
+
+/** Module columns exactly as the seed stores them (JSON columns already stringified). */
+export function buildModuleColumns(
+  moduleSeed: RoadmapSeed['modules'][number],
+  normalizedModule: ReturnType<typeof normalizeModuleSeed>
+) {
+  const deliverableEvidence = moduleSeed.deliverable_evidence ?? moduleSeed.deliverable ?? null
+  const quiz = moduleSeed.quiz && moduleSeed.quiz.length > 0
+    ? moduleSeed.quiz
+    : getSeedQuizForModule(normalizedModule.title)
+
+  return {
+    position: normalizedModule.position,
+    title: normalizedModule.title,
+    duration: normalizedModule.duration,
+    duration_weeks_min: normalizedModule.duration_weeks_min,
+    duration_weeks_max: normalizedModule.duration_weeks_max,
+    level: normalizedModule.level,
+    objective: normalizedModule.objective,
+    contents: JSON.stringify(normalizedModule.contents),
+    importance: normalizedModule.importance,
+    official_resources: JSON.stringify(normalizedModule.official_resources),
+    support_videos: JSON.stringify(normalizedModule.support_videos),
+    practical_activity: JSON.stringify(normalizedModule.practical_activity),
+    deliverable_evidence: JSON.stringify(normalizedModule.deliverable_evidence ?? deliverableEvidence),
+    evaluation: normalizedModule.evaluation,
+    quiz_bank: quiz.length > 0 ? JSON.stringify(quiz) : null
+  }
+}
+
+/** A seed normalized to stored columns: the roadmap and each module, in seed order. */
+export function buildSeedColumns(seed: RoadmapSeed) {
+  return {
+    roadmap: buildRoadmapColumns(seed),
+    modules: seed.modules.map((moduleSeed, index) => buildModuleColumns(
+      moduleSeed,
+      normalizeModuleSeed(moduleSeed, index, seedModuleLevels[seed.title]?.[index])
+    ))
+  }
+}
+
+/** The built-in catalog seeds, in seeding order. */
+export const catalogSeeds: RoadmapSeed[] = roadmapSeeds
 
 function normalizeRoadmapObjectives(seed: RoadmapSeed) {
   if (seed.objectives?.length) return seed.objectives
@@ -315,7 +372,7 @@ function normalizeRoadmapMethodology(seed: RoadmapSeed) {
   ].filter((item): item is string => Boolean(item))
 }
 
-function normalizeModuleSeed(
+export function normalizeModuleSeed(
   moduleSeed: RoadmapSeed['modules'][number],
   index: number,
   defaultLevel?: string

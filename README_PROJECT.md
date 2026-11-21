@@ -290,6 +290,18 @@ usuario (intentos, progreso, accesos, evidencias, sesiones de quiz) o lecciones:
 esos casos se dejan y se avisan con `console.warn`. Es idempotente y su `down`
 es un no-op (el borrado no es reversible).
 
+La migración `0005_roadmap_content_fixes` lleva a las instalaciones existentes las
+correcciones de contenido de los roadmaps (módulo nuevo de cuenta AWS/Free Tier/costes,
+quizzes AWS, AWS CLI con IAM Identity Center, avisos de Trivy, AI-901, renombrado de
+Vertex AI y enlaces redirigidos), porque el seed solo corre con la base vacía. Política
+«solo campos corregidos»: aplica una instantánea congelada de los campos que cambiaron
+y no toca el resto de lo que un admin haya editado. Empareja roadmaps y módulos solo por
+título exacto (nunca por posición), no cambia ids ni borra filas (progreso, intentos y
+evidencias siguen en el mismo módulo), omite con `console.warn` lo que no encuentra y solo
+reemplaza un `quiz_bank` que siga siendo el del seed antiguo. En una base vacía no hace nada
+(el seed inserta el contenido actual), es idempotente y su `down` es un no-op. Es autocontenida
+porque la imagen de producción solo incluye `migrations/`.
+
 `lib/persistence/sqliteSchema.ts` (SQLite) y `PostgresDb.migrate()`/`migrations/` (PostgreSQL) crean y migran estas tablas:
 
 - `roadmaps`
@@ -310,7 +322,7 @@ También siembra el catálogo inicial (3 roadmaps: AWS, IA para SRE/DevOps v2.0 
 
 El arranque (`openDb()`) memoiza una única inicialización en vuelo por proceso, y `seedRoadmaps`/`seedInitialAdmin` se ejecutan en una transacción bajo un advisory lock de PostgreSQL (`pg_advisory_xact_lock`, `lib/persistence/bootstrap/bootstrapLock.ts`), comprobando «tabla vacía» después de obtener el lock. Así varias peticiones o procesos en el primer arranque no siembran el catálogo varias veces. En SQLite, `BEGIN IMMEDIATE` ya serializa las escrituras.
 
-Quizzes del seed: los módulos del roadmap AWS cargan el quiz de `seeds/awsRoadmapQuizzes.json` (5 preguntas), emparejado por **título exacto** del módulo (`getSeedQuizForModule` en `seeds/quizBanks.ts`); el resto cae en la pregunta única de `quizBanks.ts`. El test `test/aws-quiz-attachment.test.ts` falla si un módulo AWS se queda sin su quiz o si un quiz queda huérfano. El roadmap AWS tiene 12 módulos (el segundo, tras «Fundamentos cloud», trata cuenta, plan gratuito y costes). El seed solo corre con la base vacía: las instalaciones existentes no reciben cambios de contenido (ver `backlog.md`).
+Quizzes del seed: los módulos del roadmap AWS cargan el quiz de `seeds/awsRoadmapQuizzes.json` (5 preguntas), emparejado por **título exacto** del módulo (`getSeedQuizForModule` en `seeds/quizBanks.ts`); el resto cae en la pregunta única de `quizBanks.ts`. El test `test/aws-quiz-attachment.test.ts` falla si un módulo AWS se queda sin su quiz o si un quiz queda huérfano. El roadmap AWS tiene 12 módulos (el segundo, tras «Fundamentos cloud», trata cuenta, plan gratuito y costes). El seed solo corre con la base vacía: las instalaciones existentes reciben los cambios de contenido mediante migraciones de datos (`0005_roadmap_content_fixes`).
 
 Los administradores pueden limitar cada cuenta de usuario a una selección de
 roadmaps mediante `user_roadmap_access`; las cuentas admin conservan acceso total.
