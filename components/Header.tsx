@@ -79,7 +79,7 @@ export default function Header() {
             alt={`${branding.companyName} logo`}
             width={200}
             height={50}
-            className="h-12 w-auto max-w-[200px] shrink-0 object-contain"
+            className="h-12 w-32 shrink-0 object-cover object-center"
           />
           <span className="min-w-0">
             <span className="block truncate text-base font-bold text-slate-950">{branding.productName}</span>
