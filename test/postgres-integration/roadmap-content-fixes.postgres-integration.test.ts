@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { promises as fs } from 'node:fs'
 import { Pool, Client } from 'pg'
 import { Kysely, PostgresDialect, sql } from 'kysely'
@@ -57,7 +58,13 @@ function createScoped(schemaName: string) {
   const db = new Kysely<any>({ dialect: new PostgresDialect({ pool: scopedPool }) })
   const migrator = () => new Migrator({
     db,
-    provider: new FileMigrationProvider({ fs, path, migrationFolder: MIGRATION_FOLDER }),
+    provider: new FileMigrationProvider({
+      fs,
+      path: process.platform === 'win32'
+        ? { join: (...parts: string[]) => pathToFileURL(path.join(...parts)).href }
+        : path,
+      migrationFolder: MIGRATION_FOLDER
+    }),
     migrationTableSchema: schemaName
   })
 
