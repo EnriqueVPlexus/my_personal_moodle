@@ -96,9 +96,27 @@ export default function Header() {
           )}
           <AdminDropdown isAdmin={isAdmin} />
           {user ? (
-            <button onClick={handleLogout} className="text-xs text-slate-600 hover:text-slate-950 transition">
-              {user.email.split('@')[0]} · <span className="underline">Log out</span>
-            </button>
+            <div className="flex items-center gap-1.5 text-xs">
+              <Link
+                href="/profile"
+                title="Mi perfil"
+                className={`rounded-md px-2 py-1 font-medium transition ${
+                  router.pathname === '/profile'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                }`}
+              >
+                {user.email.split('@')[0]}
+              </Link>
+              <span aria-hidden="true" className="text-slate-300">·</span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-md px-1.5 py-1 text-slate-600 underline transition hover:bg-slate-100 hover:text-slate-950"
+              >
+                Log out
+              </button>
+            </div>
           ) : (
             <Link href="/login" className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700">Entrar</Link>
           )}
