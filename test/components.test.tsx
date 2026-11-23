@@ -217,8 +217,12 @@ describe('auth provider and header', () => {
       </AuthProvider>
     )
 
-    expect(await screen.findByText(/admin/)).toBeInTheDocument()
+    const profileLink = await screen.findByRole('link', { name: 'admin' })
+    expect(profileLink).toHaveAttribute('href', '/profile')
     expect(screen.getByText('Mi progreso')).toBeInTheDocument()
+
+    fireEvent.click(profileLink)
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/logout', expect.anything())
 
     fireEvent.click(screen.getByRole('button', { name: 'Admin ▼' }))
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
@@ -227,7 +231,7 @@ describe('auth provider and header', () => {
     expect(screen.getByText('Importar JSON')).toBeInTheDocument()
     expect(screen.getByText('Auditoría')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('Log out'))
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
   })
 
