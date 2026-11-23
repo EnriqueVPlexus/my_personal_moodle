@@ -17,7 +17,7 @@ const DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL
 const describeIfPostgres = DATABASE_URL ? describe : describe.skip
 const MIGRATION_FOLDER = path.join(__dirname, '..', '..', 'migrations')
 
-const AWS_TITLE = 'Roadmap AWS gratuito para cantera junior DevOps'
+const AWS_TITLE = 'Roadmap AWS para cantera junior DevOps'
 const AI_TITLE = 'Roadmap IA para SRE/DevOps - Versión 2.0'
 const NEW_AWS_MODULE = 'Cuenta AWS, Free Tier, seguridad inicial y control de costes'
 const OLD_AI_MODULE = 'Plataformas cloud de IA: Azure OpenAI, AWS Bedrock y Google Vertex AI'
@@ -179,7 +179,10 @@ describeIfPostgres('migration 0005: roadmap content fixes (real postgres, throwa
 
     const { error, results } = await scoped.migrator().migrateToLatest()
     expect(error).toBeUndefined()
-    expect(results?.map(r => r.migrationName)).toEqual(['0005_roadmap_content_fixes'])
+    expect(results?.map(r => r.migrationName)).toEqual([
+      '0005_roadmap_content_fixes',
+      '0006_remove_gratuito_wording'
+    ])
 
     const aws = seedFor(AWS_TITLE)
     const rows = await moduleRows(awsRoadmap)

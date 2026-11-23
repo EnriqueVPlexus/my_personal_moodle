@@ -21,13 +21,13 @@ describe('findRoadmapById', () => {
 
     const roadmap = await db.get<{ id: number }>(
       'SELECT id FROM roadmaps WHERE title = ?',
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
 
     const found = await findRoadmapById(db, roadmap.id)
 
     expect(found).toMatchObject({
-      title: 'Roadmap AWS gratuito para cantera junior DevOps',
+      title: 'Roadmap AWS para cantera junior DevOps',
       category_key: 'cloud-y-devops'
     })
 
@@ -61,7 +61,7 @@ describe('updateRoadmapCore', () => {
 
     const before = await db.get<{ id: number; version: string }>(
       'SELECT id, version FROM roadmaps WHERE title = ?',
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
 
     const changes = await updateRoadmapCore(db, before.id, {

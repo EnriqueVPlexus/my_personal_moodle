@@ -63,7 +63,7 @@ describe('SQLite database bootstrap', () => {
     const { openDb } = await import('../lib/persistence')
     const db = await openDb()
 
-    const awsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS gratuito para cantera junior DevOps'])
+    const awsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap AWS para cantera junior DevOps'])
     const aiRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap IA para SRE/DevOps - Versión 2.0'])
     const roadmapTotal = await db.get('SELECT COUNT(*) AS count FROM roadmaps')
     const devopsRoadmap = await db.get('SELECT title FROM roadmaps WHERE title = ?', ['Roadmap desde 0 a DevOps Junior'])
@@ -94,22 +94,22 @@ describe('SQLite database bootstrap', () => {
        LEFT JOIN roadmap_categories ON roadmap_categories.id = roadmaps.category_id
        LEFT JOIN roadmap_topics ON roadmap_topics.roadmap_id = roadmaps.id
        WHERE roadmaps.title = ? GROUP BY roadmaps.id`,
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
     const classifiedAwsModules = await db.get(
       `SELECT COUNT(*) AS count FROM modules
        INNER JOIN roadmaps ON roadmaps.id = modules.roadmap_id
        WHERE roadmaps.title = ? AND modules.level IS NOT NULL
          AND modules.duration_weeks_min IS NOT NULL AND modules.duration_weeks_max IS NOT NULL`,
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
 
-    expect(awsRoadmap.title).toBe('Roadmap AWS gratuito para cantera junior DevOps')
+    expect(awsRoadmap.title).toBe('Roadmap AWS para cantera junior DevOps')
     expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
     expect(roadmapTotal.count).toBe(3)
     expect(await db.get('SELECT id FROM roadmaps WHERE title = ?', ['IA para DevOps'])).toBeUndefined()
     expect(devopsRoadmap.title).toBe('Roadmap desde 0 a DevOps Junior')
-    expect(modulesByRoadmap['Roadmap AWS gratuito para cantera junior DevOps']).toBe(12)
+    expect(modulesByRoadmap['Roadmap AWS para cantera junior DevOps']).toBe(12)
     expect(modulesByRoadmap['Roadmap IA para SRE/DevOps - Versión 2.0']).toBe(11)
     expect(modulesByRoadmap['Roadmap desde 0 a DevOps Junior']).toBe(12)
     expect(admin.role).toBe('admin')
@@ -215,7 +215,7 @@ describe('SQLite database bootstrap', () => {
 
     const roadmapCount = await secondDb.get(
       'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
     const aiRoadmapCount = await secondDb.get(
       'SELECT COUNT(*) AS count FROM roadmaps WHERE title = ?',
@@ -284,7 +284,7 @@ describe('SQLite database bootstrap', () => {
 
     const seeded = await firstDb.get(
       'SELECT id, description FROM roadmaps WHERE title = ?',
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
     const editedDescription = 'Descripción editada manualmente por un admin'
     await firstDb.run('UPDATE roadmaps SET description = ? WHERE id = ?', [editedDescription, seeded.id])

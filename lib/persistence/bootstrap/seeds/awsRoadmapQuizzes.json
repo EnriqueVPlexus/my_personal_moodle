@@ -280,7 +280,7 @@
             }
           ],
           "correctOptionId": "b",
-          "explanation": "Algunos recursos generan coste si se dejan activos (p. ej. NAT Gateway o IPv4 públicas), y el plan gratuito actual termina a los 6 meses o al agotar los créditos.",
+          "explanation": "Algunos recursos generan coste si se dejan activos (p. ej. NAT Gateway o IPv4 públicas), y el periodo inicial de AWS Free Tier termina a los 6 meses o al agotar los créditos.",
           "points": 1
         }
       ]

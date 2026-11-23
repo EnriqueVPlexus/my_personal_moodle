@@ -1534,7 +1534,7 @@ Estado: hecho (2026-10-27, rama `fix/roadmap-content-critical`).
 
 Hecho:
 
-- AWS: el roadmap describe el plan gratuito actual (creditos de bienvenida, 6
+- AWS: el roadmap describe el plan inicial (Free Tier) actual (creditos de bienvenida, 6
   meses o hasta agotar los creditos, servicios seleccionados) y recomienda
   tipos de instancia elegibles (`t3.micro`). Nuevo modulo 1 `Cuenta AWS, Free
   Tier, seguridad inicial y control de costes` (MFA en root, Budgets, limpieza,
@@ -1579,7 +1579,7 @@ Hecho tras esta correccion:
 #### Seguimiento de hallazgos "Importante" y "Mejora" (no incluidos)
 
 - [ ] Terraform/OpenTofu: estado remoto, certificacion Associate 004 y plan
-  gratuito de HCP Terraform.
+  inicial (Free) de HCP Terraform.
 - [ ] OIDC de GitHub a AWS (sin claves estaticas) y fijar acciones por SHA.
 - [ ] Gateway API frente a Ingress NGINX en el modulo de Kubernetes.
 - [ ] OpenTelemetry y Fluent Bit en observabilidad.
@@ -1636,7 +1636,7 @@ Valor: cachear contenidos y lecciones mediante un Service Worker para poder cons
 Estado: en curso. La aplicacion ya puede usar PostgreSQL local en Docker o
 PostgreSQL de Supabase, y conserva SQLite como alternativa; faltan despliegue
 reproducible, secretos, backups y pruebas de recuperacion. El hosting concreto aun no esta decidido (posible
-alojamiento interno de la empresa o uno externo gratuito/bajo coste).
+alojamiento interno de la empresa o uno externo de bajo coste).
 
 Valor: permite publicar la app con bajo coste y mantener mejoras via GitHub.
 

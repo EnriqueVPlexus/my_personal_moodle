@@ -20,7 +20,7 @@
   "learning_principles": [
     "No buscar ser data scientist puro al inicio; priorizar AI Engineering, RAG, LLMOps, MLOps, seguridad y operación.",
     "Cada módulo debe producir un entregable reutilizable en GitHub o portfolio.",
-    "Priorizar recursos oficiales, gratuitos y hands-on; usar Udemy Business y LinkedIn Learning como refuerzo.",
+    "Priorizar recursos oficiales y prácticos (hands-on); usar Udemy Business y LinkedIn Learning como refuerzo.",
     "Orientar todos los proyectos a casos reales de SRE: logs, alertas, runbooks, incidentes, Kubernetes/OpenShift, costes, observabilidad y automatización."
   ],
   "recommended_stack": {
@@ -115,7 +115,7 @@
       {
         "order": 2,
         "title": "Revisar créditos disponibles",
-        "description": "Algunos labs pueden consumir créditos. Revisar si la cuenta tiene créditos gratuitos, promociones o acceso por programa.",
+        "description": "Algunos labs pueden consumir créditos. Revisar si la cuenta tiene créditos disponibles, promociones o acceso por programa.",
         "url": "https://cloud.google.com/learn/training"
       },
       {

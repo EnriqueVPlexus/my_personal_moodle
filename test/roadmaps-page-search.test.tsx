@@ -373,12 +373,12 @@ describe('roadmap catalog search experience', () => {
       }
       if (urlStr.includes('q=AWS')) {
         return jsonResponse([
-          { id: 1, title: 'Roadmap AWS gratuito', module_count: 12 },
+          { id: 1, title: 'Roadmap AWS', module_count: 12 },
           { id: 4, title: 'De 0 a 100 en AWS en 14 días', module_count: 1 }
         ])
       }
       return jsonResponse([
-        { id: 1, title: 'Roadmap AWS gratuito', module_count: 12 },
+        { id: 1, title: 'Roadmap AWS', module_count: 12 },
         { id: 4, title: 'De 0 a 100 en AWS en 14 días', module_count: 1 },
         { id: 5, title: 'Roadmap de ejemplo', module_count: 1 }
       ])

@@ -1,8 +1,8 @@
 {
-  "title": "Roadmap AWS gratuito para cantera junior DevOps",
-  "description": "Este itinerario está diseñado para perfiles junior con base técnica que quieren iniciarse en AWS con enfoque práctico y orientado a DevOps. Está pensado para el plan gratuito de AWS para cuentas nuevas (créditos de bienvenida durante un máximo de 6 meses), con hábitos de control de costes desde el primer día.",
+  "title": "Roadmap AWS para cantera junior DevOps",
+  "description": "Este itinerario está diseñado para perfiles junior con base técnica que quieren iniciarse en AWS con enfoque práctico y orientado a DevOps. Está pensado para cuentas nuevas de laboratorio en AWS Free Tier (créditos de bienvenida durante un máximo de 6 meses), con hábitos de control de costes desde el primer día.",
   "objectives": [
-    "Abrir y proteger una cuenta AWS, entender el plan gratuito basado en créditos y controlar los costes",
+    "Abrir y proteger una cuenta AWS, entender el modelo basado en créditos de AWS Free Tier y controlar los costes",
     "Comprender los fundamentos de cloud computing",
     "Conocer los servicios básicos de AWS",
     "Adquirir nociones de red, seguridad y observabilidad",
@@ -79,12 +79,12 @@
       "position": 1,
       "title": "Cuenta AWS, Free Tier, seguridad inicial y control de costes",
       "duration": "1 semana",
-      "objective": "Crear una cuenta AWS de forma segura, entender los límites del plan gratuito y adquirir los hábitos básicos para no generar costes inesperados.",
+      "objective": "Crear una cuenta AWS de forma segura, entender los límites de AWS Free Tier y adquirir los hábitos básicos para no generar costes inesperados.",
       "contents": [
-        "Crear la cuenta AWS y elegir el plan gratuito (Free plan) o de pago",
-        "Plan gratuito actual: 100 USD de créditos de bienvenida más hasta 100 USD adicionales por completar actividades; la cuenta gratuita termina a los 6 meses o al agotar los créditos, lo que ocurra antes",
-        "Al terminar el plan gratuito la cuenta se cierra; hay 90 días para pasar al plan de pago antes de perder los datos",
-        "El plan gratuito solo da acceso a servicios seleccionados; el resto exige pasar al plan de pago",
+        "Crear la cuenta AWS y elegir el plan inicial de AWS Free Tier (Free plan) o de pago",
+        "Modelo actual de AWS Free Tier: 100 USD de créditos de bienvenida más hasta 100 USD adicionales por completar actividades; el periodo inicial termina a los 6 meses o al agotar los créditos, lo que ocurra antes",
+        "Al terminar el periodo de AWS Free Tier la cuenta se cierra; hay 90 días para pasar al plan de pago antes de perder los datos",
+        "El plan inicial de AWS Free Tier solo da acceso a servicios seleccionados; el resto exige pasar al plan de pago",
         "Las cuentas creadas antes del 15 de julio de 2025 siguen el modelo antiguo de 12 meses; el plan basado en créditos se aplica a las cuentas nuevas",
         "Activar MFA en el usuario root y no usarlo para el trabajo diario",
         "Crear una alerta de presupuesto con AWS Budgets y revisar el consumo con Billing and Cost Management",
@@ -95,7 +95,7 @@
       "importance": "Abrir una cuenta sin proteger el usuario root ni vigilar el consumo es la causa más habitual de sustos de facturación y de incidentes de seguridad. Este módulo fija los hábitos que se aplican en todos los laboratorios posteriores.",
       "official_resources": [
         {
-          "label": "Elegir un plan de AWS Free Tier (plan gratuito y plan de pago)",
+          "label": "Elegir un plan de AWS Free Tier (plan inicial y plan de pago)",
           "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html"
         },
         {
@@ -131,7 +131,7 @@
         "Captura de MFA activo en root (ocultando datos sensibles)",
         "Lista de comprobación de limpieza de recursos"
       ],
-      "evaluation": "Quiz sobre plan gratuito, MFA, presupuestos y control de costes."
+      "evaluation": "Quiz sobre AWS Free Tier, MFA, presupuestos y control de costes."
     },
     {
       "position": 2,
@@ -141,7 +141,7 @@
       "contents": [
         "Qué es EC2",
         "Tipos de instancia",
-        "Tipos de instancia elegibles para el plan gratuito (p. ej. t3.micro; comprobar la lista con aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true)",
+        "Tipos de instancia elegibles para AWS Free Tier (p. ej. t3.micro; comprobar la lista con aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true)",
         "AMI",
         "Pares de claves",
         "Security Groups",
