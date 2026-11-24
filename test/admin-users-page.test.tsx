@@ -71,7 +71,7 @@ describe('admin users page', () => {
     expect(screen.queryByRole('button', { name: 'Desactivar' })).not.toBeInTheDocument()
   })
 
-  it('shows an error message when creating a user fails', async () => {
+  it('hides the creation form until "Crear usuario" is clicked and shows an error when creation fails', async () => {
     mockAuth({ user: adminUser, isAdmin: true })
     vi.spyOn(global, 'fetch').mockImplementation(async (url: any, init: any) => {
       if (init?.method === 'POST') return jsonResponse({ error: 'email already exists' }, 409)
@@ -80,11 +80,20 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    expect(await screen.findByText('Cuentas existentes')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('email@empresa.com')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear usuario' }))
+    expect(screen.getByPlaceholderText('email@empresa.com')).toBeInTheDocument()
+
     fireEvent.change(screen.getByPlaceholderText('email@empresa.com'), { target: { value: 'dup@example.com' } })
     fireEvent.change(screen.getByPlaceholderText('Contraseña de al menos 12 caracteres'), { target: { value: 'valid-password-123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear usuario' }))
 
     expect(await screen.findByText('email already exists')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByPlaceholderText('email@empresa.com')).not.toBeInTheDocument()
   })
 
   it('disables the deactivate button for the current admin while active, and allows toggling others off', async () => {
