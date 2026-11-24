@@ -96,7 +96,7 @@ export type RoadmapSeed = {
 const roadmapSeeds: RoadmapSeed[] = [awsRoadmapSeed, aiRoadmapSeed, devopsRoadmapSeed]
 
 const seedMetadata: Record<string, { category: string; topics: string[] }> = {
-  'Roadmap AWS gratuito para cantera junior DevOps': {
+  'Roadmap AWS para cantera junior DevOps': {
     category: 'Cloud y DevOps',
     topics: ['AWS', 'Cloud', 'DevOps', 'Terraform', 'Docker', 'CI/CD']
   },
@@ -116,7 +116,7 @@ const iaModuleLevels = [
 ]
 
 export const seedModuleLevels: Record<string, string[]> = {
-  'Roadmap AWS gratuito para cantera junior DevOps': [
+  'Roadmap AWS para cantera junior DevOps': [
     'beginner', 'beginner', 'beginner', 'beginner', 'beginner', 'beginner',
     'beginner', 'beginner', 'intermediate', 'intermediate', 'intermediate', 'capstone'
   ],

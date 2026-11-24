@@ -257,7 +257,7 @@ describe('roadmap search helpers', () => {
     const sampleRows = [
       {
         id: 1,
-        title: 'AWS gratuito para cantera DevOps',
+        title: 'AWS para cantera DevOps',
         description: 'Ruta AWS',
         module_count: 12,
         module_search_text: '',
@@ -323,7 +323,7 @@ describe('roadmap search helpers', () => {
     const sampleRows = [
       {
         id: 1,
-        title: 'AWS gratuito para cantera DevOps',
+        title: 'AWS para cantera DevOps',
         module_count: 12,
         module_search_text: '',
         category_key: 'cloud-y-devops',

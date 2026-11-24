@@ -24,7 +24,7 @@ describe('module repository', () => {
 
     const roadmap = await db.get<{ id: number }>(
       'SELECT id FROM roadmaps WHERE title = ?',
-      ['Roadmap AWS gratuito para cantera junior DevOps']
+      ['Roadmap AWS para cantera junior DevOps']
     )
 
     const modules = await repo.findModulesByRoadmapId(db, roadmap.id)

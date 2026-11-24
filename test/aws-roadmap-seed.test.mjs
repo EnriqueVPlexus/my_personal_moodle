@@ -16,7 +16,7 @@ const requiredFields = [
 const seedCases = [
   {
     file: '../lib/persistence/bootstrap/seeds/awsRoadmapSeed.json',
-    title: 'Roadmap AWS gratuito para cantera junior DevOps',
+    title: 'Roadmap AWS para cantera junior DevOps',
     moduleCount: 12,
     weights: ['20%', '40%', '20%', '20%']
   }
