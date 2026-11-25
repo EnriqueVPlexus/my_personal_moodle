@@ -907,6 +907,9 @@ describe('Next pages', () => {
     render(<AdminUsersPage />)
 
     expect(await screen.findByText('user@example.com')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('email@empresa.com')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear usuario' }))
     fireEvent.change(screen.getByPlaceholderText('email@empresa.com'), { target: { value: 'new@example.com' } })
     fireEvent.change(screen.getByPlaceholderText('Nombre'), { target: { value: 'New User' } })
     fireEvent.change(screen.getByPlaceholderText('Contraseña de al menos 12 caracteres'), { target: { value: 'valid-password-123' } })
@@ -914,6 +917,9 @@ describe('Next pages', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/users', expect.objectContaining({ method: 'POST' }))
+    })
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('email@empresa.com')).not.toBeInTheDocument()
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
