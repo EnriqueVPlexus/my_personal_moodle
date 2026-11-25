@@ -96,7 +96,7 @@ describe('admin users page', () => {
     expect(screen.queryByPlaceholderText('email@empresa.com')).not.toBeInTheDocument()
   })
 
-  it('disables the deactivate button for the current admin while active, and allows toggling others off', async () => {
+  it('collapses user cards by default, expands on click, disables self-deactivation and allows toggling others off', async () => {
     mockAuth({ user: adminUser, isAdmin: true })
     const users = [
       {
@@ -129,7 +129,19 @@ describe('admin users page', () => {
     render(<AdminUsersPage />)
 
     expect(await screen.findByText('admin@example.com')).toBeInTheDocument()
+    expect(screen.getByText('User Two')).toBeInTheDocument()
+    expect(screen.getAllByText('activo')).toHaveLength(2)
+
+    // Details are hidden while collapsed
+    expect(screen.queryByRole('button', { name: 'Desactivar' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Acceso a roadmaps')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Nueva contraseña')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('admin@example.com'))
+    fireEvent.click(screen.getByText('user@example.com'))
+
     const deactivateButtons = screen.getAllByRole('button', { name: 'Desactivar' })
+    expect(deactivateButtons).toHaveLength(2)
     // The current admin's own row (active) must be disabled.
     expect(deactivateButtons[0]).toBeDisabled()
     expect(deactivateButtons[1]).not.toBeDisabled()
@@ -141,6 +153,10 @@ describe('admin users page', () => {
         body: expect.stringContaining('"set_active"')
       }))
     })
+
+    // Clicking header again collapses the card
+    fireEvent.click(screen.getByText('user@example.com'))
+    expect(screen.getAllByRole('button', { name: 'Desactivar' })).toHaveLength(1)
   })
 
   it('shows an admin-only roadmap access message and hides the roadmap list when access is granted to all', async () => {
@@ -174,6 +190,9 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    fireEvent.click(await screen.findByText('admin@example.com'))
+    fireEvent.click(screen.getByText('user@example.com'))
+
     expect(await screen.findByText('Las cuentas admin pueden ver y gestionar todos los roadmaps.')).toBeInTheDocument()
     expect(screen.getByText('Puede ver todos los roadmaps')).toBeInTheDocument()
     expect(screen.queryByText('No hay roadmaps disponibles.')).not.toBeInTheDocument()
@@ -200,6 +219,7 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    fireEvent.click(await screen.findByText('user@example.com'))
     expect(await screen.findByText('No hay roadmaps disponibles.')).toBeInTheDocument()
   })
 
@@ -226,6 +246,7 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    fireEvent.click(await screen.findByText('user@example.com'))
     const checkbox = await screen.findByLabelText('AWS Roadmap')
     expect(checkbox).toBeChecked()
     fireEvent.click(checkbox)
@@ -260,6 +281,7 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    fireEvent.click(await screen.findByText('user@example.com'))
     fireEvent.click(await screen.findByRole('button', { name: 'Reactivar' }))
     expect(await screen.findByText('No se pudo actualizar el usuario.')).toBeInTheDocument()
   })
@@ -286,6 +308,7 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    fireEvent.click(await screen.findByText('user@example.com'))
     fireEvent.click(await screen.findByLabelText('Puede ver todos los roadmaps'))
     expect(await screen.findByText('No se pudo actualizar el acceso.')).toBeInTheDocument()
   })
@@ -312,6 +335,7 @@ describe('admin users page', () => {
     const AdminUsersPage = (await import('../pages/admin/users')).default
     render(<AdminUsersPage />)
 
+    fireEvent.click(await screen.findByText('user@example.com'))
     const passwordInput = await screen.findByPlaceholderText('Nueva contraseña')
     fireEvent.change(passwordInput, { target: { value: 'short-pass-1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Resetear' }))
