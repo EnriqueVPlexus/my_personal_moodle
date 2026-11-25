@@ -237,6 +237,8 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
       columns.quiz_bank
     ]
 
+    let moduleId: number | undefined = moduleRow?.id
+
     if (moduleRow?.id) {
       await db.run(
         `UPDATE modules
@@ -248,7 +250,7 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
         [...values, moduleRow.id]
       )
     } else {
-      await db.run(
+      const insertResult = await db.run(
         `INSERT INTO modules (
           roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max, level,
           objective, contents, importance,
@@ -256,7 +258,72 @@ async function seedRoadmap(db: any, seed: RoadmapSeed) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         values
       )
+      moduleId = insertResult.lastID
     }
+
+    if (moduleId) {
+      await ensureSeededModuleLessons(db, moduleId, normalizedModule)
+    }
+  }
+}
+
+function parseModuleStringList(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    return input.map(item => String(item ?? '').trim()).filter(Boolean)
+  }
+  if (typeof input === 'string') {
+    const trimmed = input.trim()
+    if (!trimmed) return []
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => String(item ?? '').trim()).filter(Boolean)
+      }
+      if (typeof parsed === 'string' && parsed.trim()) {
+        return [parsed.trim()]
+      }
+    } catch {
+      return [trimmed]
+    }
+  }
+  return []
+}
+
+/**
+ * Derives ordered lesson titles for a seeded or imported module from its
+ * `contents` list, falling back to `practical_activity` or the module title.
+ */
+export function deriveModuleLessonTitles(
+  contentsInput: unknown,
+  practicalActivityInput?: unknown,
+  moduleTitle?: string
+): string[] {
+  const contents = parseModuleStringList(contentsInput)
+  if (contents.length > 0) return contents
+
+  const practicalActivities = parseModuleStringList(practicalActivityInput)
+  if (practicalActivities.length > 0) return practicalActivities
+
+  const cleanTitle = typeof moduleTitle === 'string' ? moduleTitle.trim() : ''
+  return cleanTitle ? [`Estudio y práctica: ${cleanTitle}`] : []
+}
+
+async function ensureSeededModuleLessons(
+  db: any,
+  moduleId: number,
+  normalizedModule: ReturnType<typeof normalizeModuleSeed>
+) {
+  const existing = await db.get('SELECT COUNT(*) AS count FROM lessons WHERE module_id = ?', [moduleId])
+  if (Number(existing?.count ?? 0) > 0) return
+
+  const lessonTitles = deriveModuleLessonTitles(
+    normalizedModule.contents,
+    normalizedModule.practical_activity,
+    normalizedModule.title
+  )
+
+  for (const title of lessonTitles) {
+    await db.run('INSERT INTO lessons (module_id, title, completed) VALUES (?, ?, 0)', [moduleId, title])
   }
 }
 
