@@ -922,6 +922,8 @@ describe('Next pages', () => {
       expect(screen.queryByPlaceholderText('email@empresa.com')).not.toBeInTheDocument()
     })
 
+    fireEvent.click(screen.getByText('user@example.com'))
+
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/users/2', expect.objectContaining({ method: 'PATCH' }))
@@ -936,8 +938,8 @@ describe('Next pages', () => {
       }))
     })
 
-    fireEvent.change(screen.getAllByPlaceholderText('Nueva contraseña')[1], { target: { value: 'reset-password-123' } })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Resetear' })[1])
+    fireEvent.change(screen.getByPlaceholderText('Nueva contraseña'), { target: { value: 'reset-password-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Resetear' }))
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/users/2', expect.objectContaining({ method: 'PATCH' }))
     })
