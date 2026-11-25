@@ -175,13 +175,14 @@ describeIfPostgres('migration 0005: roadmap content fixes (real postgres, throwa
 
   it('brings the pre-fix catalog up to the current seed, keeping ids and user data attached', async () => {
     const idsBefore = (await sql<{ id: number }>`SELECT id FROM modules ORDER BY id`.execute(db)).rows.map(r => r.id)
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => { })
 
     const { error, results } = await scoped.migrator().migrateToLatest()
     expect(error).toBeUndefined()
     expect(results?.map(r => r.migrationName)).toEqual([
       '0005_roadmap_content_fixes',
-      '0006_remove_gratuito_wording'
+      '0006_remove_gratuito_wording',
+      '0007_seed_module_lessons'
     ])
 
     const aws = seedFor(AWS_TITLE)
@@ -220,6 +221,22 @@ describeIfPostgres('migration 0005: roadmap content fixes (real postgres, throwa
     expect(byTitle('Amazon S3').quiz_bank).toBe(seedByTitle('Amazon S3').quiz_bank)
     expect(JSON.parse(byTitle('Amazon S3').quiz_bank as string)).toHaveLength(5)
     expect(byTitle('Fundamentos cloud').quiz_bank).toBe(seedByTitle('Fundamentos cloud').quiz_bank)
+
+    const [{ count: awsLessons }] = (await sql<{ count: string }>`
+      SELECT COUNT(*) AS count
+      FROM lessons
+      INNER JOIN modules ON modules.id = lessons.module_id
+      WHERE modules.roadmap_id = ${awsRoadmap}
+    `.execute(db)).rows
+    expect(Number(awsLessons)).toBeGreaterThan(0)
+
+    const [{ count: awsLessons }] = (await sql<{ count: string }>`
+      SELECT COUNT(*) AS count
+      FROM lessons
+      INNER JOIN modules ON modules.id = lessons.module_id
+      WHERE modules.roadmap_id = ${awsRoadmap}
+    `.execute(db)).rows
+    expect(Number(awsLessons)).toBeGreaterThan(0)
 
     // Roadmap-level corrected fields.
     const [roadmap] = (await sql<Record<string, unknown>>`SELECT * FROM roadmaps WHERE id = ${awsRoadmap}`.execute(db)).rows
@@ -268,7 +285,7 @@ describeIfPostgres('migration 0005: roadmap content fixes (real postgres, throwa
   })
 
   it('skips a roadmap that does not exist (DevOps was never created) with a warning', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => { })
     const migration = await import('../../migrations/0005_roadmap_content_fixes')
     await migration.up(db)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Roadmap "Roadmap desde 0 a DevOps Junior" not found'))
@@ -279,7 +296,7 @@ describeIfPostgres('migration 0005: roadmap content fixes (real postgres, throwa
   it('is idempotent: running it again changes nothing', async () => {
     const before = await snapshot()
     const migration = await import('../../migrations/0005_roadmap_content_fixes')
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => { })
     await migration.up(db)
     await migration.up(db)
     vi.restoreAllMocks()
@@ -303,7 +320,7 @@ describeIfPostgres('migration 0005 on an empty database (real postgres, throwawa
   })
 
   it('is a no-op: nothing is inserted and nothing warns', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => { })
     const { error } = await scoped.migrator().migrateToLatest()
     expect(error).toBeUndefined()
 
