@@ -78,6 +78,20 @@ describe('Next pages', () => {
     expect(screen.getByText('Control de acceso por rol')).toBeInTheDocument()
   })
 
+  it('links main tracks on the home page directly to catalog searches by topic', async () => {
+    setRouter('/')
+    mockAuth()
+    const fetchMock = vi.spyOn(global, 'fetch')
+
+    const HomePage = (await import('../pages/index')).default
+    render(<HomePage />)
+
+    expect(screen.getByRole('link', { name: /Ver roadmaps de AWS/i })).toHaveAttribute('href', '/roadmaps?topic=aws')
+    expect(screen.getByRole('link', { name: /Ver roadmaps de DevOps/i })).toHaveAttribute('href', '/roadmaps?topic=devops')
+    expect(screen.getByRole('link', { name: /Ver roadmaps de SRE/i })).toHaveAttribute('href', '/roadmaps?topic=sre')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('loads roadmaps, redirects protected reads and lets admins create routes', async () => {
     setRouter('/roadmaps')
     mockAuth({ user: adminUser, isAdmin: true })

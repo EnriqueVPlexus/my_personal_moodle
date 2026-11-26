@@ -7,9 +7,21 @@ import { useAuth } from '../components/AuthProvider'
 export default function Home() {
   const { user } = useAuth()
   const tracks = [
-    { name: 'AWS', detail: 'Cloud foundations, servicios gestionados y buenas prácticas.' },
-    { name: 'DevOps', detail: 'CI/CD, automatización, contenedores e infraestructura como código.' },
-    { name: 'SRE', detail: 'Observabilidad, fiabilidad, gestión de incidentes y operación.' }
+    {
+      name: 'AWS',
+      detail: 'Cloud foundations, servicios gestionados y buenas prácticas.',
+      href: '/roadmaps?topic=aws'
+    },
+    {
+      name: 'DevOps',
+      detail: 'CI/CD, automatización, contenedores e infraestructura como código.',
+      href: '/roadmaps?topic=devops'
+    },
+    {
+      name: 'SRE',
+      detail: 'Observabilidad, fiabilidad, gestión de incidentes y operación.',
+      href: '/roadmaps?topic=sre'
+    }
   ]
 
   const operatingModel = [
@@ -67,17 +79,25 @@ export default function Home() {
 
               <div className="mt-4 grid gap-3">
                 {tracks.map(track => (
-                  <div key={track.name} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <Link
+                    key={track.name}
+                    href={track.href}
+                    className="group block rounded-md border border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-sky-50/50 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
                     <div className="flex items-start gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-900 shadow-sm">
                         {track.name.slice(0, 2)}
                       </span>
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-950">{track.name}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-slate-950 group-hover:text-sky-800">{track.name}</h3>
                         <p className="mt-1 text-sm leading-6 text-slate-600">{track.detail}</p>
+                        <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-sky-700 group-hover:text-sky-900">
+                          {`Ver roadmaps de ${track.name}`}
+                          <span aria-hidden="true">→</span>
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
