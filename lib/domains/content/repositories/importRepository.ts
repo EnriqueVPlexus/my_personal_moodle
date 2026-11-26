@@ -1,4 +1,5 @@
 import type { DatabaseClient } from '../../../persistence/database'
+import { deriveModuleLessonTitles } from '../../../persistence/bootstrap/roadmapSeed'
 import {
   RoadmapImportConflictError,
   type NormalizedRoadmapImport,
@@ -93,6 +94,7 @@ async function applyRoadmapImport(
       moduleItem.evaluation,
       moduleItem.quiz.length ? JSON.stringify(moduleItem.quiz) : null
     ]
+    let moduleId: number | undefined = moduleRow?.id
     if (moduleRow) {
       await db.run(
         `UPDATE modules SET roadmap_id = ?, position = ?, title = ?, duration = ?,
@@ -103,7 +105,7 @@ async function applyRoadmapImport(
       )
       updatedModules += 1
     } else {
-      await db.run(
+      const insertResult = await db.run(
         `INSERT INTO modules (
            roadmap_id, position, title, duration, duration_weeks_min, duration_weeks_max,
            level, objective, contents, importance, official_resources, support_videos,
@@ -111,7 +113,22 @@ async function applyRoadmapImport(
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         values
       )
+      moduleId = insertResult.lastID
       createdModules += 1
+    }
+
+    if (moduleId && (moduleItem.contents.length > 0 || moduleItem.practical_activity.length > 0)) {
+      const existingLessons = await db.get('SELECT COUNT(*) AS count FROM lessons WHERE module_id = ?', [moduleId])
+      if (Number(existingLessons?.count ?? 0) === 0) {
+        const lessonTitles = deriveModuleLessonTitles(
+          moduleItem.contents,
+          moduleItem.practical_activity,
+          moduleItem.title
+        )
+        for (const title of lessonTitles) {
+          await db.run('INSERT INTO lessons (module_id, title, completed) VALUES (?, ?, 0)', [moduleId, title])
+        }
+      }
     }
   }
 

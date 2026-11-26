@@ -7,7 +7,11 @@ import LessonForm from '../../components/LessonForm'
 import ModuleEvidencePanel, { ModuleEvidence } from '../../components/ModuleEvidencePanel'
 import ModuleLearningContent from '../../components/ModuleLearningContent'
 import { useAuth } from '../../components/AuthProvider'
-import { LearningModule } from '../../lib/domains/content/presentation'
+import {
+  LearningModule,
+  asLearningLinks,
+  asTextList
+} from '../../lib/domains/content/presentation'
 import { branding } from '../../lib/branding'
 import type {
   ModuleLesson,
@@ -128,7 +132,16 @@ export default function ModulePage() {
   const [editLessonTitle, setEditLessonTitle] = useState('')
   const [lessonAdminBusyId, setLessonAdminBusyId] = useState<number | null>(null)
   const [lessonAdminError, setLessonAdminError] = useState('')
+  const [expandedLessonIds, setExpandedLessonIds] = useState<number[]>([])
   const moduleOpenedAt = useRef(Date.now())
+
+  function toggleLessonExpanded(lessonId: number) {
+    setExpandedLessonIds(current => (
+      current.includes(lessonId)
+        ? current.filter(id => id !== lessonId)
+        : [...current, lessonId]
+    ))
+  }
 
   /** Fetches the learner's active attempt (or a new one) and resets the answers. */
   const loadAttemptQuiz = useCallback(async () => {
@@ -403,6 +416,22 @@ export default function ModulePage() {
   const canAttempt = !attemptQuiz?.eligibility || attemptQuiz.eligibility.allowed
   const quizSummary = module.quiz_summary
   const quizComplete = Boolean(quiz?.questions.every(question => Number.isInteger(quizAnswers[question.id])))
+  const moduleContentsList = asTextList(module.contents)
+  const moduleOfficialResources = asLearningLinks(module.official_resources)
+  const moduleSupportVideos = asLearningLinks(module.support_videos)
+  const modulePracticalActivities = asTextList(module.practical_activity)
+  const moduleDeliverables = asTextList(module.deliverable_evidence)
+  const hasLearningContent = Boolean(
+    module.objective ||
+    moduleContentsList.length > 0 ||
+    module.importance ||
+    moduleOfficialResources.length > 0 ||
+    moduleSupportVideos.length > 0 ||
+    modulePracticalActivities.length > 0 ||
+    moduleDeliverables.length > 0 ||
+    module.evaluation
+  )
+  const allLessonsExpanded = lessons.length > 0 && lessons.every(l => expandedLessonIds.includes(l.id))
 
   return (
     <Layout>
@@ -572,14 +601,32 @@ export default function ModulePage() {
             </section>
           )}
 
-          {module.objective && (
+          {hasLearningContent && (
             <section>
               <ModuleLearningContent module={module} />
             </section>
           )}
 
         <section className="panel mt-6 p-5">
-          <h2 className="text-lg font-semibold text-slate-950">Lecciones</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Lecciones</h2>
+              {lessons.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Pulsa sobre cualquier lección para desplegar su contenido, recursos y práctica asociada.
+                </p>
+              )}
+            </div>
+            {lessons.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setExpandedLessonIds(allLessonsExpanded ? [] : lessons.map(l => l.id))}
+                className="secondary-action px-3 py-1.5 text-xs"
+              >
+                {allLessonsExpanded ? 'Plegar todas' : 'Desplegar todas'}
+              </button>
+            )}
+          </div>
           <div className="mt-3 space-y-2">
             {progressError && (
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{progressError}</p>
@@ -588,85 +635,254 @@ export default function ModulePage() {
               <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{lessonAdminError}</p>
             )}
             {lessons.length > 0 ? (
-              lessons.map(l => (
-                <div key={l.id} className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:flex-row md:items-center md:justify-between">
-                  {isAdmin && editingLessonId === l.id ? (
-                    <form onSubmit={event => void handleUpdateLesson(event, l.id)} className="flex flex-1 flex-wrap items-center gap-2">
-                      <input
-                        aria-label="Editar título de la lección"
-                        value={editLessonTitle}
-                        onChange={e => setEditLessonTitle(e.target.value)}
-                        required
-                        className="form-field min-w-[200px] flex-1"
-                      />
-                      <button
-                        type="submit"
-                        disabled={lessonAdminBusyId !== null || !editLessonTitle.trim()}
-                        className="primary-action px-3 py-1.5 text-sm"
-                      >
-                        {lessonAdminBusyId === l.id ? 'Guardando...' : 'Guardar'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={lessonAdminBusyId !== null}
-                        onClick={cancelEditLesson}
-                        className="secondary-action px-3 py-1.5 text-sm"
-                      >
-                        Cancelar
-                      </button>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="min-w-0">
-                        <span className={`mb-1 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
-                          l.completed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {l.completed ? 'Completada' : 'Pendiente'}
-                        </span>
-                        <div className={`text-sm ${l.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{l.title}</div>
-                      </div>
-                      {(user || isAdmin) && (
-                        <div className="flex flex-wrap items-center gap-3">
-                          {user && (
-                            <button
-                              type="button"
-                              className="text-sm font-medium text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400"
-                              disabled={lessonUpdatingId !== null || lessonAdminBusyId !== null}
-                              onClick={() => toggleComplete(l)}
-                            >
-                              {lessonUpdatingId === l.id
-                                ? 'Guardando...'
-                                : l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
-                            </button>
+              lessons.map((l, lessonIndex) => {
+                const isExpanded = expandedLessonIds.includes(l.id)
+                const focusedActivity = modulePracticalActivities.length > 1 && lessonIndex < modulePracticalActivities.length
+                  ? modulePracticalActivities[lessonIndex]
+                  : null
+                const hasAnyLessonStudyContext = Boolean(
+                  module.objective ||
+                  module.importance ||
+                  modulePracticalActivities.length > 0 ||
+                  moduleDeliverables.length > 0 ||
+                  moduleOfficialResources.length > 0 ||
+                  moduleSupportVideos.length > 0
+                )
+
+                return (
+                  <div key={l.id} className="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+                    <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+                      {isAdmin && editingLessonId === l.id ? (
+                        <form onSubmit={event => void handleUpdateLesson(event, l.id)} className="flex flex-1 flex-wrap items-center gap-2">
+                          <input
+                            aria-label="Editar título de la lección"
+                            value={editLessonTitle}
+                            onChange={e => setEditLessonTitle(e.target.value)}
+                            required
+                            className="form-field min-w-[200px] flex-1"
+                          />
+                          <button
+                            type="submit"
+                            disabled={lessonAdminBusyId !== null || !editLessonTitle.trim()}
+                            className="primary-action px-3 py-1.5 text-sm"
+                          >
+                            {lessonAdminBusyId === l.id ? 'Guardando...' : 'Guardar'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={lessonAdminBusyId !== null}
+                            onClick={cancelEditLesson}
+                            className="secondary-action px-3 py-1.5 text-sm"
+                          >
+                            Cancelar
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            aria-expanded={isExpanded}
+                            onClick={() => toggleLessonExpanded(l.id)}
+                            className="min-w-0 flex-1 text-left transition hover:opacity-90"
+                          >
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                l.completed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {l.completed ? 'Completada' : 'Pendiente'}
+                              </span>
+                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                Lección {lessonIndex + 1}
+                              </span>
+                              <span className="text-xs font-medium text-sky-700">
+                                {isExpanded ? 'Ocultar contenido ▴' : 'Ver contenido ▾'}
+                              </span>
+                            </div>
+                            <div className={`text-sm font-medium ${l.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>
+                              {l.title}
+                            </div>
+                          </button>
+                          {(user || isAdmin) && (
+                            <div className="flex flex-wrap items-center gap-3 shrink-0">
+                              {user && (
+                                <button
+                                  type="button"
+                                  className="text-sm font-medium text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                                  disabled={lessonUpdatingId !== null || lessonAdminBusyId !== null}
+                                  onClick={() => toggleComplete(l)}
+                                >
+                                  {lessonUpdatingId === l.id
+                                    ? 'Guardando...'
+                                    : l.completed ? 'Marcar como pendiente' : 'Marcar completada'}
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    aria-label={`Editar lección ${l.title}`}
+                                    disabled={lessonAdminBusyId !== null || lessonUpdatingId !== null}
+                                    onClick={() => startEditLesson(l)}
+                                    className="text-sm font-medium text-sky-700 hover:text-sky-900 disabled:cursor-not-allowed disabled:text-slate-400"
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Eliminar lección ${l.title}`}
+                                    disabled={lessonAdminBusyId !== null || lessonUpdatingId !== null}
+                                    onClick={() => void handleDeleteLesson(l)}
+                                    className="text-sm font-medium text-red-700 hover:text-red-900 disabled:cursor-not-allowed disabled:text-slate-400"
+                                  >
+                                    {lessonAdminBusyId === l.id ? 'Eliminando...' : 'Eliminar'}
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           )}
-                          {isAdmin && (
-                            <>
-                              <button
-                                type="button"
-                                aria-label={`Editar lección ${l.title}`}
-                                disabled={lessonAdminBusyId !== null || lessonUpdatingId !== null}
-                                onClick={() => startEditLesson(l)}
-                                className="text-sm font-medium text-sky-700 hover:text-sky-900 disabled:cursor-not-allowed disabled:text-slate-400"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                aria-label={`Eliminar lección ${l.title}`}
-                                disabled={lessonAdminBusyId !== null || lessonUpdatingId !== null}
-                                onClick={() => void handleDeleteLesson(l)}
-                                className="text-sm font-medium text-red-700 hover:text-red-900 disabled:cursor-not-allowed disabled:text-slate-400"
-                              >
-                                {lessonAdminBusyId === l.id ? 'Eliminando...' : 'Eliminar'}
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        </>
                       )}
-                    </>
-                  )}
-                </div>
-              ))
+                    </div>
+
+                    {isExpanded && editingLessonId !== l.id && (
+                      <div className="border-t border-slate-200 bg-white p-4 text-sm text-slate-700">
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <div className="space-y-3">
+                            <div>
+                              <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                Tema de la lección
+                              </h3>
+                              <p className="mt-1 font-medium text-slate-900">{l.title}</p>
+                            </div>
+
+                            {module.objective && (
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  Objetivo del módulo
+                                </h4>
+                                <p className="mt-1 leading-6 text-slate-600">{module.objective}</p>
+                              </div>
+                            )}
+
+                            {module.importance && (
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  Por qué es importante
+                                </h4>
+                                <p className="mt-1 leading-6 text-slate-600">{module.importance}</p>
+                              </div>
+                            )}
+
+                            {!hasAnyLessonStudyContext && (
+                              <p className="rounded-md border border-slate-200 bg-slate-50 p-3 text-slate-600">
+                                Esta lección cubre: <span className="font-medium text-slate-800">{l.title}</span>. Marca la lección como completada cuando termines su estudio.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="space-y-3">
+                            {(focusedActivity || modulePracticalActivities.length > 0) && (
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  Práctica recomendada
+                                </h4>
+                                {focusedActivity ? (
+                                  <p className="mt-1 rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-950">
+                                    {focusedActivity}
+                                  </p>
+                                ) : (
+                                  <ul className="mt-1 space-y-1.5 text-slate-600">
+                                    {modulePracticalActivities.map(activity => (
+                                      <li key={activity} className="flex gap-2">
+                                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                        <span>{activity}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+
+                            {moduleDeliverables.length > 0 && (
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  Evidencia entregable
+                                </h4>
+                                <ul className="mt-1 space-y-1.5 text-slate-600">
+                                  {moduleDeliverables.map(item => (
+                                    <li key={item} className="flex gap-2">
+                                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
+                                      <span>{item}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {moduleOfficialResources.length > 0 && (
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  Recursos oficiales para estudiar
+                                </h4>
+                                <ul className="mt-1.5 grid gap-1.5">
+                                  {moduleOfficialResources.map(resource => (
+                                    <li key={`${resource.label}-${resource.url || 'plain'}`}>
+                                      {resource.url ? (
+                                        <a
+                                          href={resource.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex items-center justify-between gap-2 rounded-md border border-sky-100 bg-sky-50 px-3 py-1.5 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100"
+                                        >
+                                          <span>{resource.label}</span>
+                                          <span className="text-xs font-semibold uppercase">Abrir</span>
+                                        </a>
+                                      ) : (
+                                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-700">
+                                          {resource.label}
+                                        </div>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {moduleSupportVideos.length > 0 && (
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  Recursos complementarios
+                                </h4>
+                                <ul className="mt-1.5 grid gap-1.5">
+                                  {moduleSupportVideos.map(resource => (
+                                    <li key={`${resource.label}-${resource.url || 'plain'}`}>
+                                      {resource.url ? (
+                                        <a
+                                          href={resource.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-800 transition hover:border-slate-300 hover:bg-slate-100"
+                                        >
+                                          <span>{resource.label}</span>
+                                          <span className="text-xs font-semibold uppercase">Abrir</span>
+                                        </a>
+                                      ) : (
+                                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-700">
+                                          {resource.label}
+                                        </div>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })
             ) : (
               <p className="text-sm text-slate-500">No hay lecciones todavía.</p>
             )}

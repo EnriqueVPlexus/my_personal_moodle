@@ -91,6 +91,8 @@ describe('persistRoadmapImport (postgres backend)', () => {
       if (/SELECT id FROM modules WHERE roadmap_id = \$1 AND position/i.test(sql)) return { rows: [], rowCount: 0 }
       if (/SELECT id FROM modules WHERE roadmap_id = \$1 AND title/i.test(sql)) return { rows: [], rowCount: 0 }
       if (/INSERT INTO modules/i.test(sql)) return { rows: [{ id: 100 }], rowCount: 1 }
+      if (/SELECT COUNT\(\*\) AS count FROM lessons WHERE module_id = \$1/i.test(sql)) return { rows: [{ count: 0 }], rowCount: 1 }
+      if (/INSERT INTO lessons/i.test(sql)) return { rows: [{ id: 200 }], rowCount: 1 }
       throw new Error(`Unexpected query: ${sql}`)
     })
 

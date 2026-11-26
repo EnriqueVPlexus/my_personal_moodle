@@ -103,6 +103,14 @@ describe('SQLite database bootstrap', () => {
          AND modules.duration_weeks_min IS NOT NULL AND modules.duration_weeks_max IS NOT NULL`,
       ['Roadmap AWS para cantera junior DevOps']
     )
+    const lessonTotal = await db.get('SELECT COUNT(*) AS count FROM lessons')
+    const modulesWithoutLessons = await db.get(`
+      SELECT COUNT(*) AS count
+      FROM modules
+      LEFT JOIN lessons ON lessons.module_id = modules.id
+      GROUP BY modules.id
+      HAVING COUNT(lessons.id) = 0
+    `)
 
     expect(awsRoadmap.title).toBe('Roadmap AWS para cantera junior DevOps')
     expect(aiRoadmap.title).toBe('Roadmap IA para SRE/DevOps - Versión 2.0')
@@ -166,6 +174,8 @@ describe('SQLite database bootstrap', () => {
       topic_count: 6
     })
     expect(classifiedAwsModules.count).toBe(12)
+    expect(lessonTotal.count).toBeGreaterThan(0)
+    expect(modulesWithoutLessons).toBeUndefined()
 
     await db.close()
   })
@@ -209,7 +219,7 @@ describe('SQLite database bootstrap', () => {
 
     vi.resetModules()
     process.env.ADMIN_PASSWORD = 'short'
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => { })
     const secondImport = await import('../lib/persistence')
     const secondDb = await secondImport.openDb()
 

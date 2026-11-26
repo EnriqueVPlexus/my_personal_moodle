@@ -276,7 +276,9 @@ describe('Next pages', () => {
       position: 1,
       duration: '1 semana',
       objective: 'Compute foundations',
-      contents: '[]',
+      contents: '["SSH basics","Instance review"]',
+      official_resources: '[{"label":"Docs EC2","url":"https://docs.aws.amazon.com/ec2/"}]',
+      practical_activity: '["Conectar por SSH","Revisar instancia"]',
       progress: {
         total_lessons: 2,
         completed_lessons_count: 1,
@@ -359,6 +361,19 @@ describe('Next pages', () => {
     expect(screen.getByText('Progreso del módulo')).toBeInTheDocument()
     expect(screen.getByText('1/2 lecciones')).toBeInTheDocument()
     expect(screen.getByText('15 min acumulado en este módulo.')).toBeInTheDocument()
+    expect(screen.getByText('Lección 1')).toBeInTheDocument()
+
+    const firstLessonToggle = screen.getByRole('button', { name: /Lección 1.*SSH basics/i })
+    expect(firstLessonToggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(firstLessonToggle)
+    expect(firstLessonToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Tema de la lección')).toBeInTheDocument()
+    expect(screen.getByText('Recursos oficiales para estudiar')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /Docs EC2/i }).length).toBeGreaterThanOrEqual(2)
+    fireEvent.click(firstLessonToggle)
+    expect(firstLessonToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Tema de la lección')).not.toBeInTheDocument()
+
     expect(await screen.findByText('Quiz del módulo')).toBeInTheDocument()
     // The learner answers the quiz of the attempt session, not the module-detail preview.
     expect(await screen.findByText('Te quedan 2 intentos.')).toBeInTheDocument()
