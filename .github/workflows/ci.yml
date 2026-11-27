@@ -1,0 +1,104 @@
+name: CI
+
+# Quality gate for every pull request and every push to develop/main.
+# docker-publish.yml also calls this workflow (workflow_call) so no image is
+# published unless these checks pass.
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+# A newer push to the same PR/branch cancels the run still in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Same major version as the Docker image (Dockerfile: node:20-alpine).
+  # Change both together.
+  NODE_VERSION: '20'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  checks:
+    name: Lint, types, unit tests, audit and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Check roadmap seeds
+        run: |
+          node test/aws-roadmap-seed.test.mjs
+          node test/roadmap-seeds.test.mjs
+
+      # Unit tests always run on SQLite (vitest.config.ts blanks DATABASE_URL)
+      # and enforce the 80% coverage thresholds configured there.
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build
+        run: npm run build
+
+  integration:
+    name: Postgres integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Ephemeral database that exists only inside this job, mirroring
+    # docker-compose.test.yml. Never point these tests at a real database.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app_test"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npx tsx scripts/migrate.ts up
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Integration tests
+        run: npm run test:integration:run

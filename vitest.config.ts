@@ -9,6 +9,9 @@ export default defineConfig({
     include: ['test/**/*.test.{ts,tsx}'],
     // Real-Postgres tests have their own config (vitest.integration.config.ts).
     exclude: [...configDefaults.exclude, 'test/postgres-integration/**'],
+    // SQLite-backed tests take ~1-2s alone but can pass the 5s default under
+    // coverage instrumentation on a loaded machine or CI runner.
+    testTimeout: 15000,
     // openDb() switches to Postgres whenever DATABASE_URL is set (e.g. loaded
     // by direnv from .env.local). Blank it so unit tests always use SQLite and
     // never touch a real database.

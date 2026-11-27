@@ -230,14 +230,6 @@ describeIfPostgres('migration 0005: roadmap content fixes (real postgres, throwa
     `.execute(db)).rows
     expect(Number(awsLessons)).toBeGreaterThan(0)
 
-    const [{ count: awsLessons }] = (await sql<{ count: string }>`
-      SELECT COUNT(*) AS count
-      FROM lessons
-      INNER JOIN modules ON modules.id = lessons.module_id
-      WHERE modules.roadmap_id = ${awsRoadmap}
-    `.execute(db)).rows
-    expect(Number(awsLessons)).toBeGreaterThan(0)
-
     // Roadmap-level corrected fields.
     const [roadmap] = (await sql<Record<string, unknown>>`SELECT * FROM roadmaps WHERE id = ${awsRoadmap}`.execute(db)).rows
     expect(roadmap.description).toBe(aws.roadmap.description)
