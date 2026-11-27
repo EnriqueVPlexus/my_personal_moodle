@@ -264,4 +264,109 @@ describe('admin evidences page', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Error al comunicar con el servidor.')
   })
+
+  it('filters evidences by user, roadmap, search query and clears filters', async () => {
+    mockAuth({ user: adminUser, isAdmin: true })
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse([
+      {
+        id: 1,
+        evidence_type: 'github',
+        url: 'https://github.com/example/ci-cd',
+        note: 'Pipeline completo',
+        review_status: 'pendiente',
+        admin_comment: '',
+        updated_at: '2026-07-20T10:00:00.000Z',
+        user_email: 'ada@example.com',
+        user_name: 'Ada Lovelace',
+        module_id: 7,
+        module_title: 'CI/CD',
+        roadmap_title: 'DevOps Junior'
+      },
+      {
+        id: 2,
+        evidence_type: 'demo',
+        url: null,
+        note: 'Despliegue EC2 con usuario IAM',
+        review_status: 'aprobado',
+        admin_comment: 'Correcto',
+        updated_at: '2026-07-21T10:00:00.000Z',
+        user_email: 'ada@example.com',
+        user_name: 'Ada Lovelace',
+        module_id: 8,
+        module_title: 'Amazon EC2',
+        roadmap_title: 'Roadmap AWS para cantera junior DevOps'
+      },
+      {
+        id: 3,
+        evidence_type: 'document',
+        url: null,
+        note: 'Arquitectura VPC multi-AZ',
+        review_status: 'pendiente',
+        admin_comment: '',
+        updated_at: '2026-07-22T10:00:00.000Z',
+        user_email: 'grace@example.com',
+        user_name: 'Grace Hopper',
+        module_id: 9,
+        module_title: 'Amazon VPC',
+        roadmap_title: 'Roadmap AWS para cantera junior DevOps'
+      }
+    ]))
+
+    const EvidencesPage = (await import('../pages/admin/evidences')).default
+    render(<EvidencesPage />)
+
+    expect(await screen.findByText('CI/CD')).toBeInTheDocument()
+    expect(screen.getByText('3 evidencias')).toBeInTheDocument()
+
+    // Filter by user using searchable combobox
+    const userInput = screen.getByRole('combobox', { name: 'Filtrar por usuario' })
+    fireEvent.focus(userInput)
+    fireEvent.change(userInput, { target: { value: 'grace' } })
+    expect(screen.queryByRole('option', { name: 'Ada Lovelace (ada@example.com)' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: 'Grace Hopper (grace@example.com)' }))
+
+    expect(screen.getByText('Usuario: Grace Hopper (grace@example.com)')).toBeInTheDocument()
+    expect(screen.getByText('Mostrando 1 de 3 evidencias')).toBeInTheDocument()
+    expect(screen.getByText('Amazon VPC')).toBeInTheDocument()
+    expect(screen.queryByText('CI/CD')).not.toBeInTheDocument()
+    expect(screen.queryByText('Amazon EC2')).not.toBeInTheDocument()
+
+    // Remove user chip and filter by roadmap using searchable combobox
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar filtro de usuario' }))
+    expect(screen.getByText('3 evidencias')).toBeInTheDocument()
+
+    const roadmapInput = screen.getByRole('combobox', { name: 'Filtrar por roadmap' })
+    fireEvent.focus(roadmapInput)
+    fireEvent.change(roadmapInput, { target: { value: 'aws' } })
+    fireEvent.click(screen.getByRole('option', { name: 'Roadmap AWS para cantera junior DevOps' }))
+
+    expect(screen.getByText('Roadmap: Roadmap AWS para cantera junior DevOps')).toBeInTheDocument()
+    expect(screen.getByText('Mostrando 2 de 3 evidencias')).toBeInTheDocument()
+    expect(screen.getByText('Amazon EC2')).toBeInTheDocument()
+    expect(screen.getByText('Amazon VPC')).toBeInTheDocument()
+    expect(screen.queryByText('CI/CD')).not.toBeInTheDocument()
+
+    // Combine with user filter
+    fireEvent.focus(userInput)
+    fireEvent.change(userInput, { target: { value: 'ada' } })
+    fireEvent.click(screen.getByRole('option', { name: 'Ada Lovelace (ada@example.com)' }))
+    expect(screen.getByText('Mostrando 1 de 3 evidencias')).toBeInTheDocument()
+    expect(screen.getByText('Amazon EC2')).toBeInTheDocument()
+    expect(screen.queryByText('Amazon VPC')).not.toBeInTheDocument()
+
+    // Non-matching user + roadmap combination
+    fireEvent.focus(userInput)
+    fireEvent.change(userInput, { target: { value: 'grace' } })
+    fireEvent.click(screen.getByRole('option', { name: 'Grace Hopper (grace@example.com)' }))
+    fireEvent.focus(roadmapInput)
+    fireEvent.change(roadmapInput, { target: { value: 'devops' } })
+    fireEvent.click(screen.getByRole('option', { name: 'DevOps Junior' }))
+    expect(screen.getByText('No hay evidencias que coincidan con los filtros seleccionados.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(screen.getByText('3 evidencias')).toBeInTheDocument()
+    expect(screen.getByText('CI/CD')).toBeInTheDocument()
+    expect(screen.getByText('Amazon EC2')).toBeInTheDocument()
+    expect(screen.getByText('Amazon VPC')).toBeInTheDocument()
+  })
 })
