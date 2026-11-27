@@ -100,5 +100,11 @@ jobs:
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
+      # Kysely's FileMigrationProvider loads migrations/*.ts with Node's own
+      # import(), which Node 20 cannot do (ERR_UNKNOWN_FILE_EXTENSION; Node 22.18+
+      # strips types natively). Register tsx as the loader, as scripts/migrate.ts
+      # already runs through tsx.
       - name: Integration tests
         run: npm run test:integration:run
+        env:
+          NODE_OPTIONS: --import tsx
