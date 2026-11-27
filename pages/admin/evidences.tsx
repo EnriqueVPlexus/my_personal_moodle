@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
@@ -7,6 +7,163 @@ import { branding } from '../../lib/branding'
 import type { EvidenceListItem } from '../../lib/contracts'
 
 type EvidenceRow = EvidenceListItem
+
+type FilterOption = {
+  key: string
+  label: string
+}
+
+type SearchableFilterComboboxProps = {
+  label: string
+  placeholder: string
+  allLabel: string
+  options: FilterOption[]
+  selectedKey: string
+  onSelect: (key: string) => void
+}
+
+function normalizeSearchText(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
+
+function SearchableFilterCombobox({
+  label,
+  placeholder,
+  allLabel,
+  options,
+  selectedKey,
+  onSelect
+}: SearchableFilterComboboxProps) {
+  const [query, setQuery] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const listboxId = useId()
+
+  const selectedOption = useMemo(
+    () => options.find(option => option.key === selectedKey) ?? null,
+    [options, selectedKey]
+  )
+
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = normalizeSearchText(query)
+    if (!normalizedQuery) return options.slice(0, 15)
+    return options
+      .filter(option => normalizeSearchText(option.label).includes(normalizedQuery))
+      .slice(0, 15)
+  }, [options, query])
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
+  function chooseOption(key: string) {
+    onSelect(key)
+    setQuery('')
+    setIsOpen(false)
+  }
+
+  const displayValue = isOpen ? query : (selectedOption?.label ?? '')
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          role="combobox"
+          aria-label={label}
+          aria-controls={listboxId}
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          value={displayValue}
+          placeholder={selectedOption ? selectedOption.label : placeholder}
+          onFocus={() => {
+            setQuery('')
+            setIsOpen(true)
+          }}
+          onChange={e => {
+            setQuery(e.target.value)
+            if (!isOpen) setIsOpen(true)
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') {
+              setIsOpen(false)
+              setQuery('')
+            } else if (e.key === 'Enter' && isOpen && query.trim() && filteredOptions.length > 0) {
+              e.preventDefault()
+              chooseOption(filteredOptions[0].key)
+            }
+          }}
+          className="form-field pr-8"
+        />
+        {selectedKey !== 'all' ? (
+          <button
+            type="button"
+            aria-label={`Restablecer ${label.toLowerCase()}`}
+            onClick={() => chooseOption('all')}
+            className="absolute right-2 rounded px-1 text-xs font-bold text-slate-400 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        ) : (
+          <span aria-hidden="true" className="pointer-events-none absolute right-2.5 text-xs text-slate-400">
+            ▾
+          </span>
+        )}
+      </div>
+
+      {isOpen && (
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-label={label}
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg"
+        >
+          <li>
+            <button
+              type="button"
+              role="option"
+              aria-selected={selectedKey === 'all'}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => chooseOption('all')}
+              className={`flex w-full items-center justify-between px-3 py-2 text-left transition hover:bg-slate-50 ${
+                selectedKey === 'all' ? 'bg-sky-50 font-semibold text-sky-800' : 'text-slate-700'
+              }`}
+            >
+              <span>{allLabel}</span>
+            </button>
+          </li>
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map(option => (
+              <li key={option.key}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedKey === option.key}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => chooseOption(option.key)}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left transition hover:bg-slate-50 ${
+                    selectedKey === option.key ? 'bg-sky-50 font-semibold text-sky-800' : 'text-slate-700'
+                  }`}
+                >
+                  <span className="truncate">{option.label}</span>
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="px-3 py-2 text-xs text-slate-500">Sin coincidencias</li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 
 const typeLabels: Record<EvidenceRow['evidence_type'], string> = {
@@ -33,6 +190,8 @@ export default function AdminEvidencesPage() {
   const { isAdmin, loading } = useAuth()
   const [evidences, setEvidences] = useState<EvidenceRow[]>([])
   const [activeStatusFilter, setActiveStatusFilter] = useState<string>('all')
+  const [userFilter, setUserFilter] = useState('all')
+  const [roadmapFilter, setRoadmapFilter] = useState('all')
   const [loadingRows, setLoadingRows] = useState(true)
   const [error, setError] = useState('')
 
@@ -70,6 +229,48 @@ export default function AdminEvidencesPage() {
   useEffect(() => {
     if (isAdmin) load(activeStatusFilter)
   }, [isAdmin, activeStatusFilter, load])
+
+  const userOptions = useMemo(() => {
+    const usersByEmail = new Map<string, string>()
+    evidences.forEach(row => {
+      if (!row.user_email) return
+      const label = row.user_name ? `${row.user_name} (${row.user_email})` : row.user_email
+      if (!usersByEmail.has(row.user_email)) {
+        usersByEmail.set(row.user_email, label)
+      }
+    })
+    return Array.from(usersByEmail.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }))
+  }, [evidences])
+
+  const roadmapOptions = useMemo(() => {
+    return Array.from(new Set(evidences.map(row => row.roadmap_title).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+      .map(title => ({ key: title, label: title }))
+  }, [evidences])
+
+  const selectedUserOption = useMemo(
+    () => userOptions.find(option => option.key === userFilter) ?? null,
+    [userOptions, userFilter]
+  )
+
+  const hasClientFilters = Boolean(userFilter !== 'all' || roadmapFilter !== 'all')
+  const hasAnyActiveFilter = Boolean(hasClientFilters || activeStatusFilter !== 'all')
+
+  const filteredEvidences = useMemo(() => {
+    return evidences.filter(row => {
+      if (userFilter !== 'all' && row.user_email !== userFilter) return false
+      if (roadmapFilter !== 'all' && row.roadmap_title !== roadmapFilter) return false
+      return true
+    })
+  }, [evidences, userFilter, roadmapFilter])
+
+  function clearFilters() {
+    setUserFilter('all')
+    setRoadmapFilter('all')
+    setActiveStatusFilter('all')
+  }
 
   async function handleReview(evidenceId: number, status: 'aprobado' | 'requiere_cambios' | 'pendiente') {
     setReviewingAction({ id: evidenceId, status })
@@ -127,7 +328,7 @@ export default function AdminEvidencesPage() {
           </div>
         </section>
         <section className="container py-8">
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             {[
               { id: 'all', label: 'Todas' },
               { id: 'pendiente', label: 'Pendientes' },
@@ -148,14 +349,84 @@ export default function AdminEvidencesPage() {
             ))}
           </div>
 
+          <div className="panel mb-6 grid gap-3 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-slate-600">
+                {hasClientFilters
+                  ? `Mostrando ${filteredEvidences.length} de ${evidences.length} ${evidences.length === 1 ? 'evidencia' : 'evidencias'}`
+                  : `${evidences.length} ${evidences.length === 1 ? 'evidencia' : 'evidencias'}`}
+              </span>
+              {hasAnyActiveFilter && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <SearchableFilterCombobox
+                label="Filtrar por usuario"
+                placeholder="Buscar y seleccionar usuario..."
+                allLabel="Todos los usuarios"
+                options={userOptions}
+                selectedKey={userFilter}
+                onSelect={setUserFilter}
+              />
+              <SearchableFilterCombobox
+                label="Filtrar por roadmap"
+                placeholder="Buscar y seleccionar roadmap..."
+                allLabel="Todos los roadmaps"
+                options={roadmapOptions}
+                selectedKey={roadmapFilter}
+                onSelect={setRoadmapFilter}
+              />
+            </div>
+
+            {hasClientFilters && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {selectedUserOption && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">
+                    <span>Usuario: {selectedUserOption.label}</span>
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de usuario"
+                      onClick={() => setUserFilter('all')}
+                      className="text-sky-700 hover:text-sky-950"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+                {roadmapFilter !== 'all' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">
+                    <span>Roadmap: {roadmapFilter}</span>
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de roadmap"
+                      onClick={() => setRoadmapFilter('all')}
+                      className="text-sky-700 hover:text-sky-950"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
           {error && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {loadingRows ? (
             <p className="text-sm text-slate-600">Cargando evidencias...</p>
           ) : evidences.length === 0 ? (
             <div className="panel p-6 text-sm text-slate-600">No hay evidencias en este estado.</div>
+          ) : filteredEvidences.length === 0 ? (
+            <div className="panel p-6 text-sm text-slate-600">No hay evidencias que coincidan con los filtros seleccionados.</div>
           ) : (
             <div className="grid gap-4">
-              {evidences.map(evidence => {
+              {filteredEvidences.map(evidence => {
                 const badge = statusBadge(evidence.review_status)
                 const isSubmitting = reviewingAction?.id === evidence.id
                 const savingStatus = isSubmitting ? reviewingAction.status : null
